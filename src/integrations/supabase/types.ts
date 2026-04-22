@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_agent_settings: {
+        Row: {
+          ai_model: string
+          auto_send_proposal: boolean
+          created_at: string
+          id: string
+          proposal_prompt: string
+          qualifier_enabled: boolean
+          qualifier_prompt: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_model?: string
+          auto_send_proposal?: boolean
+          created_at?: string
+          id?: string
+          proposal_prompt?: string
+          qualifier_enabled?: boolean
+          qualifier_prompt?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_model?: string
+          auto_send_proposal?: boolean
+          created_at?: string
+          id?: string
+          proposal_prompt?: string
+          qualifier_enabled?: boolean
+          qualifier_prompt?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       case_notes: {
         Row: {
           case_id: string
@@ -50,6 +86,7 @@ export type Database = {
         Row: {
           area: Database["public"]["Enums"]["legal_area"]
           client_id: string | null
+          contract_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -57,6 +94,7 @@ export type Database = {
           position: number
           priority: Database["public"]["Enums"]["case_priority"]
           process_number: string | null
+          proposal_id: string | null
           stage: Database["public"]["Enums"]["case_stage"]
           title: string
           updated_at: string
@@ -66,6 +104,7 @@ export type Database = {
         Insert: {
           area?: Database["public"]["Enums"]["legal_area"]
           client_id?: string | null
+          contract_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -73,6 +112,7 @@ export type Database = {
           position?: number
           priority?: Database["public"]["Enums"]["case_priority"]
           process_number?: string | null
+          proposal_id?: string | null
           stage?: Database["public"]["Enums"]["case_stage"]
           title: string
           updated_at?: string
@@ -82,6 +122,7 @@ export type Database = {
         Update: {
           area?: Database["public"]["Enums"]["legal_area"]
           client_id?: string | null
+          contract_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -89,6 +130,7 @@ export type Database = {
           position?: number
           priority?: Database["public"]["Enums"]["case_priority"]
           process_number?: string | null
+          proposal_id?: string | null
           stage?: Database["public"]["Enums"]["case_stage"]
           title?: string
           updated_at?: string
@@ -147,8 +189,69 @@ export type Database = {
         }
         Relationships: []
       }
+      contracts: {
+        Row: {
+          case_id: string | null
+          client_id: string | null
+          created_at: string
+          id: string
+          proposal_id: string | null
+          sent_at: string | null
+          signed_at: string | null
+          signed_file_url: string | null
+          signing_url: string | null
+          status: Database["public"]["Enums"]["contract_status"]
+          template_id: string | null
+          updated_at: string
+          user_id: string
+          variables: Json | null
+          viewed_at: string | null
+          zapsign_document_id: string | null
+          zapsign_signer_id: string | null
+        }
+        Insert: {
+          case_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          proposal_id?: string | null
+          sent_at?: string | null
+          signed_at?: string | null
+          signed_file_url?: string | null
+          signing_url?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          template_id?: string | null
+          updated_at?: string
+          user_id: string
+          variables?: Json | null
+          viewed_at?: string | null
+          zapsign_document_id?: string | null
+          zapsign_signer_id?: string | null
+        }
+        Update: {
+          case_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          proposal_id?: string | null
+          sent_at?: string | null
+          signed_at?: string | null
+          signed_file_url?: string | null
+          signing_url?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          template_id?: string | null
+          updated_at?: string
+          user_id?: string
+          variables?: Json | null
+          viewed_at?: string | null
+          zapsign_document_id?: string | null
+          zapsign_signer_id?: string | null
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
+          ai_handled: boolean
           client_id: string | null
           contact_name: string | null
           created_at: string
@@ -162,6 +265,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_handled?: boolean
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
@@ -175,6 +279,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_handled?: boolean
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
@@ -196,6 +301,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lead_qualifications: {
+        Row: {
+          case_id: string | null
+          client_id: string | null
+          conversation_id: string | null
+          created_at: string
+          description: string | null
+          estimated_value: number | null
+          id: string
+          legal_area: string | null
+          qualified: boolean
+          raw_data: Json | null
+          score: number | null
+          updated_at: string
+          urgency: string | null
+          user_id: string
+        }
+        Insert: {
+          case_id?: string | null
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_value?: number | null
+          id?: string
+          legal_area?: string | null
+          qualified?: boolean
+          raw_data?: Json | null
+          score?: number | null
+          updated_at?: string
+          urgency?: string | null
+          user_id: string
+        }
+        Update: {
+          case_id?: string | null
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_value?: number | null
+          id?: string
+          legal_area?: string | null
+          qualified?: boolean
+          raw_data?: Json | null
+          score?: number | null
+          updated_at?: string
+          urgency?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -274,6 +430,96 @@ export type Database = {
         }
         Relationships: []
       }
+      proposals: {
+        Row: {
+          ai_generated: boolean
+          case_id: string | null
+          client_id: string | null
+          created_at: string
+          estimated_duration: string | null
+          id: string
+          payment_terms: string | null
+          responded_at: string | null
+          scope: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["proposal_status"]
+          title: string
+          updated_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          ai_generated?: boolean
+          case_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          estimated_duration?: string | null
+          id?: string
+          payment_terms?: string | null
+          responded_at?: string | null
+          scope: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["proposal_status"]
+          title: string
+          updated_at?: string
+          user_id: string
+          value?: number
+        }
+        Update: {
+          ai_generated?: boolean
+          case_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          estimated_duration?: string | null
+          id?: string
+          payment_terms?: string | null
+          responded_at?: string | null
+          scope?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["proposal_status"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      zapsign_templates: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+          variables: Json | null
+          zapsign_template_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+          variables?: Json | null
+          zapsign_template_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+          variables?: Json | null
+          zapsign_template_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -291,6 +537,13 @@ export type Database = {
         | "aguardando"
         | "concluido"
         | "arquivado"
+      contract_status:
+        | "pendente"
+        | "enviado"
+        | "visualizado"
+        | "assinado"
+        | "recusado"
+        | "expirado"
       conversation_status: "open" | "pending" | "closed"
       legal_area:
         | "civel"
@@ -304,6 +557,7 @@ export type Database = {
         | "outro"
       message_direction: "inbound" | "outbound"
       message_status: "pending" | "sent" | "delivered" | "read" | "failed"
+      proposal_status: "rascunho" | "enviada" | "aceita" | "recusada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -441,6 +695,14 @@ export const Constants = {
         "concluido",
         "arquivado",
       ],
+      contract_status: [
+        "pendente",
+        "enviado",
+        "visualizado",
+        "assinado",
+        "recusado",
+        "expirado",
+      ],
       conversation_status: ["open", "pending", "closed"],
       legal_area: [
         "civel",
@@ -455,6 +717,7 @@ export const Constants = {
       ],
       message_direction: ["inbound", "outbound"],
       message_status: ["pending", "sent", "delivered", "read", "failed"],
+      proposal_status: ["rascunho", "enviada", "aceita", "recusada"],
     },
   },
 } as const

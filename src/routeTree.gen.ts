@@ -13,8 +13,11 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ClientesRouteImport } from './routes/clientes'
+import { Route as AgentesRouteImport } from './routes/agentes'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -36,9 +39,19 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContratosRoute = ContratosRouteImport.update({
+  id: '/contratos',
+  path: '/contratos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientesRoute = ClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentesRoute = AgentesRouteImport.update({
+  id: '/agentes',
+  path: '/agentes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -46,54 +59,92 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicZapsignWebhookRoute = ApiPublicZapsignWebhookRouteImport.update({
+  id: '/api/public/zapsign-webhook',
+  path: '/api/public/zapsign-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
+  '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
+  '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
+  '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
+  '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
+  '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
+  '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/clientes' | '/dashboard' | '/inbox' | '/kanban' | '/login'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/clientes' | '/dashboard' | '/inbox' | '/kanban' | '/login'
-  id:
-    | '__root__'
+  fullPaths:
     | '/'
+    | '/agentes'
     | '/clientes'
+    | '/contratos'
     | '/dashboard'
     | '/inbox'
     | '/kanban'
     | '/login'
+    | '/api/public/zapsign-webhook'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/agentes'
+    | '/clientes'
+    | '/contratos'
+    | '/dashboard'
+    | '/inbox'
+    | '/kanban'
+    | '/login'
+    | '/api/public/zapsign-webhook'
+  id:
+    | '__root__'
+    | '/'
+    | '/agentes'
+    | '/clientes'
+    | '/contratos'
+    | '/dashboard'
+    | '/inbox'
+    | '/kanban'
+    | '/login'
+    | '/api/public/zapsign-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgentesRoute: typeof AgentesRoute
   ClientesRoute: typeof ClientesRoute
+  ContratosRoute: typeof ContratosRoute
   DashboardRoute: typeof DashboardRoute
   InboxRoute: typeof InboxRoute
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
+  ApiPublicZapsignWebhookRoute: typeof ApiPublicZapsignWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -126,11 +177,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contratos': {
+      id: '/contratos'
+      path: '/contratos'
+      fullPath: '/contratos'
+      preLoaderRoute: typeof ContratosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clientes': {
       id: '/clientes'
       path: '/clientes'
       fullPath: '/clientes'
       preLoaderRoute: typeof ClientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agentes': {
+      id: '/agentes'
+      path: '/agentes'
+      fullPath: '/agentes'
+      preLoaderRoute: typeof AgentesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -140,16 +205,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/zapsign-webhook': {
+      id: '/api/public/zapsign-webhook'
+      path: '/api/public/zapsign-webhook'
+      fullPath: '/api/public/zapsign-webhook'
+      preLoaderRoute: typeof ApiPublicZapsignWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgentesRoute: AgentesRoute,
   ClientesRoute: ClientesRoute,
+  ContratosRoute: ContratosRoute,
   DashboardRoute: DashboardRoute,
   InboxRoute: InboxRoute,
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
+  ApiPublicZapsignWebhookRoute: ApiPublicZapsignWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Send, MessageSquare } from "lucide-react";
+import { Plus, Send, MessageSquare, Bot, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import { qualifierReply, extractQualification, generateProposal } from "@/server/ai-agent.functions";
+import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/inbox")({
   head: () => ({ meta: [{ title: "Inbox WhatsApp — Lex CRM" }] }),
@@ -39,11 +41,13 @@ type Message = {
 
 function InboxPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
+  const [aiBusy, setAiBusy] = useState<string | null>(null);
   const [newConv, setNewConv] = useState({ phone: "", contact_name: "" });
 
   const loadConvs = async () => {
@@ -153,9 +157,32 @@ function InboxPage() {
           </div>
         ) : (
           <>
-            <header className="p-4 border-b">
-              <h2 className="font-semibold">{active.contact_name || active.phone}</h2>
-              <p className="text-xs text-muted-foreground">{active.phone}</p>
+            <header className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="font-semibold">{active.contact_name || active.phone}</h2>
+                <p className="text-xs text-muted-foreground">{active.phone}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" disabled={aiBusy !== null} onClick={async () => {
+                  setAiBusy("reply");
+                  try { await qualifierReply({ data: { conversationId: active.id } }); toast.success("IA respondeu"); }
+                  catch (e: any) { toast.error(e.message); }
+                  finally { setAiBusy(null); }
+                }}><Bot className="h-3 w-3 mr-1" /> {aiBusy === "reply" ? "..." : "IA responder"}</Button>
+                <Button size="sm" variant="outline" disabled={aiBusy !== null} onClick={async () => {
+                  setAiBusy("qual");
+                  try {
+                    const r = await extractQualification({ data: { conversationId: active.id } });
+                    toast.success(`Qualificado: ${r.qualification.legal_area} (score ${r.qualification.score})`);
+                    if (r.qualification.qualified) {
+                      const p = await generateProposal({ data: { qualificationId: r.qualification.id } });
+                      toast.success(`Proposta criada: R$ ${Number(p.proposal.value).toLocaleString("pt-BR")}`);
+                      navigate({ to: "/contratos" });
+                    }
+                  } catch (e: any) { toast.error(e.message); }
+                  finally { setAiBusy(null); }
+                }}><Sparkles className="h-3 w-3 mr-1" /> {aiBusy === "qual" ? "..." : "IA qualificar + proposta"}</Button>
+              </div>
             </header>
             <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-muted/20">
               {messages.map((m) => (
