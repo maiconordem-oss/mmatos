@@ -14,7 +14,266 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      case_notes: {
+        Row: {
+          case_id: string
+          content: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          case_id: string
+          content: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          case_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_notes_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cases: {
+        Row: {
+          area: Database["public"]["Enums"]["legal_area"]
+          client_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          next_action_date: string | null
+          position: number
+          priority: Database["public"]["Enums"]["case_priority"]
+          process_number: string | null
+          stage: Database["public"]["Enums"]["case_stage"]
+          title: string
+          updated_at: string
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          area?: Database["public"]["Enums"]["legal_area"]
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          next_action_date?: string | null
+          position?: number
+          priority?: Database["public"]["Enums"]["case_priority"]
+          process_number?: string | null
+          stage?: Database["public"]["Enums"]["case_stage"]
+          title: string
+          updated_at?: string
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          area?: Database["public"]["Enums"]["legal_area"]
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          next_action_date?: string | null
+          position?: number
+          priority?: Database["public"]["Enums"]["case_priority"]
+          process_number?: string | null
+          stage?: Database["public"]["Enums"]["case_stage"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cases_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          address: string | null
+          created_at: string
+          document: string | null
+          email: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      conversations: {
+        Row: {
+          client_id: string | null
+          contact_name: string | null
+          created_at: string
+          id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          phone: string
+          status: Database["public"]["Enums"]["conversation_status"]
+          unread_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          phone: string
+          status?: Database["public"]["Enums"]["conversation_status"]
+          unread_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          phone?: string
+          status?: Database["public"]["Enums"]["conversation_status"]
+          unread_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string | null
+          conversation_id: string
+          created_at: string
+          direction: Database["public"]["Enums"]["message_direction"]
+          external_id: string | null
+          id: string
+          media_url: string | null
+          status: Database["public"]["Enums"]["message_status"]
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          direction: Database["public"]["Enums"]["message_direction"]
+          external_id?: string | null
+          id?: string
+          media_url?: string | null
+          status?: Database["public"]["Enums"]["message_status"]
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          direction?: Database["public"]["Enums"]["message_direction"]
+          external_id?: string | null
+          id?: string
+          media_url?: string | null
+          status?: Database["public"]["Enums"]["message_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          oab_number: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          oab_number?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          oab_number?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +282,28 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      case_priority: "baixa" | "media" | "alta" | "urgente"
+      case_stage:
+        | "lead"
+        | "qualificacao"
+        | "proposta"
+        | "em_andamento"
+        | "aguardando"
+        | "concluido"
+        | "arquivado"
+      conversation_status: "open" | "pending" | "closed"
+      legal_area:
+        | "civel"
+        | "trabalhista"
+        | "criminal"
+        | "tributario"
+        | "familia"
+        | "empresarial"
+        | "consumidor"
+        | "previdenciario"
+        | "outro"
+      message_direction: "inbound" | "outbound"
+      message_status: "pending" | "sent" | "delivered" | "read" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +430,31 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      case_priority: ["baixa", "media", "alta", "urgente"],
+      case_stage: [
+        "lead",
+        "qualificacao",
+        "proposta",
+        "em_andamento",
+        "aguardando",
+        "concluido",
+        "arquivado",
+      ],
+      conversation_status: ["open", "pending", "closed"],
+      legal_area: [
+        "civel",
+        "trabalhista",
+        "criminal",
+        "tributario",
+        "familia",
+        "empresarial",
+        "consumidor",
+        "previdenciario",
+        "outro",
+      ],
+      message_direction: ["inbound", "outbound"],
+      message_status: ["pending", "sent", "delivered", "read", "failed"],
+    },
   },
 } as const
