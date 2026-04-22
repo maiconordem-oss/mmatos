@@ -89,9 +89,9 @@ function KanbanPage() {
       user_id: user.id,
       title: form.title,
       client_id: form.client_id || null,
-      area: form.area as Case["area"],
-      priority: form.priority as Case["priority"],
-      stage: form.stage as Case["stage"],
+      area: form.area as never,
+      priority: form.priority as never,
+      stage: form.stage as never,
       value: form.value ? Number(form.value) : null,
       process_number: form.process_number || null,
       description: form.description || null,
@@ -111,7 +111,7 @@ function KanbanPage() {
     const id = draggedId;
     setDraggedId(null);
     setCases((prev) => prev.map((c) => (c.id === id ? { ...c, stage } : c)));
-    const { error } = await supabase.from("cases").update({ stage: stage as Case["stage"] }).eq("id", id);
+    const { error } = await supabase.from("cases").update({ stage: stage as never }).eq("id", id);
     if (error) {
       toast.error("Erro ao mover");
       load();
