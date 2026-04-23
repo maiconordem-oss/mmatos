@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Kanban, MessageSquare, Users, LogOut, Scale, Sparkles, FileSignature } from "lucide-react";
+import { LayoutDashboard, Kanban, MessageSquare, Users, LogOut, Scale, Sparkles, FileSignature, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/kanban", label: "Kanban", icon: Kanban },
   { to: "/inbox", label: "Inbox WhatsApp", icon: MessageSquare },
+  { to: "/whatsapp", label: "Conectar WhatsApp", icon: Smartphone },
   { to: "/clientes", label: "Clientes", icon: Users },
   { to: "/contratos", label: "Propostas & Contratos", icon: FileSignature },
   { to: "/agentes", label: "Agentes IA", icon: Sparkles },
