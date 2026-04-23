@@ -247,7 +247,7 @@ function Editor() {
       <Sheet open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
         <SheetContent className="w-[400px] sm:max-w-md overflow-y-auto">
           <SheetHeader><SheetTitle>Configurar etapa</SheetTitle></SheetHeader>
-          {selected && <NodeConfig node={selected} onChange={updateSelected} onDelete={() => {
+          {selected && <NodeConfig node={selected} templates={templates} onChange={updateSelected} onDelete={() => {
             setEdges((eds) => eds.filter((e) => e.source !== selected.id && e.target !== selected.id));
             setNodes((nds) => nds.filter((n) => n.id !== selected.id));
             setSelected(null);
