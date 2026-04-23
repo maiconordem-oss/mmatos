@@ -254,6 +254,25 @@ function Editor() {
           }} />}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={simOpen} onOpenChange={setSimOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><FlaskConical className="h-4 w-4" /> Simulação do fluxo</DialogTitle></DialogHeader>
+          {simLoading ? <p className="text-sm text-muted-foreground">Simulando...</p> : (
+            <ol className="space-y-2">
+              {simSteps.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma etapa encontrada. Conecte as etapas a partir do nó Início.</p>}
+              {simSteps.map((s, i) => (
+                <li key={i} className="border rounded-md p-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">{i + 1}. {s.kind}</div>
+                  <div className="text-sm font-medium">{s.label}</div>
+                  {s.preview && <div className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{s.preview}</div>}
+                </li>
+              ))}
+            </ol>
+          )}
+          <p className="text-xs text-muted-foreground">⚠️ Simulação segue apenas a primeira saída de cada etapa, sem enviar mensagens reais.</p>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -271,7 +290,8 @@ function previewFor(kind: string, cfg: any): string {
   }
 }
 
-function NodeConfig({ node, onChange, onDelete }: { node: Node; onChange: (p: any) => void; onDelete: () => void }) {
+function NodeConfig({ node, onChange, onDelete, templates }:
+  { node: Node; onChange: (p: any) => void; onDelete: () => void; templates: any[] }) {
   const data = node.data as any;
   const kind = data.kind as string;
   const cfg = data.config ?? {};
@@ -334,10 +354,27 @@ function NodeConfig({ node, onChange, onDelete }: { node: Node; onChange: (p: an
       )}
 
       {kind === "contract" && (
-        <div>
-          <Label>Nome do template ZapSign</Label>
-          <Input value={cfg.template_name ?? ""} onChange={(e) => setCfg({ template_name: e.target.value })} placeholder="Ex: Honorários Padrão" />
-        </div>
+        <>
+          <div>
+            <Label>Template ZapSign</Label>
+            {templates.length === 0 ? (
+              <p className="text-xs text-muted-foreground mt-1">
+                Nenhum template cadastrado. Vá em <strong>Propostas & Contratos</strong> para cadastrar templates do ZapSign.
+              </p>
+            ) : (
+              <Select value={cfg.template_id ?? ""} onValueChange={(v) => {
+                const tpl = templates.find((t) => t.id === v);
+                setCfg({ template_id: v, template_name: tpl?.name ?? "" });
+              }}>
+                <SelectTrigger><SelectValue placeholder="Escolha um template" /></SelectTrigger>
+                <SelectContent>
+                  {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">Ao chegar nesta etapa, o contrato é gerado e enviado ao lead via ZapSign.</p>
+        </>
       )}
 
       {kind === "qualify" && (
