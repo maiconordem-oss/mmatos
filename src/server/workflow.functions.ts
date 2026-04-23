@@ -213,14 +213,113 @@ export const startWorkflowForConversation = createServerFn({ method: "POST" })
     return { execution: exec };
   });
 
-export const listExecutions = createServerFn({ method: "GET" })
+export const listExecutions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .inputValidator(z.object({ workflow_id: z.string().uuid().optional() }).parse)
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
       .from("workflow_executions")
-      .select("*, workflows(name, legal_area)")
+      .select("*, workflows(name, legal_area), conversations(contact_name, phone)")
       .order("started_at", { ascending: false })
       .limit(50);
+    if (data.workflow_id) q = q.eq("workflow_id", data.workflow_id);
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return { executions: data ?? [] };
+    return { executions: rows ?? [] };
+  });
+
+export const duplicateWorkflow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid() }).parse)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: src } = await supabase.from("workflows").select("*").eq("id", data.id).single();
+    if (!src) throw new Error("Workflow não encontrado");
+
+    const { data: newWf, error } = await supabase.from("workflows").insert({
+      user_id: userId,
+      name: `${src.name} (cópia)`,
+      description: src.description,
+      legal_area: src.legal_area,
+      is_active: false,
+      is_default: false,
+    }).select().single();
+    if (error) throw new Error(error.message);
+
+    const { data: nodes } = await supabase.from("workflow_nodes").select("*").eq("workflow_id", data.id);
+    const { data: edges } = await supabase.from("workflow_edges").select("*").eq("workflow_id", data.id);
+
+    const idMap = new Map<string, string>();
+    if (nodes?.length) {
+      const newNodes = nodes.map((n: any) => {
+        const newId = crypto.randomUUID();
+        idMap.set(n.id, newId);
+        return {
+          id: newId, user_id: userId, workflow_id: newWf.id,
+          type: n.type, label: n.label,
+          position_x: n.position_x, position_y: n.position_y, config: n.config,
+        };
+      });
+      await supabase.from("workflow_nodes").insert(newNodes);
+    }
+    if (edges?.length) {
+      const newEdges = edges
+        .filter((e: any) => idMap.has(e.source_node_id) && idMap.has(e.target_node_id))
+        .map((e: any) => ({
+          id: crypto.randomUUID(), user_id: userId, workflow_id: newWf.id,
+          source_node_id: idMap.get(e.source_node_id)!,
+          target_node_id: idMap.get(e.target_node_id)!,
+          label: e.label, condition: e.condition,
+        }));
+      if (newEdges.length) await supabase.from("workflow_edges").insert(newEdges);
+    }
+
+    return { workflow: newWf };
+  });
+
+export const simulateWorkflow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({
+    id: z.string().uuid(),
+    leadName: z.string().default("João Lead"),
+  }).parse)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const [{ data: nodes }, { data: edges }] = await Promise.all([
+      supabase.from("workflow_nodes").select("*").eq("workflow_id", data.id),
+      supabase.from("workflow_edges").select("*").eq("workflow_id", data.id),
+    ]);
+    if (!nodes?.length) return { steps: [] };
+
+    const start = nodes.find((n: any) => n.type === "start") ?? nodes[0];
+    const byId = new Map(nodes.map((n: any) => [n.id, n]));
+    const outgoing = (id: string) => (edges ?? []).filter((e: any) => e.source_node_id === id);
+
+    const steps: Array<{ kind: string; label: string; preview: string }> = [];
+    const visited = new Set<string>();
+    let current: any = start;
+    let safety = 0;
+    while (current && !visited.has(current.id) && safety++ < 50) {
+      visited.add(current.id);
+      const cfg = current.config ?? {};
+      let preview = "";
+      switch (current.type) {
+        case "message":
+        case "question": preview = (cfg.text ?? "").replace(/\{\{nome\}\}/gi, data.leadName); break;
+        case "video": case "audio": preview = `🎬 ${cfg.url ?? ""}`; break;
+        case "wait": preview = `⏱ Aguarda ${cfg.minutes ?? 5} minutos`; break;
+        case "qualify": preview = "🤖 IA extrai área, urgência, score do lead"; break;
+        case "proposal": preview = "📄 IA gera proposta de honorários"; break;
+        case "contract": preview = `✍️ Envia contrato (${cfg.template_name ?? "template"}) via ZapSign`; break;
+        case "condition": preview = `🔀 Verifica: ${cfg.kind ?? ""} ${cfg.value ?? ""}`; break;
+        case "handoff": preview = "👤 Transfere para advogado humano"; break;
+        case "start": preview = "▶️ Início"; break;
+        case "end": preview = "🏁 Fim"; break;
+      }
+      steps.push({ kind: current.type, label: current.label ?? current.type, preview });
+      const out = outgoing(current.id);
+      const next = out[0];
+      current = next ? byId.get(next.target_node_id) : null;
+    }
+    return { steps };
   });
