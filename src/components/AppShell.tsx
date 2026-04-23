@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Kanban, MessageSquare, Users, LogOut, Scale, Sparkles, FileSignature, Smartphone } from "lucide-react";
+import { LayoutDashboard, Kanban, MessageSquare, Users, LogOut, Scale, Sparkles, FileSignature, Smartphone, Workflow } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const nav = [
   { to: "/clientes", label: "Clientes", icon: Users },
   { to: "/contratos", label: "Propostas & Contratos", icon: FileSignature },
   { to: "/agentes", label: "Agentes IA", icon: Sparkles },
+  { to: "/workflows", label: "Workflows", icon: Workflow },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
