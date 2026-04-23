@@ -8,7 +8,6 @@ import {
   Handle, Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { AppShell } from "@/components/AppShell";
 import { AuthGate } from "@/components/AuthGate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,18 +16,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowLeft, Save, Plus, MessageSquare, Video, Mic, Clock,
-  HelpCircle, GitBranch, Sparkles, FileText, FileSignature, UserCheck, Flag, Play,
+  HelpCircle, GitBranch, Sparkles, FileText, FileSignature, UserCheck, Flag, Play, FlaskConical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { getWorkflowGraph, saveWorkflowGraph } from "@/server/workflow.functions";
+import { getWorkflowGraph, saveWorkflowGraph, simulateWorkflow } from "@/server/workflow.functions";
+import { listTemplates } from "@/server/zapsign.functions";
 
 export const Route = createFileRoute("/workflows/$id")({
   component: () => (
     <AuthGate>
-      <AppShell><Editor /></AppShell>
+      <Editor />
     </AuthGate>
   ),
 });
@@ -77,12 +78,27 @@ function Editor() {
   const { id } = Route.useParams();
   const getGraph = useServerFn(getWorkflowGraph);
   const saveGraph = useServerFn(saveWorkflowGraph);
+  const simulateFn = useServerFn(simulateWorkflow);
+  const listTpls = useServerFn(listTemplates);
 
   const [workflow, setWorkflow] = useState<any>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [selected, setSelected] = useState<Node | null>(null);
   const [saving, setSaving] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [simOpen, setSimOpen] = useState(false);
+  const [simSteps, setSimSteps] = useState<any[]>([]);
+  const [simLoading, setSimLoading] = useState(false);
+
+  useEffect(() => { listTpls().then((r) => setTemplates(r.templates)).catch(() => {}); }, []);
+
+  const runSimulation = async () => {
+    setSimLoading(true); setSimOpen(true);
+    try { const r = await simulateFn({ data: { id, leadName: "João Lead" } }); setSimSteps(r.steps); }
+    catch (e: any) { toast.error(e.message); }
+    finally { setSimLoading(false); }
+  };
 
   useEffect(() => {
     (async () => {
@@ -179,7 +195,10 @@ function Editor() {
             <div className="text-xs text-muted-foreground capitalize">{workflow?.legal_area ?? ""}</div>
           </div>
         </div>
-        <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-2" /> {saving ? "Salvando..." : "Salvar"}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={runSimulation}><FlaskConical className="h-4 w-4 mr-2" /> Simular</Button>
+          <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-2" /> {saving ? "Salvando..." : "Salvar"}</Button>
+        </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
@@ -228,13 +247,32 @@ function Editor() {
       <Sheet open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
         <SheetContent className="w-[400px] sm:max-w-md overflow-y-auto">
           <SheetHeader><SheetTitle>Configurar etapa</SheetTitle></SheetHeader>
-          {selected && <NodeConfig node={selected} onChange={updateSelected} onDelete={() => {
+          {selected && <NodeConfig node={selected} templates={templates} onChange={updateSelected} onDelete={() => {
             setEdges((eds) => eds.filter((e) => e.source !== selected.id && e.target !== selected.id));
             setNodes((nds) => nds.filter((n) => n.id !== selected.id));
             setSelected(null);
           }} />}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={simOpen} onOpenChange={setSimOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><FlaskConical className="h-4 w-4" /> Simulação do fluxo</DialogTitle></DialogHeader>
+          {simLoading ? <p className="text-sm text-muted-foreground">Simulando...</p> : (
+            <ol className="space-y-2">
+              {simSteps.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma etapa encontrada. Conecte as etapas a partir do nó Início.</p>}
+              {simSteps.map((s, i) => (
+                <li key={i} className="border rounded-md p-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">{i + 1}. {s.kind}</div>
+                  <div className="text-sm font-medium">{s.label}</div>
+                  {s.preview && <div className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{s.preview}</div>}
+                </li>
+              ))}
+            </ol>
+          )}
+          <p className="text-xs text-muted-foreground">⚠️ Simulação segue apenas a primeira saída de cada etapa, sem enviar mensagens reais.</p>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -252,7 +290,8 @@ function previewFor(kind: string, cfg: any): string {
   }
 }
 
-function NodeConfig({ node, onChange, onDelete }: { node: Node; onChange: (p: any) => void; onDelete: () => void }) {
+function NodeConfig({ node, onChange, onDelete, templates }:
+  { node: Node; onChange: (p: any) => void; onDelete: () => void; templates: any[] }) {
   const data = node.data as any;
   const kind = data.kind as string;
   const cfg = data.config ?? {};
@@ -315,10 +354,27 @@ function NodeConfig({ node, onChange, onDelete }: { node: Node; onChange: (p: an
       )}
 
       {kind === "contract" && (
-        <div>
-          <Label>Nome do template ZapSign</Label>
-          <Input value={cfg.template_name ?? ""} onChange={(e) => setCfg({ template_name: e.target.value })} placeholder="Ex: Honorários Padrão" />
-        </div>
+        <>
+          <div>
+            <Label>Template ZapSign</Label>
+            {templates.length === 0 ? (
+              <p className="text-xs text-muted-foreground mt-1">
+                Nenhum template cadastrado. Vá em <strong>Propostas & Contratos</strong> para cadastrar templates do ZapSign.
+              </p>
+            ) : (
+              <Select value={cfg.template_id ?? ""} onValueChange={(v) => {
+                const tpl = templates.find((t) => t.id === v);
+                setCfg({ template_id: v, template_name: tpl?.name ?? "" });
+              }}>
+                <SelectTrigger><SelectValue placeholder="Escolha um template" /></SelectTrigger>
+                <SelectContent>
+                  {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">Ao chegar nesta etapa, o contrato é gerado e enviado ao lead via ZapSign.</p>
+        </>
       )}
 
       {kind === "qualify" && (
