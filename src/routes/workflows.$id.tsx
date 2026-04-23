@@ -195,7 +195,10 @@ function Editor() {
             <div className="text-xs text-muted-foreground capitalize">{workflow?.legal_area ?? ""}</div>
           </div>
         </div>
-        <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-2" /> {saving ? "Salvando..." : "Salvar"}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={runSimulation}><FlaskConical className="h-4 w-4 mr-2" /> Simular</Button>
+          <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-2" /> {saving ? "Salvando..." : "Salvar"}</Button>
+        </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
