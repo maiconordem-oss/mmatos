@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
 import { Route as InboxRouteImport } from './routes/inbox'
@@ -18,7 +19,13 @@ import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AgentesRouteImport } from './routes/agentes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
+import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
 
+const WhatsappRoute = WhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -64,6 +71,12 @@ const ApiPublicZapsignWebhookRoute = ApiPublicZapsignWebhookRouteImport.update({
   path: '/api/public/zapsign-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWhatsappWebhookRoute =
+  ApiPublicWhatsappWebhookRouteImport.update({
+    id: '/api/public/whatsapp-webhook',
+    path: '/api/public/whatsapp-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -74,6 +87,8 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
+  '/whatsapp': typeof WhatsappRoute
+  '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +100,8 @@ export interface FileRoutesByTo {
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
+  '/whatsapp': typeof WhatsappRoute
+  '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
 export interface FileRoutesById {
@@ -97,6 +114,8 @@ export interface FileRoutesById {
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
+  '/whatsapp': typeof WhatsappRoute
+  '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +129,8 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/kanban'
     | '/login'
+    | '/whatsapp'
+    | '/api/public/whatsapp-webhook'
     | '/api/public/zapsign-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +142,8 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/kanban'
     | '/login'
+    | '/whatsapp'
+    | '/api/public/whatsapp-webhook'
     | '/api/public/zapsign-webhook'
   id:
     | '__root__'
@@ -132,6 +155,8 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/kanban'
     | '/login'
+    | '/whatsapp'
+    | '/api/public/whatsapp-webhook'
     | '/api/public/zapsign-webhook'
   fileRoutesById: FileRoutesById
 }
@@ -144,11 +169,20 @@ export interface RootRouteChildren {
   InboxRoute: typeof InboxRoute
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
+  WhatsappRoute: typeof WhatsappRoute
+  ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicZapsignWebhookRoute: typeof ApiPublicZapsignWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/whatsapp': {
+      id: '/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof WhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -212,6 +246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicZapsignWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/whatsapp-webhook': {
+      id: '/api/public/whatsapp-webhook'
+      path: '/api/public/whatsapp-webhook'
+      fullPath: '/api/public/whatsapp-webhook'
+      preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -224,6 +265,8 @@ const rootRouteChildren: RootRouteChildren = {
   InboxRoute: InboxRoute,
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
+  WhatsappRoute: WhatsappRoute,
+  ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicZapsignWebhookRoute: ApiPublicZapsignWebhookRoute,
 }
 export const routeTree = rootRouteImport
