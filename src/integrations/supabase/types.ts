@@ -95,7 +95,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["case_priority"]
           process_number: string | null
           proposal_id: string | null
-          stage: Database["public"]["Enums"]["case_stage"]
+          stage: string
           title: string
           updated_at: string
           user_id: string
@@ -113,7 +113,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["case_priority"]
           process_number?: string | null
           proposal_id?: string | null
-          stage?: Database["public"]["Enums"]["case_stage"]
+          stage?: string
           title: string
           updated_at?: string
           user_id: string
@@ -131,7 +131,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["case_priority"]
           process_number?: string | null
           proposal_id?: string | null
-          stage?: Database["public"]["Enums"]["case_stage"]
+          stage?: string
           title?: string
           updated_at?: string
           user_id?: string
@@ -301,6 +301,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      kanban_stages: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          is_lost: boolean
+          is_won: boolean
+          key: string
+          label: string
+          position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_lost?: boolean
+          is_won?: boolean
+          key: string
+          label: string
+          position?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_lost?: boolean
+          is_won?: boolean
+          key?: string
+          label?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       lead_qualifications: {
         Row: {
