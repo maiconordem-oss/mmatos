@@ -8,7 +8,6 @@ import {
   Handle, Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { AppShell } from "@/components/AppShell";
 import { AuthGate } from "@/components/AuthGate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,18 +16,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowLeft, Save, Plus, MessageSquare, Video, Mic, Clock,
-  HelpCircle, GitBranch, Sparkles, FileText, FileSignature, UserCheck, Flag, Play,
+  HelpCircle, GitBranch, Sparkles, FileText, FileSignature, UserCheck, Flag, Play, FlaskConical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { getWorkflowGraph, saveWorkflowGraph } from "@/server/workflow.functions";
+import { getWorkflowGraph, saveWorkflowGraph, simulateWorkflow } from "@/server/workflow.functions";
+import { listTemplates } from "@/server/zapsign.functions";
 
 export const Route = createFileRoute("/workflows/$id")({
   component: () => (
     <AuthGate>
-      <AppShell><Editor /></AppShell>
+      <Editor />
     </AuthGate>
   ),
 });
