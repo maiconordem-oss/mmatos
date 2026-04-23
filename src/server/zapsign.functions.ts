@@ -84,3 +84,14 @@ export const sendContract = createServerFn({ method: "POST" })
 
     return { contract, zapsignError };
   });
+
+export const listTemplates = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("zapsign_templates")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { templates: data ?? [] };
+  });
