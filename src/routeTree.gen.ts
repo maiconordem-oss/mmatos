@@ -21,6 +21,7 @@ import { Route as AgentesRouteImport } from './routes/agentes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
+import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
 
 const WorkflowsRoute = WorkflowsRouteImport.update({
@@ -83,6 +84,11 @@ const ApiPublicZapsignWebhookRoute = ApiPublicZapsignWebhookRouteImport.update({
   path: '/api/public/zapsign-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWorkflowTickRoute = ApiPublicWorkflowTickRouteImport.update({
+  id: '/api/public/workflow-tick',
+  path: '/api/public/workflow-tick',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWhatsappWebhookRoute =
   ApiPublicWhatsappWebhookRouteImport.update({
     id: '/api/public/whatsapp-webhook',
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/workflows': typeof WorkflowsRouteWithChildren
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/workflows': typeof WorkflowsRouteWithChildren
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
 export interface FileRoutesById {
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/workflows': typeof WorkflowsRouteWithChildren
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
 export interface FileRouteTypes {
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
+    | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
+    | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
   id:
     | '__root__'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
+    | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
   fileRoutesById: FileRoutesById
 }
@@ -196,6 +208,7 @@ export interface RootRouteChildren {
   WhatsappRoute: typeof WhatsappRoute
   WorkflowsRoute: typeof WorkflowsRouteWithChildren
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
+  ApiPublicWorkflowTickRoute: typeof ApiPublicWorkflowTickRoute
   ApiPublicZapsignWebhookRoute: typeof ApiPublicZapsignWebhookRoute
 }
 
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicZapsignWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/workflow-tick': {
+      id: '/api/public/workflow-tick'
+      path: '/api/public/workflow-tick'
+      fullPath: '/api/public/workflow-tick'
+      preLoaderRoute: typeof ApiPublicWorkflowTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/whatsapp-webhook': {
       id: '/api/public/whatsapp-webhook'
       path: '/api/public/whatsapp-webhook'
@@ -319,8 +339,18 @@ const rootRouteChildren: RootRouteChildren = {
   WhatsappRoute: WhatsappRoute,
   WorkflowsRoute: WorkflowsRouteWithChildren,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
+  ApiPublicWorkflowTickRoute: ApiPublicWorkflowTickRoute,
   ApiPublicZapsignWebhookRoute: ApiPublicZapsignWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
