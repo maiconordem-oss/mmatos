@@ -19,6 +19,7 @@ import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AgentesRouteImport } from './routes/agentes'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
 
@@ -72,6 +73,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkflowsIdRoute = WorkflowsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => WorkflowsRoute,
+} as any)
 const ApiPublicZapsignWebhookRoute = ApiPublicZapsignWebhookRouteImport.update({
   id: '/api/public/zapsign-webhook',
   path: '/api/public/zapsign-webhook',
@@ -94,7 +100,8 @@ export interface FileRoutesByFullPath {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/whatsapp': typeof WhatsappRoute
-  '/workflows': typeof WorkflowsRoute
+  '/workflows': typeof WorkflowsRouteWithChildren
+  '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
@@ -108,7 +115,8 @@ export interface FileRoutesByTo {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/whatsapp': typeof WhatsappRoute
-  '/workflows': typeof WorkflowsRoute
+  '/workflows': typeof WorkflowsRouteWithChildren
+  '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
@@ -123,7 +131,8 @@ export interface FileRoutesById {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/whatsapp': typeof WhatsappRoute
-  '/workflows': typeof WorkflowsRoute
+  '/workflows': typeof WorkflowsRouteWithChildren
+  '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
 }
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/whatsapp'
     | '/workflows'
+    | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
     | '/api/public/zapsign-webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/whatsapp'
     | '/workflows'
+    | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
     | '/api/public/zapsign-webhook'
   id:
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/whatsapp'
     | '/workflows'
+    | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
     | '/api/public/zapsign-webhook'
   fileRoutesById: FileRoutesById
@@ -182,7 +194,7 @@ export interface RootRouteChildren {
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
   WhatsappRoute: typeof WhatsappRoute
-  WorkflowsRoute: typeof WorkflowsRoute
+  WorkflowsRoute: typeof WorkflowsRouteWithChildren
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicZapsignWebhookRoute: typeof ApiPublicZapsignWebhookRoute
 }
@@ -259,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workflows/$id': {
+      id: '/workflows/$id'
+      path: '/$id'
+      fullPath: '/workflows/$id'
+      preLoaderRoute: typeof WorkflowsIdRouteImport
+      parentRoute: typeof WorkflowsRoute
+    }
     '/api/public/zapsign-webhook': {
       id: '/api/public/zapsign-webhook'
       path: '/api/public/zapsign-webhook'
@@ -276,6 +295,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface WorkflowsRouteChildren {
+  WorkflowsIdRoute: typeof WorkflowsIdRoute
+}
+
+const WorkflowsRouteChildren: WorkflowsRouteChildren = {
+  WorkflowsIdRoute: WorkflowsIdRoute,
+}
+
+const WorkflowsRouteWithChildren = WorkflowsRoute._addFileChildren(
+  WorkflowsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgentesRoute: AgentesRoute,
@@ -286,7 +317,7 @@ const rootRouteChildren: RootRouteChildren = {
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
   WhatsappRoute: WhatsappRoute,
-  WorkflowsRoute: WorkflowsRoute,
+  WorkflowsRoute: WorkflowsRouteWithChildren,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicZapsignWebhookRoute: ApiPublicZapsignWebhookRoute,
 }
