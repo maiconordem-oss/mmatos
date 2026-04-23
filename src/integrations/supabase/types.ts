@@ -484,6 +484,51 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_instances: {
+        Row: {
+          api_key: string | null
+          api_url: string | null
+          created_at: string
+          id: string
+          instance_name: string
+          last_event_at: string | null
+          phone_number: string | null
+          qr_code: string | null
+          status: Database["public"]["Enums"]["whatsapp_status"]
+          updated_at: string
+          user_id: string
+          webhook_secret: string
+        }
+        Insert: {
+          api_key?: string | null
+          api_url?: string | null
+          created_at?: string
+          id?: string
+          instance_name: string
+          last_event_at?: string | null
+          phone_number?: string | null
+          qr_code?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_status"]
+          updated_at?: string
+          user_id: string
+          webhook_secret?: string
+        }
+        Update: {
+          api_key?: string | null
+          api_url?: string | null
+          created_at?: string
+          id?: string
+          instance_name?: string
+          last_event_at?: string | null
+          phone_number?: string | null
+          qr_code?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_status"]
+          updated_at?: string
+          user_id?: string
+          webhook_secret?: string
+        }
+        Relationships: []
+      }
       zapsign_templates: {
         Row: {
           active: boolean
@@ -558,6 +603,12 @@ export type Database = {
       message_direction: "inbound" | "outbound"
       message_status: "pending" | "sent" | "delivered" | "read" | "failed"
       proposal_status: "rascunho" | "enviada" | "aceita" | "recusada"
+      whatsapp_status:
+        | "disconnected"
+        | "connecting"
+        | "qr"
+        | "connected"
+        | "error"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -718,6 +769,13 @@ export const Constants = {
       message_direction: ["inbound", "outbound"],
       message_status: ["pending", "sent", "delivered", "read", "failed"],
       proposal_status: ["rascunho", "enviada", "aceita", "recusada"],
+      whatsapp_status: [
+        "disconnected",
+        "connecting",
+        "qr",
+        "connected",
+        "error",
+      ],
     },
   },
 } as const
