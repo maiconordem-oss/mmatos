@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/AppShell";
+
 import { AuthGate } from "@/components/AuthGate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,7 +103,6 @@ function WorkflowsPage() {
   };
 
   return (
-    <AppShell>
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -193,6 +192,5 @@ function WorkflowsPage() {
         </SheetContent>
       </Sheet>
     </div>
-    </AppShell>
   );
 }
