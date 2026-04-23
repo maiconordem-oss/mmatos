@@ -529,6 +529,207 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_edges: {
+        Row: {
+          condition: string | null
+          created_at: string
+          id: string
+          label: string | null
+          source_node_id: string
+          target_node_id: string
+          user_id: string
+          workflow_id: string
+        }
+        Insert: {
+          condition?: string | null
+          created_at?: string
+          id?: string
+          label?: string | null
+          source_node_id: string
+          target_node_id: string
+          user_id: string
+          workflow_id: string
+        }
+        Update: {
+          condition?: string | null
+          created_at?: string
+          id?: string
+          label?: string | null
+          source_node_id?: string
+          target_node_id?: string
+          user_id?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_edges_source_node_id_fkey"
+            columns: ["source_node_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_edges_target_node_id_fkey"
+            columns: ["target_node_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_edges_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_executions: {
+        Row: {
+          completed_at: string | null
+          context: Json
+          conversation_id: string | null
+          created_at: string
+          current_node_id: string | null
+          id: string
+          last_error: string | null
+          next_run_at: string | null
+          started_at: string
+          status: Database["public"]["Enums"]["workflow_execution_status"]
+          updated_at: string
+          user_id: string
+          workflow_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          context?: Json
+          conversation_id?: string | null
+          created_at?: string
+          current_node_id?: string | null
+          id?: string
+          last_error?: string | null
+          next_run_at?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["workflow_execution_status"]
+          updated_at?: string
+          user_id: string
+          workflow_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          context?: Json
+          conversation_id?: string | null
+          created_at?: string
+          current_node_id?: string | null
+          id?: string
+          last_error?: string | null
+          next_run_at?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["workflow_execution_status"]
+          updated_at?: string
+          user_id?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_executions_current_node_id_fkey"
+            columns: ["current_node_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_executions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_nodes: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          label: string | null
+          position_x: number
+          position_y: number
+          type: Database["public"]["Enums"]["workflow_node_type"]
+          updated_at: string
+          user_id: string
+          workflow_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          id?: string
+          label?: string | null
+          position_x?: number
+          position_y?: number
+          type: Database["public"]["Enums"]["workflow_node_type"]
+          updated_at?: string
+          user_id: string
+          workflow_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          label?: string | null
+          position_x?: number
+          position_y?: number
+          type?: Database["public"]["Enums"]["workflow_node_type"]
+          updated_at?: string
+          user_id?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_nodes_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflows: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          legal_area: string | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          legal_area?: string | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          legal_area?: string | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       zapsign_templates: {
         Row: {
           active: boolean
@@ -609,6 +810,25 @@ export type Database = {
         | "qr"
         | "connected"
         | "error"
+      workflow_execution_status:
+        | "running"
+        | "paused"
+        | "completed"
+        | "failed"
+        | "cancelled"
+      workflow_node_type:
+        | "start"
+        | "message"
+        | "video"
+        | "audio"
+        | "wait"
+        | "question"
+        | "condition"
+        | "qualify"
+        | "proposal"
+        | "contract"
+        | "handoff"
+        | "end"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -775,6 +995,27 @@ export const Constants = {
         "qr",
         "connected",
         "error",
+      ],
+      workflow_execution_status: [
+        "running",
+        "paused",
+        "completed",
+        "failed",
+        "cancelled",
+      ],
+      workflow_node_type: [
+        "start",
+        "message",
+        "video",
+        "audio",
+        "wait",
+        "question",
+        "condition",
+        "qualify",
+        "proposal",
+        "contract",
+        "handoff",
+        "end",
       ],
     },
   },

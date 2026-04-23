@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { onInboundMessage } from "@/server/workflow-executor.server";
 
 export const Route = createFileRoute("/api/public/whatsapp-webhook")({
   server: {
@@ -84,6 +85,13 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
                 external_id: msg?.key?.id || null,
                 status: "sent",
               });
+
+              // Trigger workflow engine (auto-start on first contact, resume if paused)
+              try {
+                await onInboundMessage(supabaseAdmin, inst.user_id, conv.id, text);
+              } catch (e) {
+                console.error("workflow executor error:", e);
+              }
             }
           }
         }
