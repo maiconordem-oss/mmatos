@@ -78,12 +78,27 @@ function Editor() {
   const { id } = Route.useParams();
   const getGraph = useServerFn(getWorkflowGraph);
   const saveGraph = useServerFn(saveWorkflowGraph);
+  const simulateFn = useServerFn(simulateWorkflow);
+  const listTpls = useServerFn(listTemplates);
 
   const [workflow, setWorkflow] = useState<any>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [selected, setSelected] = useState<Node | null>(null);
   const [saving, setSaving] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [simOpen, setSimOpen] = useState(false);
+  const [simSteps, setSimSteps] = useState<any[]>([]);
+  const [simLoading, setSimLoading] = useState(false);
+
+  useEffect(() => { listTpls().then((r) => setTemplates(r.templates)).catch(() => {}); }, []);
+
+  const runSimulation = async () => {
+    setSimLoading(true); setSimOpen(true);
+    try { const r = await simulateFn({ data: { id, leadName: "João Lead" } }); setSimSteps(r.steps); }
+    catch (e: any) { toast.error(e.message); }
+    finally { setSimLoading(false); }
+  };
 
   useEffect(() => {
     (async () => {
