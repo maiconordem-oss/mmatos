@@ -13,7 +13,7 @@ function getZapsignToken() {
 /** Cria documento via template no ZapSign e registra contrato local */
 export const sendContract = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     proposalId: z.string().uuid(),
     templateId: z.string().uuid(),
     signerName: z.string().min(1),

@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Plus, Workflow as WfIcon, Pencil, Trash2, Copy, Activity } from "lucide-react";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
+import { useAuthServerFn as useServerFn } from "@/hooks/use-server-fn";
 import { listWorkflows, createWorkflow, deleteWorkflow, updateWorkflow, duplicateWorkflow, listExecutions } from "@/server/workflow.functions";
 
 export const Route = createFileRoute("/workflows")({

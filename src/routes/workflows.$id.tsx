@@ -22,7 +22,7 @@ import {
   Bot, DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
+import { useAuthServerFn as useServerFn } from "@/hooks/use-server-fn";
 import { getWorkflowGraph, saveWorkflowGraph, simulateWorkflow, updateWorkflow } from "@/server/workflow.functions";
 import { listTemplates } from "@/server/zapsign.functions";
 

@@ -24,7 +24,7 @@ function slugify(s: string) {
 
 export const createStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     label: z.string().min(1).max(40),
     color: z.string().max(20).default("slate"),
     is_won: z.boolean().optional(),
@@ -58,7 +58,7 @@ export const createStage = createServerFn({ method: "POST" })
 
 export const updateStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     id: z.string().uuid(),
     label: z.string().min(1).max(40).optional(),
     color: z.string().max(20).optional(),
@@ -75,7 +75,7 @@ export const updateStage = createServerFn({ method: "POST" })
 
 export const reorderStages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     orderedIds: z.array(z.string().uuid()).min(1).max(50),
   }).parse)
   .handler(async ({ data, context }) => {
@@ -90,7 +90,7 @@ export const reorderStages = createServerFn({ method: "POST" })
 
 export const deleteStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     id: z.string().uuid(),
     moveCasesToStageKey: z.string().optional(),
   }).parse)
@@ -111,7 +111,7 @@ export const deleteStage = createServerFn({ method: "POST" })
 
 export const updateCase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     id: z.string().uuid(),
     title: z.string().min(1).max(200).optional(),
     client_id: z.string().uuid().nullable().optional(),
@@ -133,7 +133,7 @@ export const updateCase = createServerFn({ method: "POST" })
 
 export const deleteCase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ id: z.string().uuid() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("cases").delete().eq("id", data.id);
     if (error) throw new Error(error.message);

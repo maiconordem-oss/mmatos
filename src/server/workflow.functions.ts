@@ -23,7 +23,7 @@ export const listWorkflows = createServerFn({ method: "GET" })
 
 export const createWorkflow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     name: z.string().min(1).max(120),
     description: z.string().max(500).optional(),
     legal_area: z.string().max(40).optional(),
@@ -68,7 +68,7 @@ export const createWorkflow = createServerFn({ method: "POST" })
 
 export const updateWorkflow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     id: z.string().uuid(),
     name: z.string().min(1).max(120).optional(),
     description: z.string().max(500).nullable().optional(),
@@ -90,7 +90,7 @@ export const updateWorkflow = createServerFn({ method: "POST" })
 
 export const deleteWorkflow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ id: z.string().uuid() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("workflows").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -101,7 +101,7 @@ export const deleteWorkflow = createServerFn({ method: "POST" })
 
 export const getWorkflowGraph = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ id: z.string().uuid() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const [{ data: wf }, { data: nodes }, { data: edges }] = await Promise.all([
@@ -131,7 +131,7 @@ const EdgeSchema = z.object({
 
 export const saveWorkflowGraph = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     workflow_id: z.string().uuid(),
     nodes: z.array(NodeSchema).max(200),
     edges: z.array(EdgeSchema).max(400),
@@ -181,7 +181,7 @@ export const saveWorkflowGraph = createServerFn({ method: "POST" })
 
 export const startWorkflowForConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     conversation_id: z.string().uuid(),
     workflow_id: z.string().uuid().optional(),
     legal_area: z.string().optional(),
@@ -227,7 +227,7 @@ export const startWorkflowForConversation = createServerFn({ method: "POST" })
 
 export const listExecutions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ workflow_id: z.string().uuid().optional() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), workflow_id: z.string().uuid().optional() }).parse)
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("workflow_executions")
@@ -242,7 +242,7 @@ export const listExecutions = createServerFn({ method: "POST" })
 
 export const duplicateWorkflow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ id: z.string().uuid() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: src } = await supabase.from("workflows").select("*").eq("id", data.id).single();
@@ -291,7 +291,7 @@ export const duplicateWorkflow = createServerFn({ method: "POST" })
 
 export const simulateWorkflow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     id: z.string().uuid(),
     leadName: z.string().default("João Lead"),
   }).parse)

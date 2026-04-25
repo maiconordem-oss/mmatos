@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { useServerFn } from "@tanstack/react-start";
+import { useAuthServerFn as useServerFn } from "@/hooks/use-server-fn";
 import { listStages, createStage, updateStage, deleteStage, reorderStages, updateCase, deleteCase } from "@/server/kanban.functions";
 import { cn } from "@/lib/utils";
 

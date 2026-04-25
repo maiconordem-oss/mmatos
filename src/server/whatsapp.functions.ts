@@ -23,7 +23,7 @@ function publicWebhookUrl(instanceId: string, secret: string) {
 
 export const upsertInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     instance_name: z.string().min(1).max(60).regex(/^[a-zA-Z0-9_-]+$/),
     api_url: z.string().url(),
     api_key: z.string().min(1),
@@ -41,7 +41,7 @@ export const upsertInstance = createServerFn({ method: "POST" })
 
 export const connectInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ id: z.string().uuid() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { data: inst, error } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
@@ -75,7 +75,7 @@ export const connectInstance = createServerFn({ method: "POST" })
 
 export const refreshStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ id: z.string().uuid() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
@@ -89,7 +89,7 @@ export const refreshStatus = createServerFn({ method: "POST" })
 
 export const disconnectInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ id: z.string().uuid() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
@@ -103,7 +103,7 @@ export const disconnectInstance = createServerFn({ method: "POST" })
 
 export const sendWhatsappMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
+  .inputValidator(z.object({ __token: z.string().optional(),
     instanceId: z.string().uuid(),
     phone: z.string().min(8),
     text: z.string().min(1).max(4000),

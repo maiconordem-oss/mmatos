@@ -33,7 +33,7 @@ async function callAI(model: string, messages: Array<{ role: string; content: st
 /** Agente Qualificador: responde ao lead via WhatsApp e tenta qualificar */
 export const qualifierReply = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ conversationId: z.string().uuid() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), conversationId: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
@@ -87,7 +87,7 @@ export const qualifierReply = createServerFn({ method: "POST" })
 /** Extrai dados estruturados da conversa para qualificar o lead */
 export const extractQualification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ conversationId: z.string().uuid() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), conversationId: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
@@ -150,7 +150,7 @@ export const extractQualification = createServerFn({ method: "POST" })
 /** Agente Proposta: gera proposta com base em uma qualificação */
 export const generateProposal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ qualificationId: z.string().uuid(), clientId: z.string().uuid().optional(), caseId: z.string().uuid().optional() }).parse)
+  .inputValidator(z.object({ __token: z.string().optional(), qualificationId: z.string().uuid(), clientId: z.string().uuid().optional(), caseId: z.string().uuid().optional() }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
