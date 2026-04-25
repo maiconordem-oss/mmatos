@@ -28,6 +28,10 @@ export const createWorkflow = createServerFn({ method: "POST" })
     description: z.string().max(500).optional(),
     legal_area: z.string().max(40).optional(),
     is_default: z.boolean().optional(),
+    persona_prompt: z.string().max(4000).optional(),
+    proposal_value: z.number().nullable().optional(),
+    proposal_is_free: z.boolean().optional(),
+    video_url: z.string().max(500).nullable().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -39,6 +43,10 @@ export const createWorkflow = createServerFn({ method: "POST" })
         description: data.description ?? null,
         legal_area: data.legal_area ?? null,
         is_default: data.is_default ?? false,
+        persona_prompt: data.persona_prompt ?? "Você é o Dr. Maicon Matos, advogado inscrito na OAB/RS 136.221. Atenda o cliente com cordialidade, segurança jurídica e clareza. Fale sempre em primeira pessoa, como se fosse o próprio advogado.",
+        proposal_value: data.proposal_value ?? null,
+        proposal_is_free: data.proposal_is_free ?? false,
+        video_url: data.video_url ?? null,
       })
       .select()
       .single();
@@ -67,6 +75,10 @@ export const updateWorkflow = createServerFn({ method: "POST" })
     legal_area: z.string().max(40).nullable().optional(),
     is_active: z.boolean().optional(),
     is_default: z.boolean().optional(),
+    persona_prompt: z.string().max(4000).nullable().optional(),
+    proposal_value: z.number().nullable().optional(),
+    proposal_is_free: z.boolean().optional(),
+    video_url: z.string().max(500).nullable().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
     const { supabase } = context;

@@ -742,6 +742,10 @@ export type Database = {
           is_default: boolean
           legal_area: string | null
           name: string
+          persona_prompt: string
+          proposal_value: number | null
+          proposal_is_free: boolean
+          video_url: string | null
           updated_at: string
           user_id: string
         }
@@ -753,6 +757,10 @@ export type Database = {
           is_default?: boolean
           legal_area?: string | null
           name: string
+          persona_prompt?: string
+          proposal_value?: number | null
+          proposal_is_free?: boolean
+          video_url?: string | null
           updated_at?: string
           user_id: string
         }
@@ -764,6 +772,10 @@ export type Database = {
           is_default?: boolean
           legal_area?: string | null
           name?: string
+          persona_prompt?: string
+          proposal_value?: number | null
+          proposal_is_free?: boolean
+          video_url?: string | null
           updated_at?: string
           user_id?: string
         }

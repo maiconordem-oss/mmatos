@@ -23,8 +23,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { getWorkflowGraph, saveWorkflowGraph, simulateWorkflow } from "@/server/workflow.functions";
+import { getWorkflowGraph, saveWorkflowGraph, simulateWorkflow, updateWorkflow } from "@/server/workflow.functions";
 import { listTemplates } from "@/server/zapsign.functions";
+import { Settings, Bot, DollarSign } from "lucide-react";
 
 export const Route = createFileRoute("/workflows/$id")({
   component: () => (
@@ -80,6 +81,7 @@ function Editor() {
   const saveGraph = useServerFn(saveWorkflowGraph);
   const simulateFn = useServerFn(simulateWorkflow);
   const listTpls = useServerFn(listTemplates);
+  const updateWf = useServerFn(updateWorkflow);
 
   const [workflow, setWorkflow] = useState<any>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -90,6 +92,14 @@ function Editor() {
   const [simOpen, setSimOpen] = useState(false);
   const [simSteps, setSimSteps] = useState<any[]>([]);
   const [simLoading, setSimLoading] = useState(false);
+  const [personaOpen, setPersonaOpen] = useState(false);
+  const [personaForm, setPersonaForm] = useState({
+    persona_prompt: "",
+    proposal_value: "",
+    proposal_is_free: false,
+    video_url: "",
+  });
+  const [savingPersona, setSavingPersona] = useState(false);
 
   useEffect(() => { listTpls().then((r) => setTemplates(r.templates)).catch(() => {}); }, []);
 
@@ -104,6 +114,12 @@ function Editor() {
     (async () => {
       const r = await getGraph({ data: { id } });
       setWorkflow(r.workflow);
+      setPersonaForm({
+        persona_prompt: r.workflow?.persona_prompt ?? "Você é o Dr. Maicon Matos, advogado inscrito na OAB/RS 136.221. Atenda o cliente com cordialidade, segurança jurídica e clareza. Fale sempre em primeira pessoa, como se fosse o próprio advogado.",
+        proposal_value: r.workflow?.proposal_value?.toString() ?? "",
+        proposal_is_free: r.workflow?.proposal_is_free ?? false,
+        video_url: r.workflow?.video_url ?? "",
+      });
       setNodes(
         r.nodes.map((n: any) => ({
           id: n.id,
@@ -154,6 +170,23 @@ function Editor() {
     setSelected((s) => (s ? { ...s, data: { ...s.data, ...patch } } as Node : s));
   };
 
+  const handleSavePersona = async () => {
+    setSavingPersona(true);
+    try {
+      await updateWf({ data: {
+        id,
+        persona_prompt: personaForm.persona_prompt,
+        proposal_value: personaForm.proposal_is_free ? null : (personaForm.proposal_value ? Number(personaForm.proposal_value) : null),
+        proposal_is_free: personaForm.proposal_is_free,
+        video_url: personaForm.video_url || null,
+      }});
+      setWorkflow((w: any) => ({ ...w, ...personaForm }));
+      toast.success("Persona salva!");
+      setPersonaOpen(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSavingPersona(false); }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -196,6 +229,7 @@ function Editor() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setPersonaOpen(true)}><Bot className="h-4 w-4 mr-2" /> Persona & Proposta</Button>
           <Button variant="outline" onClick={runSimulation}><FlaskConical className="h-4 w-4 mr-2" /> Simular</Button>
           <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-2" /> {saving ? "Salvando..." : "Salvar"}</Button>
         </div>
@@ -273,6 +307,107 @@ function Editor() {
           <p className="text-xs text-muted-foreground">⚠️ Simulação segue apenas a primeira saída de cada etapa, sem enviar mensagens reais.</p>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog Persona & Proposta */}
+      <Dialog open={personaOpen} onOpenChange={setPersonaOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bot className="h-5 w-5 text-violet-500" /> Persona & Proposta deste Workflow
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 pt-2">
+
+            {/* Persona prompt */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <Bot className="h-4 w-4 text-violet-500" /> Prompt da Persona (como a IA vai se comportar)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Escreva aqui quem é a IA, como ela deve falar, qual o tom, o que ela sabe e o que ela não deve dizer.
+                A IA vai usar esse texto como base em todas as mensagens deste funil.
+              </p>
+              <Textarea
+                rows={8}
+                value={personaForm.persona_prompt}
+                onChange={(e) => setPersonaForm({ ...personaForm, persona_prompt: e.target.value })}
+                placeholder="Ex: Você é o Dr. Maicon Matos, advogado especialista em direito educacional em Porto Alegre. Atenda o cliente com cordialidade e segurança jurídica. Nunca prometa resultados. Sempre colete: nome da criança, idade, bairro e se já tem protocolo de solicitação na prefeitura."
+                className="font-mono text-sm"
+              />
+            </div>
+
+            {/* Vídeo de boas-vindas */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                🎥 URL do Vídeo de Boas-vindas (placeholder)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Cole aqui o link do vídeo que será enviado no início do atendimento. Deixe em branco se ainda não tiver.
+              </p>
+              <Input
+                value={personaForm.video_url}
+                onChange={(e) => setPersonaForm({ ...personaForm, video_url: e.target.value })}
+                placeholder="https://youtube.com/... ou link direto do MP4"
+              />
+              {!personaForm.video_url && (
+                <p className="text-xs text-amber-600">⚠️ Sem vídeo configurado — o nó de Vídeo enviará uma mensagem de texto no lugar.</p>
+              )}
+            </div>
+
+            {/* Valor da proposta */}
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-emerald-500" /> Configuração da Proposta de Honorários
+              </Label>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="is_free"
+                  checked={personaForm.proposal_is_free}
+                  onChange={(e) => setPersonaForm({ ...personaForm, proposal_is_free: e.target.checked, proposal_value: e.target.checked ? "" : personaForm.proposal_value })}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="is_free" className="text-sm font-medium cursor-pointer">
+                  Este serviço é gratuito para o cliente (ex: ação de creche pública)
+                </label>
+              </div>
+
+              {!personaForm.proposal_is_free && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Valor fixo dos honorários (R$)</Label>
+                  <Input
+                    type="number"
+                    value={personaForm.proposal_value}
+                    onChange={(e) => setPersonaForm({ ...personaForm, proposal_value: e.target.value })}
+                    placeholder="Ex: 1500"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Deixe em branco para a IA calcular automaticamente com base na qualificação do lead.
+                  </p>
+                </div>
+              )}
+
+              {personaForm.proposal_is_free && (
+                <p className="text-xs text-emerald-700 font-medium">✅ A proposta será apresentada como serviço gratuito ao cliente.</p>
+              )}
+              {!personaForm.proposal_is_free && personaForm.proposal_value && (
+                <p className="text-xs text-blue-700 font-medium">💰 Proposta com valor fixo de R$ {Number(personaForm.proposal_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+              )}
+              {!personaForm.proposal_is_free && !personaForm.proposal_value && (
+                <p className="text-xs text-amber-600 font-medium">🤖 A IA vai gerar o valor da proposta com base nas informações do lead.</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setPersonaOpen(false)}>Cancelar</Button>
+              <Button onClick={handleSavePersona} disabled={savingPersona}>
+                {savingPersona ? "Salvando..." : "Salvar configurações"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -306,9 +441,35 @@ function NodeConfig({ node, onChange, onDelete, templates }:
       </div>
 
       {(kind === "message" || kind === "question") && (
-        <div>
-          <Label>{kind === "question" ? "Pergunta" : "Mensagem"}</Label>
-          <Textarea rows={5} value={cfg.text ?? ""} onChange={(e) => setCfg({ text: e.target.value })} placeholder="Use {{nome}} para inserir o nome do lead" />
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>{kind === "question" ? "Pergunta" : "Mensagem"}</Label>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">IA gera livremente</span>
+              <input
+                type="checkbox"
+                checked={cfg.use_ai === true}
+                onChange={(e) => setCfg({ use_ai: e.target.checked })}
+                className="h-3.5 w-3.5"
+              />
+            </div>
+          </div>
+          <Textarea
+            rows={5}
+            value={cfg.text ?? ""}
+            onChange={(e) => setCfg({ text: e.target.value })}
+            placeholder={
+              cfg.use_ai
+                ? "Contexto para a IA (ex: 'Pergunte o nome e a idade da criança de forma natural e acolhedora')"
+                : "Texto fixo da mensagem. Use {{nome}} para o nome do lead."
+            }
+          />
+          {cfg.use_ai && (
+            <p className="text-xs text-violet-600 bg-violet-50 border border-violet-200 rounded p-2">
+              🤖 A IA vai gerar a mensagem com base no histórico da conversa e no prompt da persona.
+              O texto acima é o contexto/instrução para ela — não será enviado literalmente.
+            </p>
+          )}
         </div>
       )}
 
@@ -316,11 +477,15 @@ function NodeConfig({ node, onChange, onDelete, templates }:
         <>
           <div>
             <Label>URL do {kind === "video" ? "vídeo" : "áudio"}</Label>
-            <Input value={cfg.url ?? ""} onChange={(e) => setCfg({ url: e.target.value })} placeholder="https://..." />
+            <Input value={cfg.url ?? ""} onChange={(e) => setCfg({ url: e.target.value })} placeholder="https://... (deixe vazio para usar o vídeo configurado na Persona)" />
+            {!cfg.url && (
+              <p className="text-xs text-amber-600 mt-1">Sem URL neste nó — usará o vídeo da configuração Persona & Proposta do workflow.</p>
+            )}
           </div>
           <div>
-            <Label>Legenda (opcional)</Label>
-            <Textarea rows={2} value={cfg.caption ?? ""} onChange={(e) => setCfg({ caption: e.target.value })} />
+            <Label>Legenda / mensagem junto ao vídeo</Label>
+            <Textarea rows={3} value={cfg.caption ?? ""} onChange={(e) => setCfg({ caption: e.target.value })}
+              placeholder="Ex: 👆 Assista ao vídeo acima para entender tudo sobre seus direitos!" />
           </div>
         </>
       )}
@@ -329,6 +494,7 @@ function NodeConfig({ node, onChange, onDelete, templates }:
         <div>
           <Label>Aguardar (minutos)</Label>
           <Input type="number" min={1} value={cfg.minutes ?? 5} onChange={(e) => setCfg({ minutes: Number(e.target.value) })} />
+          <p className="text-xs text-muted-foreground mt-1">O fluxo pausa por esse tempo antes de continuar para a próxima etapa.</p>
         </div>
       )}
 
@@ -339,17 +505,19 @@ function NodeConfig({ node, onChange, onDelete, templates }:
             <Select value={cfg.kind ?? "contains"} onValueChange={(v) => setCfg({ kind: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="contains">Mensagem do lead contém</SelectItem>
-                <SelectItem value="qualified">Lead foi qualificado</SelectItem>
-                <SelectItem value="score_gte">Score ≥</SelectItem>
+                <SelectItem value="contains">Resposta do lead contém palavra</SelectItem>
+                <SelectItem value="qualified">Lead foi qualificado pela IA</SelectItem>
+                <SelectItem value="score_gte">Score de qualificação ≥</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label>Valor</Label>
-            <Input value={cfg.value ?? ""} onChange={(e) => setCfg({ value: e.target.value })} placeholder="ex: sim, aceito" />
+            <Label>Valor para comparar</Label>
+            <Input value={cfg.value ?? ""} onChange={(e) => setCfg({ value: e.target.value })} placeholder="ex: sim, tenho, 70" />
           </div>
-          <p className="text-xs text-muted-foreground">Use os rótulos das conexões (sim/não) para ramificar.</p>
+          <p className="text-xs text-muted-foreground bg-muted rounded p-2">
+            💡 Conecte duas saídas deste nó com os rótulos <strong>sim</strong> e <strong>não</strong> para ramificar o fluxo.
+          </p>
         </>
       )}
 
@@ -358,8 +526,8 @@ function NodeConfig({ node, onChange, onDelete, templates }:
           <div>
             <Label>Template ZapSign</Label>
             {templates.length === 0 ? (
-              <p className="text-xs text-muted-foreground mt-1">
-                Nenhum template cadastrado. Vá em <strong>Propostas & Contratos</strong> para cadastrar templates do ZapSign.
+              <p className="text-xs text-muted-foreground mt-1 bg-amber-50 border border-amber-200 rounded p-2">
+                ⚠️ Nenhum template cadastrado. Vá em <strong>Agentes IA → Templates ZapSign</strong> para cadastrar.
               </p>
             ) : (
               <Select value={cfg.template_id ?? ""} onValueChange={(v) => {
@@ -373,20 +541,51 @@ function NodeConfig({ node, onChange, onDelete, templates }:
               </Select>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">Ao chegar nesta etapa, o contrato é gerado e enviado ao lead via ZapSign.</p>
+          <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2">
+            ✅ Ao chegar aqui, o sistema gera o contrato automaticamente com os dados da proposta e envia o link de assinatura via WhatsApp.
+          </p>
         </>
       )}
 
       {kind === "qualify" && (
-        <p className="text-sm text-muted-foreground">Esta etapa roda o agente qualificador e armazena os dados extraídos (área, urgência, score).</p>
+        <div className="text-sm text-muted-foreground bg-violet-50 border border-violet-200 rounded p-3 space-y-1">
+          <p className="font-medium text-violet-700">🤖 Etapa de Qualificação com IA</p>
+          <p>A IA analisa toda a conversa até aqui e extrai automaticamente:</p>
+          <ul className="list-disc ml-4 text-xs space-y-0.5">
+            <li>Área jurídica do caso</li>
+            <li>Urgência (baixa / média / alta)</li>
+            <li>Resumo do caso</li>
+            <li>Score de qualificação (0-100)</li>
+          </ul>
+          <p className="text-xs">Esses dados são usados pelo nó de Proposta para gerar os honorários.</p>
+        </div>
       )}
 
       {kind === "proposal" && (
-        <p className="text-sm text-muted-foreground">Gera uma proposta de honorários a partir da última qualificação do lead.</p>
+        <div className="text-sm text-muted-foreground bg-indigo-50 border border-indigo-200 rounded p-3 space-y-1">
+          <p className="font-medium text-indigo-700">📋 Etapa de Geração de Proposta</p>
+          <p>Usa o valor e as regras configuradas em <strong>Persona & Proposta</strong> deste workflow:</p>
+          <ul className="list-disc ml-4 text-xs space-y-0.5">
+            <li>Se gratuito → informa que não há custo</li>
+            <li>Se valor fixo → usa o valor configurado</li>
+            <li>Se sem valor → IA calcula com base na qualificação</li>
+          </ul>
+          <p className="text-xs">A proposta é enviada automaticamente ao cliente via WhatsApp.</p>
+        </div>
       )}
 
       {kind === "handoff" && (
-        <p className="text-sm text-muted-foreground">Marca a conversa como atendimento humano e desativa a IA.</p>
+        <div className="text-sm text-muted-foreground bg-rose-50 border border-rose-200 rounded p-3">
+          <p className="font-medium text-rose-700">👤 Passar para Atendimento Humano</p>
+          <p className="text-xs mt-1">A IA para de responder e a conversa aparece no Inbox para você atender manualmente.</p>
+        </div>
+      )}
+
+      {kind === "start" && (
+        <div className="text-sm text-muted-foreground bg-emerald-50 border border-emerald-200 rounded p-3">
+          <p className="font-medium text-emerald-700">▶️ Início do Fluxo</p>
+          <p className="text-xs mt-1">Este é o ponto de entrada. Conecte ao próximo nó (geralmente um Vídeo ou Mensagem de boas-vindas).</p>
+        </div>
       )}
 
       {kind !== "start" && (
