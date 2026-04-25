@@ -76,16 +76,21 @@ function KanbanPage() {
   });
 
   const load = async () => {
-    const [{ stages: s }, cs, cl] = await Promise.all([
-      listStagesFn(),
-      supabase.from("cases").select("*").order("created_at", { ascending: false }),
-      supabase.from("clients").select("id, full_name").order("full_name"),
-    ]);
-    setStages(s as Stage[]);
-    setCases((cs.data ?? []) as Case[]);
-    setClients((cl.data ?? []) as Client[]);
-    if (s.length && !s.some((x: Stage) => x.key === form.stage)) {
-      setForm((f) => ({ ...f, stage: s[0].key }));
+    try {
+      const [stagesRes, cs, cl] = await Promise.all([
+        listStagesFn().catch(() => ({ stages: [] })),
+        supabase.from("cases").select("*").order("created_at", { ascending: false }),
+        supabase.from("clients").select("id, full_name").order("full_name"),
+      ]);
+      const s = stagesRes?.stages ?? [];
+      setStages(s as Stage[]);
+      setCases((cs.data ?? []) as Case[]);
+      setClients((cl.data ?? []) as Client[]);
+      if (s.length && !s.some((x: Stage) => x.key === form.stage)) {
+        setForm((f) => ({ ...f, stage: s[0].key }));
+      }
+    } catch (e: any) {
+      toast.error("Erro ao carregar kanban: " + (e?.message ?? e));
     }
   };
 
