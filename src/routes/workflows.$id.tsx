@@ -10,7 +10,6 @@ import {
 import "@xyflow/react/dist/style.css";
 import { AuthGate } from "@/components/AuthGate";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,12 +19,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   ArrowLeft, Save, Plus, MessageSquare, Video, Mic, Clock,
   HelpCircle, GitBranch, Sparkles, FileText, FileSignature, UserCheck, Flag, Play, FlaskConical,
+  Bot, DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { getWorkflowGraph, saveWorkflowGraph, simulateWorkflow, updateWorkflow } from "@/server/workflow.functions";
 import { listTemplates } from "@/server/zapsign.functions";
-import { Settings, Bot, DollarSign } from "lucide-react";
 
 export const Route = createFileRoute("/workflows/$id")({
   component: () => (

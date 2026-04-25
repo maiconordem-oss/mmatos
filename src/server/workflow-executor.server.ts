@@ -116,7 +116,7 @@ export async function runExecution(ctx: Ctx, executionId: string) {
   // Buscar persona_prompt e configurações do workflow uma vez
   const { data: execMeta } = await admin.from("workflow_executions").select("workflow_id").eq("id", executionId).single();
   const { data: wfMeta } = execMeta
-    ? await admin.from("workflows").select("persona_prompt, proposal_value, proposal_is_free").eq("id", execMeta.workflow_id).single()
+    ? await admin.from("workflows").select("persona_prompt, proposal_value, proposal_is_free, video_url").eq("id", execMeta.workflow_id).single()
     : { data: null };
 
   const personaPrompt: string = (wfMeta as any)?.persona_prompt
@@ -295,33 +295,6 @@ export async function runExecution(ctx: Ctx, executionId: string) {
             await admin.from("workflow_executions").update({ current_node_id: next[0].target_node_id, status: "paused" }).eq("id", executionId);
           }
           return;
-        }
-
-        case "qualify": {
-          const { data: msgs } = await admin.from("messages").select("direction, content")
-            .eq("conversation_id", convId).order("created_at").limit(40);
-          const transcript = (msgs ?? []).map((m: any) => `${m.direction === "inbound" ? "Lead" : "Atendente"}: ${m.content ?? ""}`).join("\n");
-          const r = await callAI(
-            [{ role: "system", content: "Extraia dados de qualificação jurídica." }, { role: "user", content: transcript }],
-            [{ type: "function", function: {
-              name: "extract_lead", description: "Dados do lead",
-              parameters: { type: "object", properties: {
-                legal_area: { type: "string" }, urgency: { type: "string" },
-                description: { type: "string" }, score: { type: "integer" }, qualified: { type: "boolean" },
-              }, required: ["legal_area", "urgency", "description", "score", "qualified"] },
-            }}],
-          );
-          const args = JSON.parse(r.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments ?? "{}");
-          const { data: conv } = await admin.from("conversations").select("client_id").eq("id", convId).single();
-          await admin.from("lead_qualifications").insert({
-            user_id: userId, conversation_id: convId, client_id: conv?.client_id ?? null,
-            legal_area: args.legal_area, urgency: args.urgency, description: args.description,
-            score: args.score ?? 0, qualified: !!args.qualified, raw_data: args,
-          });
-          await admin.from("workflow_executions").update({
-            context: { ...(exec.context as any ?? {}), ...args },
-          }).eq("id", executionId);
-          break;
         }
 
         case "condition": {
