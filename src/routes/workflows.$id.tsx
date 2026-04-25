@@ -100,7 +100,7 @@ function Editor() {
   });
   const [savingPersona, setSavingPersona] = useState(false);
 
-  useEffect(() => { listTpls().then((r) => setTemplates(r.templates)).catch(() => {}); }, []);
+  useEffect(() => { listTpls().then((r) => setTemplates(r?.templates ?? [])).catch(() => setTemplates([])); }, []);
 
   const runSimulation = async () => {
     setSimLoading(true); setSimOpen(true);
@@ -111,35 +111,39 @@ function Editor() {
 
   useEffect(() => {
     (async () => {
-      const r = await getGraph({ data: { id } });
-      setWorkflow(r.workflow);
-      setPersonaForm({
-        persona_prompt: r.workflow?.persona_prompt ?? "Você é o Dr. Maicon Matos, advogado inscrito na OAB/RS 136.221. Atenda o cliente com cordialidade, segurança jurídica e clareza. Fale sempre em primeira pessoa, como se fosse o próprio advogado.",
-        proposal_value: r.workflow?.proposal_value?.toString() ?? "",
-        proposal_is_free: r.workflow?.proposal_is_free ?? false,
-        video_url: r.workflow?.video_url ?? "",
-      });
-      setNodes(
-        r.nodes.map((n: any) => ({
-          id: n.id,
-          type: "step",
-          position: { x: n.position_x, y: n.position_y },
-          data: {
-            kind: n.type,
-            label: n.label,
-            config: n.config ?? {},
-            preview: previewFor(n.type, n.config ?? {}),
-          },
-        })),
-      );
-      setEdges(
-        r.edges.map((e: any) => ({
-          id: e.id,
-          source: e.source_node_id,
-          target: e.target_node_id,
-          label: e.label ?? undefined,
-        })),
-      );
+      try {
+        const r = await getGraph({ data: { id } });
+        setWorkflow(r.workflow);
+        setPersonaForm({
+          persona_prompt: r.workflow?.persona_prompt ?? "Você é o Dr. Maicon Matos, advogado inscrito na OAB/RS 136.221. Atenda o cliente com cordialidade, segurança jurídica e clareza. Fale sempre em primeira pessoa, como se fosse o próprio advogado.",
+          proposal_value: r.workflow?.proposal_value?.toString() ?? "",
+          proposal_is_free: r.workflow?.proposal_is_free ?? false,
+          video_url: r.workflow?.video_url ?? "",
+        });
+        setNodes(
+          (r.nodes ?? []).map((n: any) => ({
+            id: n.id,
+            type: "step",
+            position: { x: n.position_x, y: n.position_y },
+            data: {
+              kind: n.type,
+              label: n.label,
+              config: n.config ?? {},
+              preview: previewFor(n.type, n.config ?? {}),
+            },
+          })),
+        );
+        setEdges(
+          (r.edges ?? []).map((e: any) => ({
+            id: e.id,
+            source: e.source_node_id,
+            target: e.target_node_id,
+            label: e.label ?? undefined,
+          })),
+        );
+      } catch (e: any) {
+        console.error("Erro ao carregar workflow:", e?.message ?? e);
+      }
     })();
   }, [id]);
 
