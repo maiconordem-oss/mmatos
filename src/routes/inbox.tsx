@@ -311,16 +311,31 @@ function InboxPage() {
     const content = text.trim();
     setText("");
     if (textareaRef.current) textareaRef.current.style.height = "40px";
-    const { error } = await supabase.from("messages").insert({
+
+    // Salvar no banco
+    await supabase.from("messages").insert({
       user_id: user.id, conversation_id: activeId,
       direction: "outbound", content, status: "sent",
     });
-    if (error) { toast.error(error.message); return; }
     await supabase.from("conversations").update({
       last_message_at: new Date().toISOString(),
       last_message_preview: content.slice(0, 80),
     }).eq("id", activeId);
-    loadConvs();
+
+    // Enviar via Evolution API
+    const { data: conv } = await supabase.from("conversations").select("phone").eq("id", activeId).single();
+    const { data: inst } = await supabase
+      .from("whatsapp_instances").select("*")
+      .eq("user_id", user.id).eq("status", "connected").limit(1).maybeSingle();
+
+    if (conv?.phone && inst?.api_url && inst?.api_key) {
+      const number = conv.phone.replace(/\D/g, "");
+      fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: inst.api_key },
+        body: JSON.stringify({ number, text: content, textMessage: { text: content }, options: { delay: 500 } }),
+      }).catch(e => console.error("send manual error:", e));
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

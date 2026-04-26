@@ -242,11 +242,11 @@ async function sendText(
     .from("whatsapp_instances")
     .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
 
-  // Salvar mensagem no banco
+  // Salvar mensagem no banco SEMPRE
   await admin.from("messages").insert({
     user_id: userId, conversation_id: convId,
     direction: "outbound", content: text,
-    status: inst?.api_url ? "sent" : "pending",
+    status: "sent",
   });
   await admin.from("conversations").update({
     last_message_at:      new Date().toISOString(),
@@ -256,32 +256,36 @@ async function sendText(
 
   if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
 
-  const base = inst.api_url.replace(/\/$/, "");
+  const base    = inst.api_url.replace(/\/$/, "");
   const headers = { "Content-Type": "application/json", apikey: inst.api_key };
+  const number  = conv.phone.replace(/\D/g, "");
 
   try {
-    // Enviar "digitando..." por tempo proporcional ao texto
+    // Delay de digitação (sem chamar API de presença — pode não existir na versão)
     if (withTyping) {
-      await fetch(`${base}/chat/presence/${inst.instance_name}`, {
-        method: "POST", headers,
-        body: JSON.stringify({ number: conv.phone, options: { presence: "composing" } }),
-      }).catch(() => {});
-      const typingMs = Math.min(Math.max(text.length * 30, 800), 3500);
+      const typingMs = Math.min(Math.max(text.length * 25, 600), 2500);
       await new Promise(r => setTimeout(r, typingMs));
     }
 
-    // Enviar mensagem
-    await fetch(`${base}/message/sendText/${inst.instance_name}`, {
+    // Tentar endpoint v2 primeiro, fallback para v1
+    const res = await fetch(`${base}/message/sendText/${inst.instance_name}`, {
       method: "POST", headers,
-      body: JSON.stringify({ number: conv.phone, text }),
+      body: JSON.stringify({
+        number,
+        text,
+        // Alguns versões usam textMessage
+        textMessage: { text },
+        options: { delay: 500 },
+      }),
     });
 
-    // Parar "digitando..."
-    await fetch(`${base}/chat/presence/${inst.instance_name}`, {
-      method: "POST", headers,
-      body: JSON.stringify({ number: conv.phone, options: { presence: "paused" } }),
-    }).catch(() => {});
-  } catch { /* non-fatal */ }
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.error(`Evolution API sendText [${res.status}]:`, errBody);
+    }
+  } catch (e) {
+    console.error("sendText network error:", e);
+  }
 }
 
 // ── Enviar mídia via Evolution API ─────────────────────────────
