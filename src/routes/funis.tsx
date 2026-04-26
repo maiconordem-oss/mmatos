@@ -1,4 +1,4 @@
-/* rebuild-1777215941 */
+/* rebuild-1777216570 */
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
@@ -15,7 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Plus, Bot, Video, Mic, FileText, Pencil, Trash2, ChevronDown, ChevronUp, ExternalLink, FlaskConical, RotateCcw, MessageSquare, Send, ArrowRight } from "lucide-react";
-import { simulateFunnel, resetSimulation } from "@/server/funnel-simulator";
+import { simulateFunnel, resetSimulation } from "@/server/funnel-simulator.server";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 
 export const Route = createFileRoute("/funis")({
