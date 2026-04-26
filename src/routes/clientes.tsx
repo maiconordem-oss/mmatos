@@ -43,6 +43,7 @@ type Doc = {
   label: string | null;
   file_url: string;
   media_type: string | null;
+  transcription: string | null;
   notes: string | null;
   created_at: string;
 };
@@ -130,14 +131,21 @@ function ClientCard({ c, onDelete }: { c: Client; onDelete: () => void }) {
               </p>
             )}
             {docs.map((doc) => (
-              <div key={doc.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-muted/30">
-                <DocIcon type={doc.media_type} />
+              <div key={doc.id} className="flex items-start gap-3 p-2.5 rounded-lg border bg-muted/30">
+                <div className="shrink-0 mt-0.5"><DocIcon type={doc.media_type} /></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium truncate">
                     {doc.label || DOC_LABELS[doc.doc_type] || doc.doc_type}
                   </p>
-                  {doc.notes && <p className="text-[10px] text-muted-foreground truncate">{doc.notes}</p>}
-                  <p className="text-[10px] text-muted-foreground">
+                  {doc.transcription && (
+                    <p className="text-[11px] text-violet-700 bg-violet-50 rounded px-1.5 py-0.5 mt-1 italic">
+                      🎤 "{doc.transcription}"
+                    </p>
+                  )}
+                  {!doc.transcription && doc.notes && (
+                    <p className="text-[10px] text-muted-foreground truncate">{doc.notes}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
                     {new Date(doc.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
                   </p>
                 </div>
@@ -147,8 +155,8 @@ function ClientCard({ c, onDelete }: { c: Client; onDelete: () => void }) {
                     <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
                   </a>
                 )}
-                {doc.file_url.startsWith("whatsapp-media://") && (
-                  <span className="text-[10px] text-amber-600 shrink-0">Via WhatsApp</span>
+                {doc.file_url.startsWith("whatsapp-media://") && !doc.transcription && (
+                  <span className="text-[10px] text-amber-600 shrink-0">Via WA</span>
                 )}
               </div>
             ))}

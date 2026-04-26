@@ -139,18 +139,34 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               instApiKey:     inst.api_key,
               instName:       inst.instance_name,
               msgId:          msg?.key?.id || null,
+              transcription:  audioTranscription,
             });
           }
 
+          // ── Transcrever áudio via IA ───────────────────────
+          let audioTranscription: string | null = null;
+          if (audioMsg) {
+            const audioUrl = audioMsg.url ?? null;
+            if (audioUrl) {
+              audioTranscription = await transcribeAudio(audioUrl, audioMsg.mimetype ?? "audio/ogg");
+              // Atualizar mensagem salva com transcrição
+              if (audioTranscription) {
+                await supabaseAdmin.from("messages")
+                  .update({ content: `🎤 Áudio: "${audioTranscription}"` })
+                  .eq("external_id", msg?.key?.id || "")
+                  .eq("conversation_id", conv.id);
+              }
+            }
+          }
+
           // ── Executor do funil ──────────────────────────────
-          // Para texto: passa direto
-          // Para áudio: passa "[áudio recebido]" + transcrição se disponível
-          // Para documento/imagem: passa "[documento/imagem recebida]"
           const messageForAI = hasText
             ? text
-            : mediaType === "audio"
-              ? "[O cliente enviou um áudio. Peça para digitar pois não consigo ouvir áudios: 'Pode digitar aqui pra eu registrar certinho?']"
-              : mediaType === "image"
+            : audioMsg
+              ? audioTranscription
+                ? `[Cliente enviou áudio. Transcrição: "${audioTranscription}". Responda com base no conteúdo do áudio, mas como se fosse uma mensagem de texto normal — sem mencionar que é áudio.]`
+                : "[O cliente enviou um áudio mas não consegui transcrever. Peça para digitar: 'Pode digitar aqui pra eu registrar certinho?']"
+              : imageMsg
                 ? `[O cliente enviou uma imagem${imageMsg?.caption ? `: "${imageMsg.caption}"` : ""}. Confirme o recebimento e continue o fluxo.]`
                 : `[O cliente enviou um documento${documentMsg?.fileName ? ` (${documentMsg.fileName})` : ""}. Confirme o recebimento e continue o fluxo.]`;
 
@@ -169,23 +185,61 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
   },
 });
 
+// ── Transcrever áudio via Gemini ─────────────────────────────
+async function transcribeAudio(audioUrl: string, mimetype: string): Promise<string | null> {
+  try {
+    const apiKey = process.env.LOVABLE_API_KEY ?? "lovable-internal";
+
+    // Baixar o áudio
+    const audioRes = await fetch(audioUrl);
+    if (!audioRes.ok) return null;
+    const audioBuffer = await audioRes.arrayBuffer();
+    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+
+    // Chamar Gemini com áudio em base64
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_audio",
+                input_audio: { data: base64Audio, format: mimetype.includes("mp4") ? "mp4" : "wav" },
+              },
+              {
+                type: "text",
+                text: "Transcreva exatamente o que foi dito neste áudio em português. Retorne apenas a transcrição, sem nenhum texto adicional.",
+              },
+            ],
+          },
+        ],
+        max_tokens: 500,
+      }),
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const transcription = data.choices?.[0]?.message?.content?.trim() ?? null;
+    return transcription || null;
+  } catch (e) {
+    console.error("transcribeAudio error:", e);
+    return null;
+  }
+}
+
 // ── Processar mídia: salvar como documento do cliente ────────
 async function processInboundMedia(opts: {
-  admin: any;
-  userId: string;
-  convId: string;
-  mediaType: string;
-  mediaUrl: string | null;
-  mediaMime: string | null;
-  mediaId: string | null;
-  caption: string;
-  fileName: string | null;
-  instApiUrl: string;
-  instApiKey: string;
-  instName: string;
-  msgId: string | null;
+  admin: any; userId: string; convId: string;
+  mediaType: string; mediaUrl: string | null; mediaMime: string | null;
+  mediaId: string | null; caption: string; fileName: string | null;
+  instApiUrl: string; instApiKey: string; instName: string;
+  msgId: string | null; transcription?: string | null;
 }) {
-  const { admin, userId, convId, mediaType, mediaUrl, mediaMime, caption, fileName, msgId } = opts;
+  const { admin, userId, convId, mediaType, mediaUrl, mediaMime, caption, fileName, msgId, transcription } = opts;
 
   try {
     // Buscar client_id da conversa
@@ -229,7 +283,8 @@ async function processInboundMedia(opts: {
         file_url:          mediaUrl ?? `whatsapp-media://${msgId}`,
         media_type:        mediaType,
         whatsapp_media_id: msgId,
-        notes:             caption || null,
+        transcription:     transcription ?? null,
+        notes:             caption || (transcription ? `Transcrição: ${transcription}` : null),
       });
     }
   } catch (e) {
