@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { AuthGate } from "@/components/AuthGate";
+import { AppShell } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +17,9 @@ export const Route = createFileRoute("/inbox")({
   head: () => ({ meta: [{ title: "Inbox WhatsApp — Lex CRM" }] }),
   component: () => (
     <AuthGate>
-      <InboxPage />
+      <AppShell noPadding>
+        <InboxPage />
+      </AppShell>
     </AuthGate>
   ),
 });
@@ -361,7 +364,7 @@ function InboxPage() {
   const grouped = groupByDate(messages);
 
   return (
-    <div className="h-screen flex overflow-hidden" style={{ background: "#111b21" }}>
+    <div className="flex flex-1 overflow-hidden" style={{ background: "#111b21" }}>
       <Toaster />
 
       {/* ── SIDEBAR ── */}

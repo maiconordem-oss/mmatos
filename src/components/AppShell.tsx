@@ -43,7 +43,7 @@ function NavItem({ to, label, icon: Icon, active }: { to: string; label: string;
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, noPadding }: { children: React.ReactNode; noPadding?: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -108,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Conteúdo principal */}
-      <main className="flex-1 overflow-y-auto">
+      <main className={noPadding ? "flex-1 flex flex-col overflow-hidden" : "flex-1 overflow-y-auto"}>
         {children}
       </main>
     </div>
