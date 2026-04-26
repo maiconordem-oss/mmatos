@@ -24,18 +24,36 @@ function publicWebhookUrl(instanceId: string, secret: string) {
 export const upsertInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(),
+    id: z.string().uuid().optional(),
     instance_name: z.string().min(1).max(60).regex(/^[a-zA-Z0-9_-]+$/),
     api_url: z.string().url(),
     api_key: z.string().min(1),
+    funnel_id: z.string().uuid().nullable().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: row, error } = await supabase
-      .from("whatsapp_instances")
-      .upsert({ user_id: userId, instance_name: data.instance_name, api_url: data.api_url, api_key: data.api_key }, { onConflict: "user_id,instance_name" })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
+    const payload = {
+      user_id:      userId,
+      instance_name: data.instance_name,
+      api_url:      data.api_url,
+      api_key:      data.api_key,
+      funnel_id:    data.funnel_id ?? null,
+    };
+
+    let row: any;
+    if (data.id) {
+      // Atualizar instância existente pelo id
+      const { data: updated, error } = await supabase
+        .from("whatsapp_instances").update(payload).eq("id", data.id).eq("user_id", userId).select().single();
+      if (error) throw new Error(error.message);
+      row = updated;
+    } else {
+      // Criar nova instância
+      const { data: created, error } = await supabase
+        .from("whatsapp_instances").insert(payload).select().single();
+      if (error) throw new Error(error.message);
+      row = created;
+    }
     return { instance: row };
   });
 

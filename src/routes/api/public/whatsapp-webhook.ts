@@ -177,7 +177,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
                 : `[O cliente enviou um documento${documentMsg?.fileName ? ` (${documentMsg.fileName})` : ""}. Confirme o recebimento e continue o fluxo.]`;
 
           try {
-            await handleFunnelMessage(supabaseAdmin, inst.user_id, conv.id, messageForAI);
+            await handleFunnelMessage(supabaseAdmin, inst.user_id, conv.id, messageForAI, inst.funnel_id ?? null);
           } catch (e) {
             console.error("funnel executor error:", e);
           }

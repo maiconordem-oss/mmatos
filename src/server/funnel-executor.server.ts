@@ -414,7 +414,8 @@ export async function handleFunnelMessage(
   admin: SupabaseClient<any, any, any>,
   userId: string,
   convId: string,
-  userMessage: string
+  userMessage: string,
+  instanceFunnelId: string | null = null
 ) {
   // 1. Carregar ou criar estado
   const { data: existing } = await admin
@@ -424,7 +425,7 @@ export async function handleFunnelMessage(
   let funnel: Funnel | null = null;
 
   if (existing) {
-    if (existing.fase === "encerrado") return; // não responder mais
+    if (existing.fase === "encerrado") return;
     state = {
       id: existing.id,
       funnel_id: existing.funnel_id,
@@ -434,13 +435,15 @@ export async function handleFunnelMessage(
       historico: existing.historico ?? [],
     };
   } else {
-    // Detectar funil: pegar default do usuário
-    const { data: defaultFunnel } = await admin
-      .from("funnels").select("id")
-      .eq("user_id", userId).eq("is_active", true).eq("is_default", true)
-      .limit(1).maybeSingle();
-
-    const funnelId = defaultFunnel?.id ?? null;
+    // Prioridade: funil da instância → funil padrão do usuário
+    let funnelId = instanceFunnelId;
+    if (!funnelId) {
+      const { data: defaultFunnel } = await admin
+        .from("funnels").select("id")
+        .eq("user_id", userId).eq("is_active", true).eq("is_default", true)
+        .limit(1).maybeSingle();
+      funnelId = defaultFunnel?.id ?? null;
+    }
 
     const { data: newState } = await admin.from("funnel_states").insert({
       user_id: userId, conversation_id: convId, funnel_id: funnelId,
