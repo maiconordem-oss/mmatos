@@ -35,6 +35,8 @@ type Message = {
   content: string | null;
   created_at: string;
   status?: string;
+  media_type?: string | null;
+  media_url?: string | null;
 };
 
 function avatar(name: string | null, phone: string) {
@@ -368,6 +370,21 @@ function InboxPage() {
                         className={cn("max-w-[65%] px-3 py-2 rounded-lg text-sm relative", m.direction === "outbound" ? "rounded-tr-none" : "rounded-tl-none")}
                         style={{ background: m.direction === "outbound" ? "#005c4b" : "#202c33" }}
                       >
+                        {/* Mídia */}
+                        {(m as any).media_type === "audio" && (
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)" }}>
+                              <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+                            </div>
+                            <div className="flex-1">
+                              <div className="h-1.5 rounded-full w-24 opacity-40" style={{ background: "white" }} />
+                              <p className="text-[10px] text-white/60 mt-0.5">Áudio</p>
+                            </div>
+                          </div>
+                        )}
+                        {(m as any).media_type === "image" && (m as any).media_url && (
+                          <img src={(m as any).media_url} alt="imagem" className="rounded mb-1 max-w-full" style={{ maxHeight: 200 }} />
+                        )}
                         <p className="text-white leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
                         <div className="flex items-center gap-1 justify-end mt-1">
                           <span className="text-[10px] text-[#8696a0]">{formatMsgTime(m.created_at)}</span>

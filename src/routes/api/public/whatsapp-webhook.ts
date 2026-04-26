@@ -148,12 +148,18 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           if (audioMsg) {
             const audioUrl = audioMsg.url ?? null;
             if (audioUrl) {
-              audioTranscription = await transcribeAudio(audioUrl, audioMsg.mimetype ?? "audio/ogg");
-              // Atualizar mensagem salva com transcrição
+              audioTranscription = await transcribeAudio(
+                audioUrl,
+                audioMsg.mimetype ?? "audio/ogg",
+                inst.api_url ?? "",
+                inst.api_key ?? "",
+                inst.instance_name ?? "",
+                audioMsg.mediaKey ?? null
+              );
               if (audioTranscription) {
                 await supabaseAdmin.from("messages")
-                  .update({ content: `🎤 Áudio: "${audioTranscription}"` })
-                  .eq("external_id", msg?.key?.id || "")
+                  .update({ content: `🎤 "${audioTranscription}"` })
+                  .eq("external_id", msg?.key?.id ?? "")
                   .eq("conversation_id", conv.id);
               }
             }
@@ -185,48 +191,119 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
   },
 });
 
-// ── Transcrever áudio via Gemini ─────────────────────────────
-async function transcribeAudio(audioUrl: string, mimetype: string): Promise<string | null> {
+// ── Transcrever áudio via Gemini API ─────────────────────────
+async function transcribeAudio(
+  audioUrl: string,
+  mimetype: string,
+  instApiUrl: string,
+  instApiKey: string,
+  instName: string,
+  mediaKey: string | null
+): Promise<string | null> {
   try {
-    const apiKey = process.env.LOVABLE_API_KEY ?? "lovable-internal";
+    const geminiKey = process.env.GEMINI_API_KEY ?? process.env.LOVABLE_API_KEY ?? null;
+    if (!geminiKey || geminiKey === "lovable-internal") {
+      // Sem chave Gemini nativa — tentar baixar e converter via gateway
+      return await transcribeViaGateway(audioUrl, mimetype, instApiUrl, instApiKey);
+    }
 
-    // Baixar o áudio
-    const audioRes = await fetch(audioUrl);
+    // Baixar áudio (Evolution API às vezes requer apikey)
+    const audioRes = await fetch(audioUrl, {
+      headers: instApiKey ? { apikey: instApiKey } : {},
+    });
     if (!audioRes.ok) return null;
-    const audioBuffer = await audioRes.arrayBuffer();
-    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
 
-    // Chamar Gemini com áudio em base64
+    const audioBuffer = await audioRes.arrayBuffer();
+    const bytes       = new Uint8Array(audioBuffer);
+
+    // Converter para base64 em chunks (evita stack overflow)
+    let base64 = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      base64 += btoa(String.fromCharCode(...bytes.slice(i, i + chunkSize)));
+    }
+
+    // Detectar formato correto
+    const fmt = mimetype.includes("ogg") ? "audio/ogg"
+      : mimetype.includes("mp4") ? "audio/mp4"
+      : mimetype.includes("mpeg") ? "audio/mpeg"
+      : mimetype.includes("webm") ? "audio/webm"
+      : "audio/ogg";
+
+    // Gemini API nativa — suporta áudio em inlineData
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inlineData: { mimeType: fmt, data: base64 } },
+              { text: "Transcreva exatamente o que foi dito neste áudio em português. Retorne apenas a transcrição, sem nenhum texto adicional." },
+            ],
+          }],
+          generationConfig: { maxOutputTokens: 500 },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      console.error("Gemini transcription error:", res.status, await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
+  } catch (e) {
+    console.error("transcribeAudio error:", e);
+    return null;
+  }
+}
+
+// Fallback: tentar via gateway OpenAI-compatible
+async function transcribeViaGateway(
+  audioUrl: string,
+  mimetype: string,
+  instApiUrl: string,
+  instApiKey: string
+): Promise<string | null> {
+  try {
+    const apiKey  = process.env.LOVABLE_API_KEY ?? "lovable-internal";
+    const audioRes = await fetch(audioUrl, {
+      headers: instApiKey ? { apikey: instApiKey } : {},
+    });
+    if (!audioRes.ok) return null;
+
+    const bytes = new Uint8Array(await audioRes.arrayBuffer());
+    let base64 = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      base64 += btoa(String.fromCharCode(...bytes.slice(i, i + chunkSize)));
+    }
+
+    const fmt = mimetype.includes("ogg") ? "ogg" : mimetype.includes("mp4") ? "mp4" : "wav";
+
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
+      method:  "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_audio",
-                input_audio: { data: base64Audio, format: mimetype.includes("mp4") ? "mp4" : "wav" },
-              },
-              {
-                type: "text",
-                text: "Transcreva exatamente o que foi dito neste áudio em português. Retorne apenas a transcrição, sem nenhum texto adicional.",
-              },
-            ],
-          },
-        ],
+        messages: [{
+          role: "user",
+          content: [
+            { type: "input_audio", input_audio: { data: base64, format: fmt } },
+            { type: "text", text: "Transcreva o áudio em português. Retorne apenas a transcrição." },
+          ],
+        }],
         max_tokens: 500,
       }),
     });
 
     if (!res.ok) return null;
     const data = await res.json();
-    const transcription = data.choices?.[0]?.message?.content?.trim() ?? null;
-    return transcription || null;
-  } catch (e) {
-    console.error("transcribeAudio error:", e);
+    return data.choices?.[0]?.message?.content?.trim() ?? null;
+  } catch {
     return null;
   }
 }
