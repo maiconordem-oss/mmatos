@@ -56,6 +56,80 @@ const FASE_TO_STAGE: Record<string, string> = {
   encerrado:  "em_andamento",
 };
 
+// ── Verificar horário de atendimento ───────────────────────────
+function isWithinWorkingHours(funnel: any): boolean {
+  if (!funnel.working_hours_start || !funnel.working_hours_end) return true;
+
+  const now   = new Date();
+  // Horário de Brasília (UTC-3)
+  const brt   = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  const day   = brt.getDay(); // 0=Dom, 1=Seg...6=Sab
+  const hhmm  = brt.getHours() * 60 + brt.getMinutes();
+
+  const [startH, startM] = (funnel.working_hours_start as string).split(":").map(Number);
+  const [endH,   endM  ] = (funnel.working_hours_end   as string).split(":").map(Number);
+  const startMin = startH * 60 + startM;
+  const endMin   = endH   * 60 + endM;
+
+  const days: number[] = funnel.working_days ?? [1,2,3,4,5,6];
+  if (!days.includes(day)) return false;
+  return hhmm >= startMin && hhmm <= endMin;
+}
+
+// ── Agendar follow-up ──────────────────────────────────────────
+async function scheduleFollowup(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  convId: string,
+  funnelId: string | null,
+  followupHours: number
+) {
+  const scheduledAt = new Date(Date.now() + followupHours * 60 * 60 * 1000).toISOString();
+  // Substituir follow-up pendente se existir
+  await admin.from("funnel_followups")
+    .delete().eq("conversation_id", convId).eq("sent", false);
+  await admin.from("funnel_followups").insert({
+    user_id: userId, conversation_id: convId,
+    funnel_id: funnelId, scheduled_at: scheduledAt, sent: false,
+  });
+}
+
+// ── Cancelar follow-up quando cliente responde ─────────────────
+async function cancelFollowup(admin: SupabaseClient<any, any, any>, convId: string) {
+  await admin.from("funnel_followups")
+    .delete().eq("conversation_id", convId).eq("sent", false);
+}
+
+// ── Notificar Dr. Maicon quando contrato gerado ───────────────
+async function notifyOwner(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  notifyPhone: string,
+  dados: Record<string, any>,
+  convId: string
+) {
+  if (!notifyPhone) return;
+  const { data: inst } = await admin
+    .from("whatsapp_instances")
+    .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+  if (!inst?.api_url) return;
+
+  const nome     = dados.nome ?? "Lead";
+  const crianca  = dados.nomeCrianca ? ` (${dados.nomeCrianca})` : "";
+  const phone    = await admin.from("conversations").select("phone").eq("id", convId).single()
+    .then(r => r.data?.phone ?? "");
+
+  const msg = `✅ *Novo contrato gerado!*\n\nCliente: *${nome}*${crianca}\nWhatsApp: ${phone}\n\nAcesse o sistema para acompanhar.`;
+
+  try {
+    await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: inst.api_key },
+      body: JSON.stringify({ number: notifyPhone.replace(/\D/g, ""), text: msg }),
+    });
+  } catch { /* non-fatal */ }
+}
+
 // ── Sincronizar cliente e caso no Kanban ───────────────────────
 async function syncCRM(
   admin: SupabaseClient<any, any, any>,
@@ -153,12 +227,13 @@ async function syncCRM(
   }
 }
 
-// ── Enviar texto via Evolution API ─────────────────────────────
+// ── Enviar "digitando..." + texto via Evolution API ────────────
 async function sendText(
   admin: SupabaseClient<any, any, any>,
   userId: string,
   convId: string,
-  text: string
+  text: string,
+  withTyping = true
 ) {
   if (!text?.trim()) return;
 
@@ -174,20 +249,38 @@ async function sendText(
     status: inst?.api_url ? "sent" : "pending",
   });
   await admin.from("conversations").update({
-    last_message_at: new Date().toISOString(),
+    last_message_at:      new Date().toISOString(),
     last_message_preview: text.slice(0, 80),
-    ai_handled: true,
+    ai_handled:           true,
   }).eq("id", convId);
 
   if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
 
-  // Enviar via Evolution API
+  const base = inst.api_url.replace(/\/$/, "");
+  const headers = { "Content-Type": "application/json", apikey: inst.api_key };
+
   try {
-    await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", apikey: inst.api_key },
+    // Enviar "digitando..." por tempo proporcional ao texto
+    if (withTyping) {
+      await fetch(`${base}/chat/presence/${inst.instance_name}`, {
+        method: "POST", headers,
+        body: JSON.stringify({ number: conv.phone, options: { presence: "composing" } }),
+      }).catch(() => {});
+      const typingMs = Math.min(Math.max(text.length * 30, 800), 3500);
+      await new Promise(r => setTimeout(r, typingMs));
+    }
+
+    // Enviar mensagem
+    await fetch(`${base}/message/sendText/${inst.instance_name}`, {
+      method: "POST", headers,
       body: JSON.stringify({ number: conv.phone, text }),
     });
+
+    // Parar "digitando..."
+    await fetch(`${base}/chat/presence/${inst.instance_name}`, {
+      method: "POST", headers,
+      body: JSON.stringify({ number: conv.phone, options: { presence: "paused" } }),
+    }).catch(() => {});
   } catch { /* non-fatal */ }
 }
 
@@ -417,12 +510,20 @@ export async function handleFunnelMessage(
   userMessage: string,
   instanceFunnelId: string | null = null
 ) {
+  // ── Verificar se IA está pausada (atendimento humano) ────────
+  const { data: convCheck } = await admin
+    .from("conversations").select("ai_paused").eq("id", convId).single();
+  if ((convCheck as any)?.ai_paused) return;
+
+  // ── Cancelar follow-up pendente (cliente respondeu) ──────────
+  await cancelFollowup(admin, convId);
+
   // 1. Carregar ou criar estado
   const { data: existing } = await admin
     .from("funnel_states").select("*").eq("conversation_id", convId).maybeSingle();
 
   let state: FunnelState;
-  let funnel: Funnel | null = null;
+  let funnel: any = null;
 
   if (existing) {
     if (existing.fase === "encerrado") return;
@@ -435,7 +536,6 @@ export async function handleFunnelMessage(
       historico: existing.historico ?? [],
     };
   } else {
-    // Prioridade: funil da instância → funil padrão do usuário
     let funnelId = instanceFunnelId;
     if (!funnelId) {
       const { data: defaultFunnel } = await admin
@@ -460,12 +560,19 @@ export async function handleFunnelMessage(
   // 2. Carregar funil
   if (state.funnel_id) {
     const { data: f } = await admin.from("funnels").select("*").eq("id", state.funnel_id).single();
-    funnel = f as Funnel;
+    funnel = f;
   }
 
   if (!funnel?.persona_prompt) {
-    console.error("Funnel executor: nenhum funil ativo encontrado para userId:", userId, "funnelId:", state.funnel_id);
-    // Sem funil: não responder automaticamente
+    console.error("Funnel executor: nenhum funil para userId:", userId);
+    return;
+  }
+
+  // ── Verificar horário de atendimento ─────────────────────────
+  if (!isWithinWorkingHours(funnel)) {
+    const msg = funnel.outside_hours_msg ||
+      "Olá! Recebemos sua mensagem. O Dr. Maicon retorna no horário de atendimento.";
+    await sendText(admin, userId, convId, msg, false);
     return;
   }
 
@@ -475,37 +582,37 @@ export async function handleFunnelMessage(
     reply = await callAI(funnel.persona_prompt, state, userMessage);
   } catch (e: any) {
     console.error("Funnel executor - erro IA:", e?.message ?? e);
-    // Não enviar mensagem de erro — deixa silencioso para não poluir o chat
-    // O próxima mensagem do cliente vai tentar novamente
     return;
   }
 
-  // 4. Enviar texto inicial
+  // 4. Texto inicial com typing indicator
   if (reply.texto?.trim()) {
     await sendText(admin, userId, convId, reply.texto);
   }
 
-  // 5. Enviar mídias (somente as não enviadas ainda)
+  // 5. Mídias com delay entre elas
   const novasMidias: string[] = [];
   for (const key of reply.midias) {
     if (!state.midias_enviadas.includes(key)) {
+      await new Promise(r => setTimeout(r, 1000));
       await sendMedia(admin, userId, convId, key, funnel);
       novasMidias.push(key);
     }
   }
 
-  // 6. texto_pos_midia — enviado após as mídias
+  // 6. texto_pos_midia com delay
   if (reply.texto_pos_midia?.trim() && novasMidias.length > 0) {
-    // Pequeno delay para parecer natural
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 2000));
     await sendText(admin, userId, convId, reply.texto_pos_midia);
   }
 
-  // 7. Ação: gerar contrato
+  // 7. Ação: gerar contrato + notificar
   if (reply.acao === "gerar_contrato") {
-    await gerarContrato(admin, userId, convId, funnel, {
-      ...state.dados, ...reply.dados_extraidos,
-    });
+    const dadosCompletos = { ...state.dados, ...reply.dados_extraidos };
+    await gerarContrato(admin, userId, convId, funnel, dadosCompletos);
+    if (funnel.notify_phone) {
+      await notifyOwner(admin, userId, funnel.notify_phone, dadosCompletos, convId);
+    }
   }
 
   // 8. Salvar novo estado
@@ -524,8 +631,13 @@ export async function handleFunnelMessage(
     updated_at: new Date().toISOString(),
   }).eq("id", state.id);
 
-  // 9. Sincronizar CRM: cliente + caso no Kanban
+  // 9. Sincronizar CRM
   if (Object.keys(reply.dados_extraidos).length > 0 || reply.nova_fase) {
     await syncCRM(admin, userId, convId, novosDados, novaFase, funnel.name);
+  }
+
+  // 10. Agendar follow-up
+  if (novaFase !== "encerrado" && novaFase !== "assinatura" && (funnel.followup_hours ?? 0) > 0) {
+    await scheduleFollowup(admin, userId, convId, state.funnel_id, funnel.followup_hours);
   }
 }

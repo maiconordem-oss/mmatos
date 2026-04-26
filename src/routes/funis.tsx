@@ -325,8 +325,50 @@ function FunisPage() {
               ))}
             </div>
 
-            {/* ZapSign */}
-            <div className="border rounded-lg p-4 space-y-2">
+            {/* Horário de atendimento */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <p className="font-medium text-sm flex items-center gap-2">🕐 Horário de atendimento</p>
+              <p className="text-xs text-muted-foreground">Fora deste horário a IA responde uma mensagem e para. Deixe padrão para atender 24h.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Início (BRT)</Label>
+                  <Input type="time" value={(form as any).working_hours_start ?? "08:00"} onChange={(e) => setForm({ ...form, working_hours_start: e.target.value } as any)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Fim (BRT)</Label>
+                  <Input type="time" value={(form as any).working_hours_end ?? "22:00"} onChange={(e) => setForm({ ...form, working_hours_end: e.target.value } as any)} />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Mensagem fora do horário</Label>
+                <Input value={(form as any).outside_hours_msg ?? ""} onChange={(e) => setForm({ ...form, outside_hours_msg: e.target.value } as any)} placeholder="Olá! O Dr. Maicon retorna amanhã às 8h." />
+              </div>
+            </div>
+
+            {/* Follow-up */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <p className="font-medium text-sm flex items-center gap-2">🔔 Follow-up automático</p>
+              <p className="text-xs text-muted-foreground">Se o lead parar de responder, envia uma mensagem automaticamente após X horas.</p>
+              <div>
+                <Label className="text-xs">Enviar após (horas sem resposta)</Label>
+                <Input type="number" min={0} value={(form as any).followup_hours ?? 3} onChange={(e) => setForm({ ...form, followup_hours: Number(e.target.value) } as any)} placeholder="3" />
+                <p className="text-xs text-muted-foreground mt-1">Use 0 para desativar o follow-up.</p>
+              </div>
+              <div>
+                <Label className="text-xs">Mensagem de follow-up (opcional)</Label>
+                <Input value={(form as any).followup_msg ?? ""} onChange={(e) => setForm({ ...form, followup_msg: e.target.value } as any)} placeholder="Deixe vazio para usar mensagem padrão personalizada com o nome do lead" />
+              </div>
+            </div>
+
+            {/* Notificação */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <p className="font-medium text-sm flex items-center gap-2">📲 Notificação de contrato</p>
+              <p className="text-xs text-muted-foreground">Quando um contrato for gerado, você recebe uma mensagem no WhatsApp.</p>
+              <div>
+                <Label className="text-xs">Seu número WhatsApp (com DDI)</Label>
+                <Input value={(form as any).notify_phone ?? ""} onChange={(e) => setForm({ ...form, notify_phone: e.target.value } as any)} placeholder="5551999999999" />
+              </div>
+            </div>
               <p className="font-medium text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Contrato ZapSign</p>
               <Label className="text-xs text-muted-foreground">ID do template no ZapSign (para geração automática de contrato)</Label>
               <Input value={form.zapsign_template_id ?? ""} onChange={(e) => setForm({ ...form, zapsign_template_id: e.target.value || null })} placeholder="ID do template ZapSign" />

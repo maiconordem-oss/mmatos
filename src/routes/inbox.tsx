@@ -297,8 +297,21 @@ function InboxPage() {
                 <p className="text-[#8696a0] text-xs">{active.phone}</p>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => setShowAiPanel(!showAiPanel)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "bg-[#2a3942] text-[#25d366] hover:bg-[#3b4a54]")}>
-                  <Bot className="h-3.5 w-3.5" /> IA
+                <button
+                  onClick={async () => {
+                    const nowPaused = (active as any).ai_paused;
+                    await supabase.from("conversations").update({ ai_paused: !nowPaused }).eq("id", active.id);
+                    loadConvs();
+                    toast.success(nowPaused ? "IA retomada" : "IA pausada — você está no controle");
+                  }}
+                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors", (active as any).ai_paused ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-[#2a3942] text-[#25d366] hover:bg-[#3b4a54]")}
+                  title={(active as any).ai_paused ? "Clique para reativar a IA" : "Clique para pausar a IA e atender manualmente"}
+                >
+                  <Bot className="h-3.5 w-3.5" />
+                  {(active as any).ai_paused ? "IA pausada" : "IA ativa"}
+                </button>
+                <button onClick={() => setShowAiPanel(!showAiPanel)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "bg-[#2a3942] text-[#aebac1] hover:bg-[#3b4a54]")}>
+                  <Sparkles className="h-3.5 w-3.5" /> Ferramentas
                 </button>
                 <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1] transition-colors"><Phone className="h-5 w-5" /></button>
                 <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1] transition-colors"><Video className="h-5 w-5" /></button>
