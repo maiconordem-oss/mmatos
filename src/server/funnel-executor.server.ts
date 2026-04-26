@@ -143,8 +143,7 @@ async function callAI(
   state: FunnelState,
   userMessage: string
 ): Promise<AiReply> {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
+  const apiKey = process.env.LOVABLE_API_KEY ?? "lovable-internal";
 
   const contextBlock = `
 ═══════════════════════════
@@ -162,13 +161,23 @@ Responda APENAS com JSON válido no formato especificado. Nenhum texto fora do J
     { role: "user", content: userMessage },
   ];
 
-  const res = await fetch(AI_GATEWAY, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "google/gemini-2.5-flash-preview", messages, max_tokens: 1000 }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(AI_GATEWAY, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages, max_tokens: 1500 }),
+    });
+  } catch (networkErr) {
+    console.error("Erro de rede ao chamar IA:", networkErr);
+    throw new Error("Erro de rede");
+  }
 
-  if (!res.ok) throw new Error(`IA [${res.status}]: ${await res.text()}`);
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error(`IA erro [${res.status}]:`, errText);
+    throw new Error(`IA [${res.status}]: ${errText}`);
+  }
 
   const data = await res.json();
   let raw = (data.choices?.[0]?.message?.content ?? "{}").trim();
@@ -177,14 +186,15 @@ Responda APENAS com JSON válido no formato especificado. Nenhum texto fora do J
   try {
     const p = JSON.parse(raw) as AiReply;
     return {
-      texto:          p.texto ?? "",
-      midias:         Array.isArray(p.midias) ? p.midias : [],
+      texto:           p.texto ?? "",
+      midias:          Array.isArray(p.midias) ? p.midias : [],
       texto_pos_midia: p.texto_pos_midia ?? null,
-      nova_fase:      p.nova_fase ?? null,
-      acao:           p.acao ?? null,
+      nova_fase:       p.nova_fase ?? null,
+      acao:            p.acao ?? null,
       dados_extraidos: p.dados_extraidos ?? {},
     };
   } catch {
+    // Se a IA retornou texto puro (não JSON), tratar como texto simples
     return { texto: raw, midias: [], texto_pos_midia: null, nova_fase: null, acao: null, dados_extraidos: {} };
   }
 }
@@ -329,10 +339,8 @@ export async function handleFunnelMessage(
   }
 
   if (!funnel?.persona_prompt) {
-    // Sem funil configurado
-    await sendText(admin, userId, convId,
-      "Olá! Recebemos sua mensagem. Em breve um de nossos advogados irá retornar."
-    );
+    console.error("Funnel executor: nenhum funil ativo encontrado para userId:", userId, "funnelId:", state.funnel_id);
+    // Sem funil: não responder automaticamente
     return;
   }
 
@@ -341,8 +349,9 @@ export async function handleFunnelMessage(
   try {
     reply = await callAI(funnel.persona_prompt, state, userMessage);
   } catch (e: any) {
-    console.error("AI error:", e);
-    await sendText(admin, userId, convId, "Tive uma instabilidade. Pode repetir?");
+    console.error("Funnel executor - erro IA:", e?.message ?? e);
+    // Não enviar mensagem de erro — deixa silencioso para não poluir o chat
+    // O próxima mensagem do cliente vai tentar novamente
     return;
   }
 
