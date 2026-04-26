@@ -9,19 +9,21 @@ import {
   FileSignature,
   Smartphone,
   Workflow,
+  Bot,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 const navMain = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/kanban", label: "Kanban", icon: Kanban },
-  { to: "/inbox", label: "Inbox WhatsApp", icon: MessageSquare },
-  { to: "/clientes", label: "Clientes", icon: Users },
-  { to: "/contratos", label: "Propostas & Contratos", icon: FileSignature },
-  { to: "/agentes", label: "Agentes IA", icon: Sparkles },
-  { to: "/workflows", label: "Workflows", icon: Workflow },
+  { to: "/dashboard",  label: "Dashboard",            icon: LayoutDashboard },
+  { to: "/funis",      label: "Funis de Atendimento", icon: Bot },
+  { to: "/inbox",      label: "Inbox WhatsApp",       icon: MessageSquare },
+  { to: "/kanban",     label: "Kanban",               icon: Kanban },
+  { to: "/clientes",   label: "Clientes",             icon: Users },
+  { to: "/contratos",  label: "Propostas & Contratos",icon: FileSignature },
+  { to: "/agentes",    label: "Agentes IA",           icon: Sparkles },
+  { to: "/workflows",  label: "Workflows",            icon: Workflow },
 ] as const;
 
 const navBottom = [

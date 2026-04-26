@@ -14,6 +14,7 @@ import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
 import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as FunisRouteImport } from './routes/funis'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ClientesRouteImport } from './routes/clientes'
@@ -23,6 +24,12 @@ import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
+
+const FunisRoute = FunisRouteImport.update({
+  id: '/funis',
+  path: '/funis',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 const WorkflowsRoute = WorkflowsRouteImport.update({
   id: '/workflows',
@@ -202,6 +209,7 @@ export interface RootRouteChildren {
   ClientesRoute: typeof ClientesRoute
   ContratosRoute: typeof ContratosRoute
   DashboardRoute: typeof DashboardRoute
+  FunisRoute: typeof FunisRoute
   InboxRoute: typeof InboxRoute
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
@@ -333,6 +341,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClientesRoute: ClientesRoute,
   ContratosRoute: ContratosRoute,
   DashboardRoute: DashboardRoute,
+  FunisRoute: FunisRoute,
   InboxRoute: InboxRoute,
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,

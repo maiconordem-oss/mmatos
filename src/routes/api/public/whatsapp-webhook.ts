@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { handleAiConversation } from "@/server/ai-workflow-executor.server";
+import { handleFunnelMessage } from "@/server/funnel-executor.server";
 
 export const Route = createFileRoute("/api/public/whatsapp-webhook")({
   server: {
@@ -86,11 +86,10 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
                 status: "sent",
               });
 
-              // Disparar executor de IA semântico
               try {
-                await handleAiConversation(supabaseAdmin, inst.user_id, conv.id, text);
+                await handleFunnelMessage(supabaseAdmin, inst.user_id, conv.id, text);
               } catch (e) {
-                console.error("ai conversation error:", e);
+                console.error("funnel executor error:", e);
               }
             }
           }
