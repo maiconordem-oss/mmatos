@@ -9,6 +9,7 @@ import {
   Smartphone,
   Bot,
   BookOpen,
+  Wand2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -22,6 +23,7 @@ const navMain = [
   { to: "/clientes",   label: "Clientes",             icon: Users },
   { to: "/contratos",  label: "Propostas & Contratos",icon: FileSignature },
   { to: "/manual",     label: "Manual de Prompts",    icon: BookOpen },
+  { to: "/wizard",     label: "Criar Funil com IA",   icon: Wand2 },
 ] as const;
 
 const navBottom = [

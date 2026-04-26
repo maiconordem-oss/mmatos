@@ -15,6 +15,7 @@ import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AgentesRouteImport } from './routes/agentes'
 import { Route as ManualRouteImport } from './routes/manual'
+import { Route as WizardRouteImport } from './routes/wizard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
@@ -31,6 +32,7 @@ const FunisRoute = FunisRouteImport.update({ id: '/funis', path: '/funis', getPa
 const DashboardRoute = DashboardRouteImport.update({ id: '/dashboard', path: '/dashboard', getParentRoute: () => rootRouteImport } as any)
 const ContratosRoute = ContratosRouteImport.update({ id: '/contratos', path: '/contratos', getParentRoute: () => rootRouteImport } as any)
 const ClientesRoute = ClientesRouteImport.update({ id: '/clientes', path: '/clientes', getParentRoute: () => rootRouteImport } as any)
+const WizardRoute = WizardRouteImport.update({ id: '/wizard', path: '/wizard', getParentRoute: () => rootRouteImport } as any)
 const ManualRoute = ManualRouteImport.update({ id: '/manual', path: '/manual', getParentRoute: () => rootRouteImport } as any)
 const AgentesRoute = AgentesRouteImport.update({ id: '/agentes', path: '/agentes', getParentRoute: () => rootRouteImport } as any)
 const IndexRoute = IndexRouteImport.update({ id: '/', path: '/', getParentRoute: () => rootRouteImport } as any)
@@ -96,6 +98,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   FunisRoute: typeof FunisRoute
   ManualRoute: typeof ManualRoute
+  WizardRoute: typeof WizardRoute
   InboxRoute: typeof InboxRoute
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
