@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
+import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,9 @@ export const Route = createFileRoute("/contratos")({
   head: () => ({ meta: [{ title: "Propostas & Contratos — Lex CRM" }] }),
   component: () => (
     <AuthGate>
-      <ContractsPage />
+      <AppShell>
+        <ContractsPage />
+      </AppShell>
     </AuthGate>
   ),
 });

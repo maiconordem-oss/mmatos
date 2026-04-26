@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
+import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Briefcase, MessageSquare, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +10,9 @@ export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Lex CRM" }] }),
   component: () => (
     <AuthGate>
-      <DashboardPage />
+      <AppShell>
+        <DashboardPage />
+      </AppShell>
     </AuthGate>
   ),
 });

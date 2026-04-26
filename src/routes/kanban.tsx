@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
+import { AppShell } from "@/components/AppShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,9 @@ export const Route = createFileRoute("/kanban")({
   head: () => ({ meta: [{ title: "Kanban — Lex CRM" }] }),
   component: () => (
     <AuthGate>
-      <KanbanPage />
+      <AppShell>
+        <KanbanPage />
+      </AppShell>
     </AuthGate>
   ),
 });
