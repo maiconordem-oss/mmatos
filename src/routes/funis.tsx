@@ -1,5 +1,5 @@
-/* rebuild-141216 */
-import { createFileRoute, Link } from "@tanstack/react-router";
+/* rebuild-1777213472 */
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
@@ -14,7 +14,9 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Bot, Video, Mic, FileText, Pencil, Trash2, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { Plus, Bot, Video, Mic, FileText, Pencil, Trash2, ChevronDown, ChevronUp, ExternalLink, FlaskConical, RotateCcw, MessageSquare, Send, ArrowRight } from "lucide-react";
+import { simulateFunnel, resetSimulation } from "@/server/funnel-simulator";
+import { useAuthServerFn } from "@/hooks/use-server-fn";
 
 export const Route = createFileRoute("/funis")({
   head: () => ({ meta: [{ title: "Funis de Atendimento — Lex CRM" }] }),
@@ -119,12 +121,25 @@ SE perguntar se é robô: "Sou o Dr. Maicon Matos. Estou aqui para cuidar do seu
 
 function FunisPage() {
   const { user } = useAuth();
+  const navigate  = useNavigate();
   const [funis, setFunis] = useState<Funil[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Funil | null>(null);
   const [form, setForm] = useState<Omit<Funil, "id">>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [expandedPrompt, setExpandedPrompt] = useState<string | null>(null);
+
+  // Simulação
+  const [simOpen, setSimOpen]       = useState(false);
+  const [simFunil, setSimFunil]     = useState<Funil | null>(null);
+  const [simMsg, setSimMsg]         = useState("oi");
+  const [simRunning, setSimRunning] = useState(false);
+  const [simConvId, setSimConvId]   = useState<string | null>(null);
+  const [simMessages, setSimMessages] = useState<any[]>([]);
+  const [simInput, setSimInput]     = useState("");
+
+  const simulateFn = useAuthServerFn(simulateFunnel);
+  const resetFn    = useAuthServerFn(resetSimulation);
 
   const load = async () => {
     if (!user) return;
@@ -133,6 +148,64 @@ function FunisPage() {
   };
 
   useEffect(() => { load(); }, [user]);
+
+  // Carregar mensagens da simulação em tempo real
+  useEffect(() => {
+    if (!simConvId) return;
+    supabase.from("messages").select("*").eq("conversation_id", simConvId).order("created_at")
+      .then(({ data }) => setSimMessages(data ?? []));
+
+    const ch = supabase.channel(`sim:${simConvId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages",
+          filter: `conversation_id=eq.${simConvId}` },
+        () => {
+          supabase.from("messages").select("*").eq("conversation_id", simConvId).order("created_at")
+            .then(({ data }) => setSimMessages(data ?? []));
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [simConvId]);
+
+  const openSim = (f: Funil) => {
+    setSimFunil(f);
+    setSimMsg("oi");
+    setSimConvId(null);
+    setSimMessages([]);
+    setSimInput("");
+    setSimOpen(true);
+  };
+
+  const startSim = async () => {
+    if (!simFunil) return;
+    setSimRunning(true);
+    try {
+      const r = await simulateFn({ data: { funnel_id: simFunil.id, message: simMsg } });
+      setSimConvId(r.conversation_id);
+      toast.success("Simulação iniciada!");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSimRunning(false); }
+  };
+
+  const sendSimMsg = async () => {
+    if (!simFunil || !simConvId || !simInput.trim()) return;
+    const msg = simInput.trim();
+    setSimInput("");
+    setSimRunning(true);
+    try {
+      await simulateFn({ data: { funnel_id: simFunil.id, message: msg } });
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSimRunning(false); }
+  };
+
+  const resetSim = async () => {
+    if (!simFunil) return;
+    try {
+      await resetFn({ data: { funnel_id: simFunil.id } });
+      setSimConvId(null);
+      setSimMessages([]);
+      toast.success("Simulação resetada — pode começar de novo");
+    } catch (e: any) { toast.error(e.message); }
+  };
 
   const openNew = () => {
     setEditing(null);
@@ -234,6 +307,9 @@ function FunisPage() {
                 {!f.is_default && (
                   <Button size="sm" variant="outline" onClick={() => setDefault(f)}>Tornar padrão</Button>
                 )}
+                <Button size="sm" variant="outline" className="gap-1.5 text-violet-600 border-violet-300 hover:bg-violet-50" onClick={() => openSim(f)}>
+                  <FlaskConical className="h-3.5 w-3.5" /> Simular
+                </Button>
                 <Button size="icon" variant="ghost" onClick={() => openEdit(f)}><Pencil className="h-4 w-4" /></Button>
                 <Button size="icon" variant="ghost" onClick={() => remove(f.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
@@ -407,6 +483,134 @@ function FunisPage() {
               <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
               <Button onClick={save} disabled={saving}>{saving ? "Salvando..." : "Salvar funil"}</Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Modal de Simulação */}
+      <Dialog open={simOpen} onOpenChange={(v) => { setSimOpen(v); if (!v) resetSim(); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5 text-violet-500" />
+              Simulando: {simFunil?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex flex-col flex-1 min-h-0 gap-4 pt-2">
+
+            {/* Início da simulação */}
+            {!simConvId && (
+              <div className="space-y-4">
+                <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-sm text-violet-800">
+                  <p className="font-medium mb-1">🧪 Como funciona a simulação</p>
+                  <p>A IA vai rodar exatamente como faria com um cliente real — mesmas fases, mesma lógica, mesmo prompt. A diferença é que as mensagens <strong>não chegam no WhatsApp</strong>, ficam só aqui.</p>
+                </div>
+                <div>
+                  <Label>Primeira mensagem do cliente (simule o que ele mandaria)</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input value={simMsg} onChange={e => setSimMsg(e.target.value)}
+                      placeholder="Ex: oi, quero saber sobre vaga em creche"
+                      onKeyDown={e => e.key === "Enter" && startSim()} />
+                    <Button onClick={startSim} disabled={simRunning} className="gap-2 shrink-0">
+                      <ArrowRight className="h-4 w-4" />
+                      {simRunning ? "Iniciando..." : "Iniciar"}
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {["oi", "quero saber sobre vaga em creche", "qual o custo?", "como funciona?"].map(s => (
+                      <button key={s} onClick={() => setSimMsg(s)}
+                        className="text-xs px-2 py-1 rounded-full bg-muted hover:bg-muted/80 transition-colors">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Chat de simulação */}
+            {simConvId && (
+              <>
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className="text-violet-600 border-violet-300 gap-1.5">
+                    <div className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
+                    Simulação ativa
+                  </Badge>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={resetSim}>
+                      <RotateCcw className="h-3 w-3" /> Reiniciar do zero
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs"
+                      onClick={() => { setSimOpen(false); navigate({ to: "/inbox" }); }}>
+                      <MessageSquare className="h-3 w-3" /> Ver no Inbox
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Mensagens */}
+                <div className="flex-1 overflow-y-auto rounded-lg border bg-muted/20 p-4 space-y-2 min-h-[300px] max-h-[400px]">
+                  {simMessages.length === 0 && simRunning && (
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <div className="flex gap-1">
+                        <div className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <div className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <div className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
+                      IA processando...
+                    </div>
+                  )}
+                  {simMessages.map((m: any) => (
+                    <div key={m.id} className={`flex ${m.direction === "outbound" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[75%] px-3 py-2 rounded-lg text-sm ${
+                        m.direction === "outbound"
+                          ? "bg-primary text-primary-foreground rounded-tr-none"
+                          : "bg-background border rounded-tl-none"
+                      }`}>
+                        {m.direction === "inbound" && (
+                          <p className="text-[10px] text-muted-foreground mb-0.5 font-medium">👤 Cliente (simulado)</p>
+                        )}
+                        {m.direction === "outbound" && (
+                          <p className="text-[10px] mb-0.5 font-medium opacity-70">🤖 Dr. Maicon (IA)</p>
+                        )}
+                        <p className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</p>
+                        <p className={`text-[10px] mt-1 text-right ${m.direction === "outbound" ? "opacity-60" : "text-muted-foreground"}`}>
+                          {new Date(m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {simRunning && simMessages.length > 0 && (
+                    <div className="flex justify-start">
+                      <div className="bg-background border rounded-lg rounded-tl-none px-3 py-2">
+                        <div className="flex gap-1">
+                          <div className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+                          <div className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+                          <div className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input */}
+                <div className="flex gap-2">
+                  <Input
+                    value={simInput}
+                    onChange={e => setSimInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && sendSimMsg()}
+                    placeholder="Digite como se fosse o cliente..."
+                    disabled={simRunning}
+                  />
+                  <Button onClick={sendSimMsg} disabled={simRunning || !simInput.trim()} className="gap-2 shrink-0">
+                    <Send className="h-4 w-4" />
+                    {simRunning ? "..." : "Enviar"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Nenhuma mensagem real é enviada — tudo fica neste simulador
+                </p>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
