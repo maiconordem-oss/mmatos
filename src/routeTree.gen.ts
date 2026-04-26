@@ -19,6 +19,7 @@ import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
+import { Route as ApiSimulateRouteImport } from './routes/api/simulate'
 
 const WorkflowsRoute = WorkflowsRouteImport.update({ id: '/workflows', path: '/workflows', getParentRoute: () => rootRouteImport } as any)
 const WhatsappRoute = WhatsappRouteImport.update({ id: '/whatsapp', path: '/whatsapp', getParentRoute: () => rootRouteImport } as any)
@@ -35,6 +36,7 @@ const WorkflowsIdRoute = WorkflowsIdRouteImport.update({ id: '/$id', path: '/$id
 const ApiPublicZapsignWebhookRoute = ApiPublicZapsignWebhookRouteImport.update({ id: '/api/public/zapsign-webhook', path: '/api/public/zapsign-webhook', getParentRoute: () => rootRouteImport } as any)
 const ApiPublicWorkflowTickRoute = ApiPublicWorkflowTickRouteImport.update({ id: '/api/public/workflow-tick', path: '/api/public/workflow-tick', getParentRoute: () => rootRouteImport } as any)
 const ApiPublicWhatsappWebhookRoute = ApiPublicWhatsappWebhookRouteImport.update({ id: '/api/public/whatsapp-webhook', path: '/api/public/whatsapp-webhook', getParentRoute: () => rootRouteImport } as any)
+const ApiSimulateRoute = ApiSimulateRouteImport.update({ id: '/api/simulate', path: '/api/simulate', getParentRoute: () => rootRouteImport } as any)
 
 const WorkflowsRouteWithChildren = WorkflowsRoute._addFileChildren({ WorkflowsIdRoute })
 
@@ -116,6 +118,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWhatsappWebhookRoute,
   ApiPublicWorkflowTickRoute,
   ApiPublicZapsignWebhookRoute,
+  ApiSimulateRoute,
 }
 
 export const routeTree = rootRouteImport

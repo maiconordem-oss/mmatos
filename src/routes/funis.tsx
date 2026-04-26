@@ -9,17 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { simulateFunnel, resetSimulation } from "@/server/funnel-simulator.server";
-import { useAuthServerFn } from "@/hooks/use-server-fn";
 import {
   Plus, Bot, Video, Mic, FileText, Pencil, Trash2,
   ChevronDown, ChevronUp, ExternalLink, FlaskConical,
-  RotateCcw, MessageSquare, Send, ArrowRight, CheckCheck,
+  RotateCcw, MessageSquare, Send, ArrowRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/funis")({
@@ -135,8 +132,19 @@ function FunisPage() {
   const [simConvId, setSimConvId]       = useState<string | null>(null);
   const [simMessages, setSimMessages]   = useState<any[]>([]);
   const [simInput, setSimInput]         = useState("");
-  const simulateFn = useAuthServerFn(simulateFunnel);
-  const resetFn    = useAuthServerFn(resetSimulation);
+
+  const callSimApi = async (action: string, funnel_id: string, message = "") => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) throw new Error("Não autenticado");
+    const res = await fetch("/api/simulate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, funnel_id, message, token }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error ?? "Erro");
+    return res.json();
+  };
 
   const load = async () => {
     if (!user) return;
@@ -204,7 +212,7 @@ function FunisPage() {
     if (!simFunil) return;
     setSimRunning(true);
     try {
-      const r = await simulateFn({ data: { funnel_id: simFunil.id, message: simMsg } });
+      const r = await callSimApi("send", simFunil.id, simMsg);
       setSimConvId(r.conversation_id);
       toast.success("Simulação iniciada!");
     } catch (e: any) { toast.error(e.message); }
@@ -214,15 +222,18 @@ function FunisPage() {
   const sendSimMsg = async () => {
     if (!simFunil || !simConvId || !simInput.trim()) return;
     const msg = simInput.trim(); setSimInput(""); setSimRunning(true);
-    try { await simulateFn({ data: { funnel_id: simFunil.id, message: msg } }); }
+    try { await callSimApi("send", simFunil.id, msg); }
     catch (e: any) { toast.error(e.message); }
     finally { setSimRunning(false); }
   };
 
   const resetSim = async () => {
     if (!simFunil) return;
-    try { await resetFn({ data: { funnel_id: simFunil.id } }); setSimConvId(null); setSimMessages([]); toast.success("Resetado!"); }
-    catch (e: any) { toast.error(e.message); }
+    try {
+      await callSimApi("reset", simFunil.id);
+      setSimConvId(null); setSimMessages([]);
+      toast.success("Resetado!");
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const MEDIAS = [
