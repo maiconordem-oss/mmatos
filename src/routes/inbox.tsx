@@ -12,6 +12,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { qualifierReply, extractQualification, generateProposal } from "@/server/ai-agent.functions";
+import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/inbox")({
@@ -49,6 +50,10 @@ function InboxPage() {
   const [open, setOpen] = useState(false);
   const [aiBusy, setAiBusy] = useState<string | null>(null);
   const [newConv, setNewConv] = useState({ phone: "", contact_name: "" });
+
+  const qualifierReplyFn = useAuthServerFn(qualifierReply);
+  const extractQualificationFn = useAuthServerFn(extractQualification);
+  const generateProposalFn = useAuthServerFn(generateProposal);
 
   const loadConvs = async () => {
     const { data } = await supabase.from("conversations").select("*").order("last_message_at", { ascending: false, nullsFirst: false });
@@ -165,17 +170,17 @@ function InboxPage() {
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" disabled={aiBusy !== null} onClick={async () => {
                   setAiBusy("reply");
-                  try { await qualifierReply({ data: { conversationId: active.id } }); toast.success("IA respondeu"); }
+                  try { await qualifierReplyFn({ data: { conversationId: active.id } }); toast.success("IA respondeu"); }
                   catch (e: any) { toast.error(e.message); }
                   finally { setAiBusy(null); }
                 }}><Bot className="h-3 w-3 mr-1" /> {aiBusy === "reply" ? "..." : "IA responder"}</Button>
                 <Button size="sm" variant="outline" disabled={aiBusy !== null} onClick={async () => {
                   setAiBusy("qual");
                   try {
-                    const r = await extractQualification({ data: { conversationId: active.id } });
+                    const r = await extractQualificationFn({ data: { conversationId: active.id } });
                     toast.success(`Qualificado: ${r.qualification.legal_area} (score ${r.qualification.score})`);
                     if (r.qualification.qualified) {
-                      const p = await generateProposal({ data: { qualificationId: r.qualification.id } });
+                      const p = await generateProposalFn({ data: { qualificationId: r.qualification.id } });
                       toast.success(`Proposta criada: R$ ${Number(p.proposal.value).toLocaleString("pt-BR")}`);
                       navigate({ to: "/contratos" });
                     }

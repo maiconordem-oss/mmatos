@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { sendContract } from "@/server/zapsign.functions";
+import { useAuthServerFn } from "@/hooks/use-server-fn";
 
 export const Route = createFileRoute("/contratos")({
   head: () => ({ meta: [{ title: "Propostas & Contratos — Lex CRM" }] }),
@@ -44,6 +45,7 @@ function ContractsPage() {
   const [signOpen, setSignOpen] = useState(false);
   const [selectedProp, setSelectedProp] = useState<any>(null);
   const [signForm, setSignForm] = useState({ templateId: "", signerName: "", signerEmail: "", signerPhone: "" });
+  const sendContractFn = useAuthServerFn(sendContract);
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: t }, { data: cl }] = await Promise.all([
@@ -75,7 +77,7 @@ function ContractsPage() {
   const handleSendContract = async () => {
     if (!selectedProp || !signForm.templateId) { toast.error("Selecione um template"); return; }
     try {
-      const res = await sendContract({ data: {
+      const res = await sendContractFn({ data: {
         proposalId: selectedProp.id,
         templateId: signForm.templateId,
         signerName: signForm.signerName,

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { connectInstance, disconnectInstance, refreshStatus, upsertInstance } from "@/server/whatsapp.functions";
+import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { Smartphone, RefreshCw, LogOut, QrCode } from "lucide-react";
 
 export const Route = createFileRoute("/whatsapp")({
@@ -42,6 +43,11 @@ function WhatsappPage() {
   const [form, setForm] = useState({ instance_name: "lex", api_url: "", api_key: "" });
   const [busy, setBusy] = useState(false);
 
+  const upsertFn = useAuthServerFn(upsertInstance);
+  const connectFn = useAuthServerFn(connectInstance);
+  const disconnectFn = useAuthServerFn(disconnectInstance);
+  const refreshFn = useAuthServerFn(refreshStatus);
+
   const load = async () => {
     if (!user) return;
     const { data } = await supabase.from("whatsapp_instances").select("*").eq("user_id", user.id).maybeSingle();
@@ -68,7 +74,7 @@ function WhatsappPage() {
   useEffect(() => {
     if (!inst || inst.status === "connected") return;
     const t = setInterval(async () => {
-      try { await refreshStatus({ data: { id: inst.id } }); } catch {}
+      try { await refreshFn({ data: { id: inst.id } }); } catch {}
     }, 5000);
     return () => clearInterval(t);
   }, [inst?.id, inst?.status]);
@@ -76,7 +82,7 @@ function WhatsappPage() {
   const save = async () => {
     setBusy(true);
     try {
-      const r = await upsertInstance({ data: form });
+      const r = await upsertFn({ data: form });
       setInst(r.instance as Instance);
       toast.success("Configuração salva");
     } catch (e: any) { toast.error(e.message); }
@@ -87,7 +93,7 @@ function WhatsappPage() {
     if (!inst) return;
     setBusy(true);
     try {
-      await connectInstance({ data: { id: inst.id } });
+      await connectFn({ data: { id: inst.id } });
       toast.success("Escaneie o QR Code com o WhatsApp");
       await load();
     } catch (e: any) { toast.error(e.message); }
@@ -97,7 +103,7 @@ function WhatsappPage() {
   const disconnect = async () => {
     if (!inst) return;
     setBusy(true);
-    try { await disconnectInstance({ data: { id: inst.id } }); await load(); toast.success("Desconectado"); }
+    try { await disconnectFn({ data: { id: inst.id } }); await load(); toast.success("Desconectado"); }
     catch (e: any) { toast.error(e.message); }
     finally { setBusy(false); }
   };
@@ -131,7 +137,7 @@ function WhatsappPage() {
           <div className="flex gap-2">
             <Button onClick={save} disabled={busy}>Salvar configuração</Button>
             {inst && <Button onClick={connect} disabled={busy} variant="default"><QrCode className="h-4 w-4" /> Gerar QR Code</Button>}
-            {inst && <Button onClick={() => refreshStatus({ data: { id: inst.id } }).then(load)} variant="outline"><RefreshCw className="h-4 w-4" /></Button>}
+            {inst && <Button onClick={() => refreshFn({ data: { id: inst.id } }).then(load)} variant="outline"><RefreshCw className="h-4 w-4" /></Button>}
             {inst?.status === "connected" && <Button onClick={disconnect} variant="destructive"><LogOut className="h-4 w-4" /> Desconectar</Button>}
           </div>
           {inst && (
