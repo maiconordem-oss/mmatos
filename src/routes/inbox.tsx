@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, Check, CheckCheck, X } from "lucide-react";
+import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { qualifierReply, extractQualification, generateProposal } from "@/server/ai-agent.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/inbox")({
   head: () => ({ meta: [{ title: "Inbox WhatsApp — Lex CRM" }] }),
@@ -21,34 +22,34 @@ export const Route = createFileRoute("/inbox")({
 });
 
 type Conversation = {
-  id: string;
-  phone: string;
-  contact_name: string | null;
-  last_message_preview: string | null;
-  last_message_at: string | null;
-  unread_count: number;
+  id: string; phone: string; contact_name: string | null;
+  last_message_preview: string | null; last_message_at: string | null;
+  unread_count: number; ai_paused: boolean; ai_handled: boolean;
 };
 
 type Message = {
-  id: string;
-  direction: "inbound" | "outbound";
-  content: string | null;
-  created_at: string;
-  status?: string;
-  media_type?: string | null;
-  media_url?: string | null;
+  id: string; direction: "inbound" | "outbound";
+  content: string | null; created_at: string; status?: string;
+  media_type?: string | null; media_url?: string | null;
 };
 
+type FunnelState = {
+  fase: string;
+  dados: Record<string, any>;
+  midias_enviadas: string[];
+  funnels: { name: string } | null;
+};
+
+// ── Helpers ────────────────────────────────────────────────────
 function avatar(name: string | null, phone: string) {
   const label = name ? name[0].toUpperCase() : phone[0];
   const colors = ["#25D366","#128C7E","#075E54","#34B7F1","#00BCD4","#8BC34A","#FF9800","#E91E63"];
-  const idx = (name || phone).split("").reduce((a, c) => a + c.charCodeAt(0), 0) % colors.length;
+  const idx = (name || phone).split("").reduce((a,c) => a + c.charCodeAt(0), 0) % colors.length;
   return { label, color: colors[idx] };
 }
 
 function formatTime(iso: string) {
-  const d = new Date(iso);
-  const now = new Date();
+  const d = new Date(iso), now = new Date();
   const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
   if (diffDays === 0) return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   if (diffDays === 1) return "Ontem";
@@ -64,16 +65,175 @@ function groupByDate(messages: Message[]) {
   const groups: { date: string; messages: Message[] }[] = [];
   let current = "";
   for (const m of messages) {
-    const d = new Date(m.created_at);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-    let label = diffDays === 0 ? "Hoje" : diffDays === 1 ? "Ontem" : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    const d = new Date(m.created_at), now = new Date();
+    const diff = Math.floor((now.getTime() - d.getTime()) / 86400000);
+    const label = diff === 0 ? "Hoje" : diff === 1 ? "Ontem"
+      : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
     if (label !== current) { groups.push({ date: label, messages: [] }); current = label; }
     groups[groups.length - 1].messages.push(m);
   }
   return groups;
 }
 
+const FASES = ["abertura","triagem","conexao","fechamento","coleta","assinatura","encerrado"];
+const FASE_LABELS: Record<string, string> = {
+  abertura: "Abertura", triagem: "Triagem", conexao: "Conexão",
+  fechamento: "Fechamento", coleta: "Coleta de dados",
+  assinatura: "Assinatura", encerrado: "Encerrado",
+};
+const FASE_COLORS: Record<string, string> = {
+  abertura: "#8696a0", triagem: "#34B7F1", conexao: "#FF9800",
+  fechamento: "#E91E63", coleta: "#9C27B0", assinatura: "#25D366", encerrado: "#128C7E",
+};
+
+const DADO_LABELS: Record<string, string> = {
+  nome: "Nome", nomeCrianca: "Criança", idadeCrianca: "Idade",
+  municipio: "Município", cpf: "CPF", rg: "RG",
+  estadoCivil: "Estado civil", profissao: "Profissão",
+  endereco: "Endereço", dataNascimentoCrianca: "Nasc. criança",
+  creche: "Creche", protocolo: "Protocolo",
+  temPrescricao: "Tem prescrição", nomeMedico: "Médico", crm: "CRM", cid: "CID",
+};
+
+// ── Painel lateral do lead ─────────────────────────────────────
+function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void }) {
+  const [state, setState] = useState<FunnelState | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    supabase.from("funnel_states")
+      .select("fase, dados, midias_enviadas, funnels(name)")
+      .eq("conversation_id", conv.id).maybeSingle()
+      .then(({ data }) => { setState(data as any); setLoading(false); });
+  }, [conv.id]);
+
+  const faseIdx = state ? FASES.indexOf(state.fase) : -1;
+  const dados = state?.dados ?? {};
+  const dadosKeys = Object.keys(dados).filter(k => dados[k] && DADO_LABELS[k]);
+
+  return (
+    <div className="w-72 shrink-0 flex flex-col border-l" style={{ background: "#111b21" }}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a3942]" style={{ background: "#202c33" }}>
+        <span className="text-white text-sm font-medium">Ficha do Lead</span>
+        <button onClick={onClose} className="text-[#aebac1] hover:text-white p-1">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Identidade */}
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
+            style={{ background: avatar(conv.contact_name, conv.phone).color }}>
+            {avatar(conv.contact_name, conv.phone).label}
+          </div>
+          <div>
+            <p className="text-white font-medium text-sm">{conv.contact_name || conv.phone}</p>
+            <p className="text-[#8696a0] text-xs">{conv.phone}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              {conv.ai_paused
+                ? <Badge className="text-[10px] px-1.5 py-0 bg-red-500/20 text-red-400 border-red-500/30">IA pausada</Badge>
+                : <Badge className="text-[10px] px-1.5 py-0 bg-green-500/20 text-green-400 border-green-500/30">IA ativa</Badge>
+              }
+            </div>
+          </div>
+        </div>
+
+        {loading && <p className="text-[#8696a0] text-xs text-center py-4">Carregando...</p>}
+
+        {!loading && !state && (
+          <div className="text-center py-4">
+            <Bot className="h-8 w-8 mx-auto mb-2 text-[#8696a0] opacity-40" />
+            <p className="text-[#8696a0] text-xs">Funil ainda não iniciado</p>
+          </div>
+        )}
+
+        {!loading && state && (
+          <>
+            {/* Funil */}
+            {(state.funnels as any)?.name && (
+              <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
+                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-1">Funil</p>
+                <p className="text-white text-sm font-medium">{(state.funnels as any).name}</p>
+              </div>
+            )}
+
+            {/* Progresso de fases */}
+            <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
+              <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-3">Progresso</p>
+              <div className="space-y-1.5">
+                {FASES.map((fase, i) => {
+                  const done    = i < faseIdx;
+                  const current = i === faseIdx;
+                  const future  = i > faseIdx;
+                  return (
+                    <div key={fase} className="flex items-center gap-2">
+                      <div className={cn(
+                        "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
+                        done    && "bg-[#25d366] text-black",
+                        current && "border-2 text-white",
+                        future  && "bg-[#2a3942] text-[#8696a0]",
+                      )} style={current ? { borderColor: FASE_COLORS[fase], color: FASE_COLORS[fase] } : {}}>
+                        {done ? "✓" : i + 1}
+                      </div>
+                      <span className={cn(
+                        "text-xs",
+                        done    && "text-[#25d366]",
+                        current && "font-semibold",
+                        future  && "text-[#8696a0]",
+                      )} style={current ? { color: FASE_COLORS[fase] } : {}}>
+                        {FASE_LABELS[fase]}
+                      </span>
+                      {current && (
+                        <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: FASE_COLORS[fase] + "30", color: FASE_COLORS[fase] }}>
+                          atual
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Dados coletados */}
+            {dadosKeys.length > 0 && (
+              <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
+                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-2">Dados coletados</p>
+                <div className="space-y-1.5">
+                  {dadosKeys.map(k => (
+                    <div key={k} className="flex items-start gap-2">
+                      <span className="text-[10px] text-[#8696a0] shrink-0 pt-0.5 w-24">{DADO_LABELS[k]}:</span>
+                      <span className="text-xs text-white break-words">{String(dados[k])}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Mídias enviadas */}
+            {state.midias_enviadas.length > 0 && (
+              <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
+                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-2">Mídias enviadas</p>
+                <div className="space-y-1">
+                  {state.midias_enviadas.map(m => (
+                    <div key={m} className="flex items-center gap-1.5 text-[11px] text-[#25d366]">
+                      <CheckCheck className="h-3 w-3 shrink-0" />
+                      {m.replace(/_/g, " ")}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Página principal ───────────────────────────────────────────
 function InboxPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -86,45 +246,52 @@ function InboxPage() {
   const [aiBusy, setAiBusy] = useState<string | null>(null);
   const [newConv, setNewConv] = useState({ phone: "", contact_name: "" });
   const [showAiPanel, setShowAiPanel] = useState(false);
+  const [showLeadPanel, setShowLeadPanel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef    = useRef<HTMLTextAreaElement>(null);
 
-  const qualifierReplyFn = useAuthServerFn(qualifierReply);
+  const qualifierReplyFn      = useAuthServerFn(qualifierReply);
   const extractQualificationFn = useAuthServerFn(extractQualification);
-  const generateProposalFn = useAuthServerFn(generateProposal);
+  const generateProposalFn    = useAuthServerFn(generateProposal);
 
-  const loadConvs = async () => {
-    const { data } = await supabase.from("conversations").select("*").order("last_message_at", { ascending: false, nullsFirst: false });
+  const loadConvs = useCallback(async () => {
+    const { data } = await supabase.from("conversations").select("*")
+      .order("last_message_at", { ascending: false, nullsFirst: false });
     setConversations((data ?? []) as Conversation[]);
-  };
-
-  useEffect(() => { loadConvs(); }, []);
-
-  // Realtime: new conversations
-  useEffect(() => {
-    const ch = supabase.channel("convs-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => loadConvs())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
   }, []);
 
+  useEffect(() => { loadConvs(); }, [loadConvs]);
+
+  // Realtime conversas
+  useEffect(() => {
+    const ch = supabase.channel("convs-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, loadConvs)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [loadConvs]);
+
+  // Carregar mensagens + realtime quando troca de conversa
   useEffect(() => {
     if (!activeId) return;
-    supabase.from("messages").select("*").eq("conversation_id", activeId).order("created_at").then(({ data }) => {
-      setMessages((data ?? []) as Message[]);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-    });
-    // Mark as read
+    supabase.from("messages").select("*")
+      .eq("conversation_id", activeId).order("created_at")
+      .then(({ data }) => {
+        setMessages((data ?? []) as Message[]);
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+      });
     supabase.from("conversations").update({ unread_count: 0 }).eq("id", activeId);
 
-    const channel = supabase.channel(`msgs:${activeId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${activeId}` }, (payload) => {
-        setMessages((prev) => [...prev, payload.new as Message]);
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-        supabase.from("conversations").update({ unread_count: 0 }).eq("id", activeId);
-      })
+    const ch = supabase.channel(`msgs:${activeId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages",
+          filter: `conversation_id=eq.${activeId}` },
+        (payload) => {
+          setMessages(prev => [...prev, payload.new as Message]);
+          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+          supabase.from("conversations").update({ unread_count: 0 }).eq("id", activeId);
+          loadConvs(); // Atualiza preview na lista
+        })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(ch); };
   }, [activeId]);
 
   const handleNewConv = async () => {
@@ -136,7 +303,7 @@ function InboxPage() {
     if (error) { toast.error(error.message); return; }
     setOpen(false); setNewConv({ phone: "", contact_name: "" });
     loadConvs();
-    if (data) setActiveId(data.id);
+    if (data) { setActiveId(data.id); setShowLeadPanel(true); }
   };
 
   const handleSend = async () => {
@@ -166,8 +333,14 @@ function InboxPage() {
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
   };
 
-  const active = conversations.find((c) => c.id === activeId);
-  const filtered = conversations.filter((c) =>
+  const toggleAiPause = async (conv: Conversation) => {
+    await supabase.from("conversations").update({ ai_paused: !conv.ai_paused }).eq("id", conv.id);
+    loadConvs();
+    toast.success(conv.ai_paused ? "IA reativada" : "IA pausada — você está no controle");
+  };
+
+  const active  = conversations.find(c => c.id === activeId);
+  const filtered = conversations.filter(c =>
     (c.contact_name || c.phone).toLowerCase().includes(search.toLowerCase())
   );
   const grouped = groupByDate(messages);
@@ -177,78 +350,80 @@ function InboxPage() {
       <Toaster />
 
       {/* ── SIDEBAR ── */}
-      <div className="w-[380px] flex flex-col border-r border-[#2a3942] shrink-0" style={{ background: "#111b21" }}>
-
+      <div className="w-[360px] flex flex-col border-r border-[#2a3942] shrink-0" style={{ background: "#111b21" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3" style={{ background: "#202c33" }}>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ background: "#25d366" }}>
+            <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-[#25d366]">
               {user?.email?.[0]?.toUpperCase() ?? "M"}
             </div>
             <span className="text-white font-medium text-sm">Lex CRM</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1] transition-colors">
-                  <Plus className="h-5 w-5" />
-                </button>
+                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><Plus className="h-5 w-5" /></button>
               </DialogTrigger>
               <DialogContent className="bg-[#202c33] border-[#2a3942] text-white">
                 <DialogHeader><DialogTitle className="text-white">Nova conversa</DialogTitle></DialogHeader>
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs text-[#8696a0] mb-1 block">Telefone *</label>
-                    <input className="w-full bg-[#2a3942] border border-[#3b4a54] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#25d366]" placeholder="+5511..." value={newConv.phone} onChange={(e) => setNewConv({ ...newConv, phone: e.target.value })} />
+                    <input className="w-full bg-[#2a3942] border border-[#3b4a54] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#25d366]"
+                      placeholder="+5551..." value={newConv.phone} onChange={e => setNewConv({ ...newConv, phone: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-xs text-[#8696a0] mb-1 block">Nome do contato</label>
-                    <input className="w-full bg-[#2a3942] border border-[#3b4a54] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#25d366]" value={newConv.contact_name} onChange={(e) => setNewConv({ ...newConv, contact_name: e.target.value })} />
+                    <input className="w-full bg-[#2a3942] border border-[#3b4a54] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#25d366]"
+                      value={newConv.contact_name} onChange={e => setNewConv({ ...newConv, contact_name: e.target.value })} />
                   </div>
                 </div>
                 <DialogFooter>
-                  <button onClick={handleNewConv} className="bg-[#25d366] hover:bg-[#20ba5a] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Criar</button>
+                  <button onClick={handleNewConv} className="bg-[#25d366] hover:bg-[#20ba5a] text-white px-4 py-2 rounded-lg text-sm font-medium">Criar</button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1] transition-colors">
-              <MoreVertical className="h-5 w-5" />
-            </button>
+            <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><MoreVertical className="h-5 w-5" /></button>
           </div>
         </div>
 
-        {/* Search */}
+        {/* Busca */}
         <div className="px-3 py-2" style={{ background: "#111b21" }}>
           <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "#202c33" }}>
             <Search className="h-4 w-4 text-[#8696a0] shrink-0" />
-            <input
-              className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none"
-              placeholder="Pesquisar ou começar nova conversa"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <input className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none"
+              placeholder="Pesquisar conversas..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </div>
 
-        {/* Conversation list */}
+        {/* Lista */}
         <div className="flex-1 overflow-y-auto">
           {filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center h-40 text-[#8696a0] text-sm">
-              <MessageSquare className="h-8 w-8 mb-2 opacity-40" />
-              Nenhuma conversa
+              <MessageSquare className="h-8 w-8 mb-2 opacity-40" />Nenhuma conversa
             </div>
           )}
-          {filtered.map((c) => {
+          {filtered.map(c => {
             const av = avatar(c.contact_name, c.phone);
             const isActive = activeId === c.id;
             return (
-              <button
-                key={c.id}
-                onClick={() => setActiveId(c.id)}
-                className={cn("w-full flex items-center gap-3 px-4 py-3 border-b border-[#2a3942] hover:bg-[#2a3942] transition-colors text-left", isActive && "bg-[#2a3942]")}
-              >
-                <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0" style={{ background: av.color }}>
-                  {av.label}
+              <button key={c.id} onClick={() => { setActiveId(c.id); setShowLeadPanel(true); }}
+                className={cn("w-full flex items-center gap-3 px-4 py-3 border-b border-[#2a3942] hover:bg-[#2a3942] transition-colors text-left", isActive && "bg-[#2a3942]")}>
+                <div className="relative shrink-0">
+                  <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ background: av.color }}>
+                    {av.label}
+                  </div>
+                  {/* Indicador IA pausada */}
+                  {c.ai_paused && (
+                    <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 border-2 border-[#111b21] flex items-center justify-center">
+                      <span className="text-[8px] text-white font-bold">P</span>
+                    </div>
+                  )}
+                  {!c.ai_paused && c.ai_handled && (
+                    <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-[#25d366] border-2 border-[#111b21] flex items-center justify-center">
+                      <Bot className="h-2.5 w-2.5 text-black" />
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center">
@@ -272,88 +447,80 @@ function InboxPage() {
         </div>
       </div>
 
-      {/* ── CHAT AREA ── */}
-      <div className="flex-1 flex flex-col" style={{ background: "#0b141a" }}>
+      {/* ── ÁREA DE CHAT ── */}
+      <div className="flex-1 flex flex-col min-w-0" style={{ background: "#0b141a" }}>
         {!active ? (
           <div className="flex-1 flex flex-col items-center justify-center text-[#8696a0]">
-            <div
-              className="h-24 w-24 rounded-full flex items-center justify-center mb-6"
-              style={{ background: "rgba(37,211,102,0.1)", border: "2px solid rgba(37,211,102,0.2)" }}
-            >
+            <div className="h-24 w-24 rounded-full flex items-center justify-center mb-6" style={{ background: "rgba(37,211,102,0.1)", border: "2px solid rgba(37,211,102,0.2)" }}>
               <MessageSquare className="h-10 w-10" style={{ color: "#25d366" }} />
             </div>
             <h2 className="text-white text-xl font-light mb-2">Lex CRM — WhatsApp</h2>
-            <p className="text-sm text-center max-w-xs">Selecione uma conversa para começar o atendimento ou crie uma nova.</p>
+            <p className="text-sm text-center max-w-xs">Selecione uma conversa para começar o atendimento.</p>
           </div>
         ) : (
           <>
-            {/* Chat header */}
+            {/* Header do chat */}
             <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "#202c33" }}>
-              <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold shrink-0" style={{ background: avatar(active.contact_name, active.phone).color }}>
+              <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold shrink-0"
+                style={{ background: avatar(active.contact_name, active.phone).color }}>
                 {avatar(active.contact_name, active.phone).label}
               </div>
-              <div className="flex-1">
+              <button className="flex-1 text-left" onClick={() => setShowLeadPanel(!showLeadPanel)}>
                 <p className="text-white font-medium text-sm">{active.contact_name || active.phone}</p>
-                <p className="text-[#8696a0] text-xs">{active.phone}</p>
-              </div>
+                <p className="text-[#8696a0] text-xs">{active.phone} · clique para ver ficha</p>
+              </button>
               <div className="flex items-center gap-1">
+                {/* Pausar/retomar IA */}
                 <button
-                  onClick={async () => {
-                    const nowPaused = (active as any).ai_paused;
-                    await supabase.from("conversations").update({ ai_paused: !nowPaused }).eq("id", active.id);
-                    loadConvs();
-                    toast.success(nowPaused ? "IA retomada" : "IA pausada — você está no controle");
-                  }}
-                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors", (active as any).ai_paused ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-[#2a3942] text-[#25d366] hover:bg-[#3b4a54]")}
-                  title={(active as any).ai_paused ? "Clique para reativar a IA" : "Clique para pausar a IA e atender manualmente"}
+                  onClick={() => toggleAiPause(active)}
+                  className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors",
+                    active.ai_paused
+                      ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                      : "bg-[#25d366]/20 text-[#25d366] hover:bg-[#25d366]/30"
+                  )}
+                  title={active.ai_paused ? "Reativar IA" : "Pausar IA"}
                 >
                   <Bot className="h-3.5 w-3.5" />
-                  {(active as any).ai_paused ? "IA pausada" : "IA ativa"}
+                  {active.ai_paused ? "IA pausada" : "IA ativa"}
                 </button>
-                <button onClick={() => setShowAiPanel(!showAiPanel)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "bg-[#2a3942] text-[#aebac1] hover:bg-[#3b4a54]")}>
-                  <Sparkles className="h-3.5 w-3.5" /> Ferramentas
+                <button onClick={() => setShowAiPanel(!showAiPanel)}
+                  className={cn("p-2 rounded-full transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "hover:bg-[#2a3942] text-[#aebac1]")}>
+                  <Sparkles className="h-5 w-5" />
                 </button>
-                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1] transition-colors"><Phone className="h-5 w-5" /></button>
-                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1] transition-colors"><Video className="h-5 w-5" /></button>
-                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1] transition-colors"><Search className="h-5 w-5" /></button>
-                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1] transition-colors"><MoreVertical className="h-5 w-5" /></button>
+                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><Search className="h-5 w-5" /></button>
+                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><MoreVertical className="h-5 w-5" /></button>
               </div>
             </div>
 
-            {/* AI Panel */}
+            {/* Painel de ferramentas IA */}
             {showAiPanel && (
               <div className="flex items-center gap-2 px-4 py-2 border-b border-[#2a3942] flex-wrap" style={{ background: "#182229" }}>
-                <span className="text-[#8696a0] text-xs font-medium mr-1">Agentes IA:</span>
-                <button
-                  disabled={aiBusy !== null}
+                <span className="text-[#8696a0] text-xs font-medium mr-1">Ferramentas IA:</span>
+                <button disabled={aiBusy !== null}
                   onClick={async () => {
                     setAiBusy("reply");
                     try { await qualifierReplyFn({ data: { conversationId: active.id } }); toast.success("IA respondeu!"); }
                     catch (e: any) { toast.error(e.message); }
                     finally { setAiBusy(null); }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50 transition-colors"
-                >
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
                   <Bot className="h-3 w-3 text-[#25d366]" />
                   {aiBusy === "reply" ? "Respondendo..." : "Responder como Dr. Maicon"}
                 </button>
-                <button
-                  disabled={aiBusy !== null}
+                <button disabled={aiBusy !== null}
                   onClick={async () => {
                     setAiBusy("qual");
                     try {
                       const r = await extractQualificationFn({ data: { conversationId: active.id } });
-                      toast.success(`Qualificado: ${r.qualification.legal_area} — score ${r.qualification.score}`);
+                      toast.success(`Score: ${r.qualification.score}`);
                       if (r.qualification.qualified) {
                         const p = await generateProposalFn({ data: { qualificationId: r.qualification.id } });
-                        toast.success(`Proposta criada: R$ ${Number(p.proposal.value).toLocaleString("pt-BR")}`);
-                        navigate({ to: "/contratos" });
+                        toast.success(`Proposta: R$ ${Number(p.proposal.value).toLocaleString("pt-BR")}`);
                       }
                     } catch (e: any) { toast.error(e.message); }
                     finally { setAiBusy(null); }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50 transition-colors"
-                >
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
                   <Sparkles className="h-3 w-3 text-[#f0c040]" />
                   {aiBusy === "qual" ? "Qualificando..." : "Qualificar + Proposta"}
                 </button>
@@ -361,50 +528,42 @@ function InboxPage() {
               </div>
             )}
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }}>
+            {/* Mensagens */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
+              style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }}>
               {grouped.length === 0 && (
                 <div className="flex justify-center py-8">
-                  <span className="px-3 py-1.5 rounded-lg text-xs text-[#8696a0]" style={{ background: "rgba(0,0,0,0.3)" }}>
-                    Nenhuma mensagem ainda
-                  </span>
+                  <span className="px-3 py-1.5 rounded-lg text-xs text-[#8696a0]" style={{ background: "rgba(0,0,0,0.3)" }}>Nenhuma mensagem ainda</span>
                 </div>
               )}
-              {grouped.map((group) => (
+              {grouped.map(group => (
                 <div key={group.date}>
                   <div className="flex justify-center my-4">
-                    <span className="px-3 py-1 rounded-lg text-xs text-[#8696a0] font-medium" style={{ background: "#182229" }}>
-                      {group.date}
-                    </span>
+                    <span className="px-3 py-1 rounded-lg text-xs text-[#8696a0] font-medium" style={{ background: "#182229" }}>{group.date}</span>
                   </div>
-                  {group.messages.map((m) => (
+                  {group.messages.map(m => (
                     <div key={m.id} className={cn("flex mb-1", m.direction === "outbound" ? "justify-end" : "justify-start")}>
-                      <div
-                        className={cn("max-w-[65%] px-3 py-2 rounded-lg text-sm relative", m.direction === "outbound" ? "rounded-tr-none" : "rounded-tl-none")}
-                        style={{ background: m.direction === "outbound" ? "#005c4b" : "#202c33" }}
-                      >
-                        {/* Mídia */}
-                        {(m as any).media_type === "audio" && (
-                          <div className="flex items-center gap-2 mb-1">
+                      <div className={cn("max-w-[65%] px-3 py-2 rounded-lg text-sm", m.direction === "outbound" ? "rounded-tr-none" : "rounded-tl-none")}
+                        style={{ background: m.direction === "outbound" ? "#005c4b" : "#202c33" }}>
+                        {m.media_type === "audio" && (
+                          <div className="flex items-center gap-2 mb-1.5">
                             <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)" }}>
-                              <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+                              <Mic className="h-4 w-4 text-white" />
                             </div>
                             <div className="flex-1">
-                              <div className="h-1.5 rounded-full w-24 opacity-40" style={{ background: "white" }} />
+                              <div className="h-1 rounded-full opacity-40 bg-white w-24" />
                               <p className="text-[10px] text-white/60 mt-0.5">Áudio</p>
                             </div>
                           </div>
                         )}
-                        {(m as any).media_type === "image" && (m as any).media_url && (
-                          <img src={(m as any).media_url} alt="imagem" className="rounded mb-1 max-w-full" style={{ maxHeight: 200 }} />
+                        {m.media_type === "image" && m.media_url && (
+                          <img src={m.media_url} alt="img" className="rounded mb-1 max-w-full" style={{ maxHeight: 200 }} />
                         )}
                         <p className="text-white leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
                         <div className="flex items-center gap-1 justify-end mt-1">
                           <span className="text-[10px] text-[#8696a0]">{formatMsgTime(m.created_at)}</span>
                           {m.direction === "outbound" && (
-                            m.status === "read"
-                              ? <CheckCheck className="h-3 w-3 text-[#53bdeb]" />
-                              : <CheckCheck className="h-3 w-3 text-[#8696a0]" />
+                            <CheckCheck className={cn("h-3 w-3", m.status === "read" ? "text-[#53bdeb]" : "text-[#8696a0]")} />
                           )}
                         </div>
                       </div>
@@ -417,31 +576,29 @@ function InboxPage() {
 
             {/* Input */}
             <div className="px-4 py-3 flex items-end gap-3 shrink-0" style={{ background: "#202c33" }}>
-              <button className="p-2 text-[#aebac1] hover:text-white transition-colors shrink-0"><Smile className="h-6 w-6" /></button>
-              <button className="p-2 text-[#aebac1] hover:text-white transition-colors shrink-0"><Paperclip className="h-6 w-6" /></button>
+              <button className="p-2 text-[#aebac1] hover:text-white shrink-0"><Smile className="h-6 w-6" /></button>
+              <button className="p-2 text-[#aebac1] hover:text-white shrink-0"><Paperclip className="h-6 w-6" /></button>
               <div className="flex-1 rounded-lg px-4 py-2 flex items-end" style={{ background: "#2a3942" }}>
-                <textarea
-                  ref={textareaRef}
+                <textarea ref={textareaRef}
                   className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none resize-none leading-relaxed"
                   style={{ height: "40px", maxHeight: "120px" }}
-                  placeholder="Digite uma mensagem"
-                  value={text}
-                  onChange={handleTextChange}
-                  onKeyDown={handleKeyDown}
-                  rows={1}
-                />
+                  placeholder={active.ai_paused ? "Você está no controle — IA pausada" : "Digite uma mensagem"}
+                  value={text} onChange={handleTextChange} onKeyDown={handleKeyDown} rows={1} />
               </div>
-              <button
-                onClick={text.trim() ? handleSend : undefined}
-                className="p-2.5 rounded-full flex items-center justify-center shrink-0 transition-all"
-                style={{ background: "#25d366" }}
-              >
+              <button onClick={text.trim() ? handleSend : undefined}
+                className="p-2.5 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: "#25d366" }}>
                 {text.trim() ? <Send className="h-5 w-5 text-white" /> : <Mic className="h-5 w-5 text-white" />}
               </button>
             </div>
           </>
         )}
       </div>
+
+      {/* ── PAINEL LATERAL DO LEAD ── */}
+      {active && showLeadPanel && (
+        <LeadPanel conv={active} onClose={() => setShowLeadPanel(false)} />
+      )}
     </div>
   );
 }
