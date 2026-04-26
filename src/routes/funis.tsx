@@ -369,6 +369,9 @@ function FunisPage() {
                 <Input value={(form as any).notify_phone ?? ""} onChange={(e) => setForm({ ...form, notify_phone: e.target.value } as any)} placeholder="5551999999999" />
               </div>
             </div>
+
+            {/* ZapSign */}
+            <div className="border rounded-lg p-4 space-y-2">
               <p className="font-medium text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Contrato ZapSign</p>
               <Label className="text-xs text-muted-foreground">ID do template no ZapSign (para geração automática de contrato)</Label>
               <Input value={form.zapsign_template_id ?? ""} onChange={(e) => setForm({ ...form, zapsign_template_id: e.target.value || null })} placeholder="ID do template ZapSign" />
