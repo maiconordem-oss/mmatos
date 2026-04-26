@@ -10,6 +10,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getAvailableSlots, createCalendarEvent } from "@/server/google-calendar.server";
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
@@ -614,6 +615,97 @@ async function createWhatsAppGroup(
     console.error("createWhatsAppGroup error:", e);
   }
 }
+
+// ── Oferecer slots de agenda ───────────────────────────────────
+async function handleAgendarConsulta(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  convId: string,
+  funnel: any,
+  dados: Record<string, any>
+) {
+  if (!funnel.calendar_enabled || !funnel.calendar_google_token || !funnel.calendar_id) {
+    await sendText(admin, userId, convId,
+      "Para agendar uma consulta, entre em contato pelo telefone ou aguarde meu retorno em breve."
+    );
+    return;
+  }
+  try {
+    const slots = await getAvailableSlots(
+      funnel.calendar_google_token, funnel.calendar_id,
+      funnel.calendar_slot_duration ?? 30, funnel.calendar_start_hour ?? 9, funnel.calendar_end_hour ?? 18
+    );
+    if (slots.length === 0) {
+      await sendText(admin, userId, convId, "Não tenho horários disponíveis para amanhã. Me fala qual dia você prefere e verifico na agenda.");
+      return;
+    }
+    const options = slots.slice(0, 5);
+    const tomorrow = options[0].start.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
+    const optionsText = options.map((s: any, i: number) => `${i + 1}. ${s.label}`).join("\n");
+    await sendText(admin, userId, convId, `Tenho os seguintes horários disponíveis para amanhã, ${tomorrow}:\n\n${optionsText}\n\nQual desses horários funciona melhor para você? Responda com o número.`);
+    await admin.from("funnel_states").update({
+      dados: { ...dados, _slots_agenda: options.map((s: any) => ({ label: s.label, start: s.start.toISOString(), end: s.end.toISOString() })) }
+    }).eq("conversation_id", convId);
+  } catch (e) {
+    console.error("handleAgendarConsulta error:", e);
+    await sendText(admin, userId, convId, "Tive uma instabilidade ao verificar a agenda. Tente novamente em instantes.");
+  }
+}
+
+async function handleConfirmarAgendamento(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  convId: string,
+  funnel: any,
+  dados: Record<string, any>,
+  escolha: string
+) {
+  const slots: any[] = dados._slots_agenda ?? [];
+  if (slots.length === 0) return;
+  const num = parseInt(escolha.trim()) - 1;
+  const slot = !isNaN(num) && num >= 0 && num < slots.length
+    ? slots[num]
+    : slots.find((s: any) => escolha.includes(s.label));
+  if (!slot) {
+    await sendText(admin, userId, convId, "Não entendi qual horário você escolheu. Responda com o número (1, 2, 3...).");
+    return;
+  }
+  const start = new Date(slot.start);
+  const end   = new Date(slot.end);
+  const nome  = dados.nome ?? "Cliente";
+  let eventId: string | null = null;
+  if (funnel.calendar_google_token && funnel.calendar_id) {
+    eventId = await createCalendarEvent(
+      funnel.calendar_google_token, funnel.calendar_id,
+      `${funnel.calendar_meeting_title ?? "Consulta"} — ${nome}`,
+      `Consulta agendada via WhatsApp. Nome: ${nome}`,
+      start, end, dados.email ?? undefined
+    );
+  }
+  const { data: conv } = await admin.from("conversations").select("client_id").eq("id", convId).single();
+  await admin.from("appointments").insert({
+    user_id: userId, client_id: conv?.client_id ?? null,
+    conversation_id: convId, funnel_id: funnel.id ?? null,
+    google_event_id: eventId,
+    title: `${funnel.calendar_meeting_title ?? "Consulta"} — ${nome}`,
+    start_at: start.toISOString(), end_at: end.toISOString(), status: "confirmado",
+  });
+  const horario = start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  const dia = start.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
+  await sendText(admin, userId, convId, `Perfeito! Consulta confirmada para ${dia} às ${horario}.\n\nQualquer dúvida, é só me chamar.`);
+}
+
+async function handleTransferirHumano(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  convId: string,
+  funnel: any
+) {
+  const msg = funnel.handoff_msg ?? "Entendido. Vou acionar minha equipe para falar diretamente com você. Aguarde um instante.";
+  await sendText(admin, userId, convId, msg);
+  await admin.from("conversations").update({ ai_paused: true, ai_handled: false, status: "open" }).eq("id", convId);
+}
+
 export async function handleFunnelMessage(
   admin: SupabaseClient<any, any, any>,
   userId: string,
@@ -717,13 +809,26 @@ export async function handleFunnelMessage(
     await sendText(admin, userId, convId, reply.texto_pos_midia);
   }
 
-  // 7. Ação: gerar contrato + notificar
+  // 7. Processar ações
   if (reply.acao === "gerar_contrato") {
     const dadosCompletos = { ...state.dados, ...reply.dados_extraidos };
     await gerarContrato(admin, userId, convId, funnel, dadosCompletos);
     if (funnel.notify_phone) {
       await notifyOwner(admin, userId, funnel.notify_phone, dadosCompletos, convId);
     }
+  }
+
+  if (reply.acao === "agendar_consulta") {
+    await handleAgendarConsulta(admin, userId, convId, funnel, novosDados);
+  }
+
+  if (reply.acao === "confirmar_agendamento") {
+    await handleConfirmarAgendamento(admin, userId, convId, funnel, novosDados, userMessage);
+  }
+
+  if (reply.acao === "transferir_humano") {
+    await handleTransferirHumano(admin, userId, convId, funnel);
+    return; // Para o fluxo após transferir
   }
 
   // 8. Salvar novo estado

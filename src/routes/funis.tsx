@@ -472,7 +472,90 @@ function FunisPage() {
               <Input value={form.notify_phone ?? ""} onChange={(e) => setForm({ ...form, notify_phone: e.target.value })} placeholder="5551999999999" />
             </div>
 
-            {/* Grupo WhatsApp */}
+            {/* Google Calendar */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-sm flex items-center gap-2">📅 Google Agenda</p>
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.calendar_enabled ?? false} onCheckedChange={(v) => setForm({ ...form, calendar_enabled: v })} />
+                  <Label className="text-xs">{form.calendar_enabled ? "Ativado" : "Desativado"}</Label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Quando a IA usar a ação <code className="bg-muted px-1 rounded">agendar_consulta</code>, o sistema busca horários livres do Google Calendar e oferece ao cliente. O cliente escolhe e o evento é criado automaticamente.
+              </p>
+              {form.calendar_enabled && (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Refresh Token do Google OAuth *</Label>
+                    <Input type="password" value={form.calendar_google_token ?? ""} onChange={(e) => setForm({ ...form, calendar_google_token: e.target.value || null })} placeholder="refresh_token da sua conta Google" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Obtenha em: <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noreferrer" className="text-primary underline">Google OAuth Playground</a> — selecione Calendar API v3
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs">ID do calendário</Label>
+                    <Input value={form.calendar_id ?? ""} onChange={(e) => setForm({ ...form, calendar_id: e.target.value || null })} placeholder="seu@email.com ou ID do calendário" />
+                    <p className="text-xs text-muted-foreground mt-1">Para o calendário principal use seu e-mail. Para outros, copie o ID nas configurações do Google Calendar.</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs">Duração (min)</Label>
+                      <Input type="number" value={form.calendar_slot_duration ?? 30} onChange={(e) => setForm({ ...form, calendar_slot_duration: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Início (hora)</Label>
+                      <Input type="number" min={0} max={23} value={form.calendar_start_hour ?? 9} onChange={(e) => setForm({ ...form, calendar_start_hour: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Fim (hora)</Label>
+                      <Input type="number" min={0} max={23} value={form.calendar_end_hour ?? 18} onChange={(e) => setForm({ ...form, calendar_end_hour: Number(e.target.value) })} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Título do evento</Label>
+                    <Input value={form.calendar_meeting_title ?? "Consulta — Dr. Maicon Matos"} onChange={(e) => setForm({ ...form, calendar_meeting_title: e.target.value })} />
+                  </div>
+                </div>
+              )}
+              {form.calendar_enabled && (
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-800 space-y-1">
+                  <p className="font-medium">Como usar no prompt:</p>
+                  <p>Quando o cliente quiser agendar ou você quiser oferecer consulta:</p>
+                  <code className="block bg-blue-100 rounded p-1.5 font-mono">
+                    {`{"acao": "agendar_consulta", "texto": "Vou verificar minha agenda para amanhã.", ...}`}
+                  </code>
+                  <p>Quando o cliente responder com o número do horário:</p>
+                  <code className="block bg-blue-100 rounded p-1.5 font-mono">
+                    {`{"acao": "confirmar_agendamento", "texto": "", ...}`}
+                  </code>
+                </div>
+              )}
+            </div>
+
+            {/* Transferência para humano */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-sm flex items-center gap-2">👤 Transferência para atendimento humano</p>
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.handoff_enabled ?? true} onCheckedChange={(v) => setForm({ ...form, handoff_enabled: v })} />
+                  <Label className="text-xs">{form.handoff_enabled ? "Ativado" : "Desativado"}</Label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Quando a IA usar a ação <code className="bg-muted px-1 rounded">transferir_humano</code>, envia esta mensagem e pausa a IA automaticamente.
+              </p>
+              <div>
+                <Label className="text-xs">Mensagem ao transferir</Label>
+                <Textarea rows={2} value={form.handoff_msg ?? ""} onChange={(e) => setForm({ ...form, handoff_msg: e.target.value })} placeholder="Entendido. Vou acionar minha equipe para falar diretamente com você." />
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
+                <p className="font-medium mb-1">Como usar no prompt:</p>
+                <code className="block bg-amber-100 rounded p-1.5 font-mono">
+                  {`{"acao": "transferir_humano", "texto": "", "nova_fase": "encerrado", ...}`}
+                </code>
+              </div>
+            </div>
             <div className="border rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="font-medium text-sm">👥 Grupo WhatsApp automático</p>
