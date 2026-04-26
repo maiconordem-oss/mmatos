@@ -5,10 +5,8 @@ import {
   MessageSquare,
   Users,
   LogOut,
-  Sparkles,
   FileSignature,
   Smartphone,
-  Workflow,
   Bot,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,57 +20,25 @@ const navMain = [
   { to: "/kanban",     label: "Kanban",               icon: Kanban },
   { to: "/clientes",   label: "Clientes",             icon: Users },
   { to: "/contratos",  label: "Propostas & Contratos",icon: FileSignature },
-  { to: "/agentes",    label: "Agentes IA",           icon: Sparkles },
-  { to: "/workflows",  label: "Workflows",            icon: Workflow },
 ] as const;
 
 const navBottom = [
   { to: "/whatsapp", label: "Conectar WhatsApp", icon: Smartphone },
 ] as const;
 
-function NavItem({
-  to,
-  label,
-  icon: Icon,
-  active,
-}: {
-  to: string;
-  label: string;
-  icon: React.ElementType;
-  active: boolean;
-}) {
+function NavItem({ to, label, icon: Icon, active }: { to: string; label: string; icon: React.ElementType; active: boolean }) {
   return (
-    <Link to={to} className="relative group block">
-      <div
-        className={cn(
-          "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-150 mx-auto relative",
-          active
-            ? "text-[#c9a84c]"
-            : "text-white/30 hover:text-white/75",
-        )}
-        style={active ? { background: "rgba(184,134,11,0.15)" } : undefined}
-      >
-        {active && (
-          <span
-            className="absolute -left-2 top-2 bottom-2 w-0.5 rounded-r-full"
-            style={{ background: "#c9a84c" }}
-          />
-        )}
-        <Icon size={18} strokeWidth={1.7} />
-      </div>
-      {/* Tooltip */}
-      <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div
-          className="relative text-white text-[11.5px] font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-lg"
-          style={{ background: "#18150f" }}
-        >
-          <span
-            className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent"
-            style={{ borderRightColor: "#18150f", borderLeft: "none" }}
-          />
-          {label}
-        </div>
-      </div>
+    <Link
+      to={to}
+      className={cn(
+        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      {label}
     </Link>
   );
 }
@@ -82,93 +48,69 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : "??";
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/login" });
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* ── Compact icon sidebar ── */}
-      <aside
-        className="w-[58px] flex-shrink-0 flex flex-col items-center py-3 gap-0.5 z-50"
-        style={{ background: "oklch(0.17 0.035 260)" }}
-      >
-        {/* Logo mark */}
-        <Link to="/dashboard" className="mb-2.5 group block">
-          <div
-            className="w-9 h-9 rounded-[10px] flex items-center justify-center text-[19px] text-white transition-opacity group-hover:opacity-85 select-none"
-            style={{
-              background: "linear-gradient(135deg, #c9a84c, #b8860b)",
-              boxShadow: "0 3px 10px rgba(184,134,11,0.4)",
-              fontFamily: "Georgia, serif",
-              fontStyle: "italic",
-            }}
-          >
-            L
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar */}
+      <aside className="w-60 shrink-0 border-r flex flex-col bg-card">
+        {/* Logo */}
+        <div className="px-4 py-5 border-b">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Bot className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <div>
+              <p className="font-bold text-sm leading-tight">Lex CRM</p>
+              <p className="text-[10px] text-muted-foreground">Advocacia Digital</p>
+            </div>
           </div>
-        </Link>
+        </div>
 
-        {/* Main nav */}
-        <nav className="flex flex-col gap-0.5 w-full px-2">
-          {navMain.map(({ to, label, icon }) => (
+        {/* Nav principal */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+          {navMain.map((item) => (
             <NavItem
-              key={to}
-              to={to}
-              label={label}
-              icon={icon}
-              active={location.pathname.startsWith(to)}
+              key={item.to}
+              to={item.to}
+              label={item.label}
+              icon={item.icon}
+              active={location.pathname === item.to}
             />
           ))}
         </nav>
 
-        {/* Separator */}
-        <div
-          className="w-[26px] h-px my-1.5 flex-shrink-0"
-          style={{ background: "rgba(255,255,255,0.08)" }}
-        />
-
-        {/* Bottom nav */}
-        <nav className="flex flex-col gap-0.5 w-full px-2">
-          {navBottom.map(({ to, label, icon }) => (
+        {/* Nav inferior */}
+        <div className="p-3 border-t space-y-1">
+          {navBottom.map((item) => (
             <NavItem
-              key={to}
-              to={to}
-              label={label}
-              icon={icon}
-              active={location.pathname.startsWith(to)}
+              key={item.to}
+              to={item.to}
+              label={item.label}
+              icon={item.icon}
+              active={location.pathname === item.to}
             />
           ))}
-        </nav>
-
-        {/* Avatar + logout */}
-        <div className="mt-auto flex flex-col items-center gap-2 px-2">
-          <div
-            className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-[11.5px] font-bold text-white cursor-default select-none flex-shrink-0"
-            style={{
-              background: "linear-gradient(135deg, #c9a84c, #8a6020)",
-              boxShadow: "0 2px 8px rgba(201,168,76,0.35)",
-              border: "2px solid rgba(201,168,76,0.3)",
-            }}
-            title={user?.email ?? ""}
-          >
-            {initials}
-          </div>
-
           <button
             onClick={handleLogout}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150 text-white/25 hover:text-red-400 hover:bg-red-500/10"
-            title="Sair"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full"
           >
-            <LogOut size={16} strokeWidth={1.8} />
+            <LogOut className="h-4 w-4 shrink-0" />
+            Sair
           </button>
+          {user && (
+            <p className="text-[10px] text-muted-foreground px-3 pt-1 truncate">{user.email}</p>
+          )}
         </div>
       </aside>
 
-      {/* ── Main content ── */}
-      <main className="flex-1 overflow-auto min-w-0">{children}</main>
+      {/* Conteúdo principal */}
+      <main className="flex-1 overflow-y-auto">
+        {children}
+      </main>
     </div>
   );
 }
