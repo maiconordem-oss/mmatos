@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { onInboundMessage } from "@/server/workflow-executor.server";
+import { handleAiConversation } from "@/server/ai-workflow-executor.server";
 
 export const Route = createFileRoute("/api/public/whatsapp-webhook")({
   server: {
@@ -86,11 +86,11 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
                 status: "sent",
               });
 
-              // Trigger workflow engine (auto-start on first contact, resume if paused)
+              // Disparar executor de IA semântico
               try {
-                await onInboundMessage(supabaseAdmin, inst.user_id, conv.id, text);
+                await handleAiConversation(supabaseAdmin, inst.user_id, conv.id, text);
               } catch (e) {
-                console.error("workflow executor error:", e);
+                console.error("ai conversation error:", e);
               }
             }
           }
