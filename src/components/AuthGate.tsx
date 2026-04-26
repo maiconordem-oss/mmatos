@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
-import { AppShell } from "./AppShell";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -23,5 +22,5 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!user) return null;
 
-  return <AppShell>{children}</AppShell>;
+  return <>{children}</>;
 }
