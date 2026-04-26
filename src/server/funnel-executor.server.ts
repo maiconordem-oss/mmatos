@@ -506,7 +506,107 @@ async function gerarContrato(
   }
 }
 
-// ── FUNÇÃO PRINCIPAL ───────────────────────────────────────────
+// ── Criar grupo WhatsApp com cliente + equipe ─────────────────
+async function createWhatsAppGroup(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  convId: string,
+  funnel: any,
+  dados: Record<string, any>
+) {
+  if (!funnel.group_enabled) return;
+
+  const participants: string[] = funnel.group_participants ?? [];
+  if (participants.length === 0) {
+    console.log("createWhatsAppGroup: nenhum participante configurado");
+    return;
+  }
+
+  try {
+    const { data: conv } = await admin
+      .from("conversations").select("phone, contact_name").eq("id", convId).single();
+    const { data: inst } = await admin
+      .from("whatsapp_instances")
+      .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+
+    if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
+
+    const clientPhone = conv.phone.replace(/\D/g, "");
+    const nome        = dados.nome ?? conv.contact_name ?? "Cliente";
+    const nomeCrianca = dados.nomeCrianca ? ` | ${dados.nomeCrianca}` : "";
+
+    // Montar nome do grupo com template
+    const groupName = (funnel.group_name_template ?? "Caso {nome} — Dr. Maicon")
+      .replace("{nome}", nome)
+      .replace("{nomeCrianca}", dados.nomeCrianca ?? "")
+      .replace("{municipio}", dados.municipio ?? "");
+
+    // Montar lista de participantes: cliente + equipe
+    const allParticipants = [
+      `${clientPhone}@s.whatsapp.net`,
+      ...participants.map((p: string) => `${p.replace(/\D/g, "")}@s.whatsapp.net`),
+    ];
+
+    const base    = inst.api_url.replace(/\/$/, "");
+    const headers = { "Content-Type": "application/json", apikey: inst.api_key };
+
+    // Criar grupo via Evolution API
+    const res = await fetch(`${base}/group/create/${inst.instance_name}`, {
+      method:  "POST",
+      headers,
+      body: JSON.stringify({
+        subject:      groupName,
+        participants: allParticipants,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("Erro ao criar grupo:", res.status, err);
+      return;
+    }
+
+    const json     = await res.json();
+    const groupId  = json.id ?? json.gid ?? null;
+    const groupInv = json.inviteCode ?? null;
+
+    // Enviar mensagem de boas-vindas no grupo
+    const welcomeMsg = funnel.group_welcome_msg
+      ?? `Olá, ${nome}! Bem-vindo(a) ao grupo do seu caso${nomeCrianca}.\n\nAqui você vai receber todas as atualizações do processo diretamente comigo e minha equipe.\n\nQualquer dúvida, é só falar! 👨‍⚖️`;
+
+    if (groupId) {
+      await new Promise(r => setTimeout(r, 1500));
+      await fetch(`${base}/message/sendText/${inst.instance_name}`, {
+        method:  "POST",
+        headers,
+        body: JSON.stringify({
+          number:       groupId,
+          text:         welcomeMsg,
+          textMessage:  { text: welcomeMsg },
+        }),
+      }).catch(() => {});
+    }
+
+    // Notificar o cliente no chat individual sobre o grupo
+    await sendText(admin, userId, convId,
+      `✅ Pronto! Criei um grupo no WhatsApp com você e minha equipe: *${groupName}*\n\nVocê vai receber todas as atualizações do processo por lá. Fique de olho! 👆`,
+      false
+    );
+
+    // Registrar no banco
+    await admin.from("messages").insert({
+      user_id:         userId,
+      conversation_id: convId,
+      direction:       "outbound",
+      content:         `[Grupo criado: ${groupName}]`,
+      status:          "sent",
+    });
+
+    console.log("Grupo criado:", groupName, groupId);
+  } catch (e) {
+    console.error("createWhatsAppGroup error:", e);
+  }
+}
 export async function handleFunnelMessage(
   admin: SupabaseClient<any, any, any>,
   userId: string,
@@ -640,7 +740,16 @@ export async function handleFunnelMessage(
     await syncCRM(admin, userId, convId, novosDados, novaFase, funnel.name);
   }
 
-  // 10. Agendar follow-up
+  // 10. Criar grupo WhatsApp quando chegar na fase de assinatura
+  if (
+    reply.nova_fase === "assinatura" &&
+    state.fase !== "assinatura" &&
+    state.fase !== "encerrado"
+  ) {
+    await createWhatsAppGroup(admin, userId, convId, funnel, novosDados);
+  }
+
+  // 11. Agendar follow-up
   if (novaFase !== "encerrado" && novaFase !== "assinatura" && (funnel.followup_hours ?? 0) > 0) {
     await scheduleFollowup(admin, userId, convId, state.funnel_id, funnel.followup_hours);
   }

@@ -1,4 +1,4 @@
-/* rebuild-1777213472 */
+/* rebuild-1777215941 */
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
@@ -447,9 +447,66 @@ function FunisPage() {
               </div>
             </div>
 
-            {/* ZapSign */}
-            <div className="border rounded-lg p-4 space-y-2">
-              <p className="font-medium text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Contrato ZapSign</p>
+            {/* Grupo WhatsApp */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-sm flex items-center gap-2">👥 Grupo WhatsApp automático</p>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={(form as any).group_enabled ?? false}
+                    onCheckedChange={(v) => setForm({ ...form, group_enabled: v } as any)}
+                  />
+                  <Label className="text-xs">{(form as any).group_enabled ? "Ativado" : "Desativado"}</Label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Quando o cliente chegar na fase de <strong>assinatura</strong>, o sistema cria automaticamente um grupo no WhatsApp com o cliente e os números da equipe.
+              </p>
+
+              {(form as any).group_enabled && (
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <Label className="text-xs">Nome do grupo</Label>
+                    <Input
+                      value={(form as any).group_name_template ?? "Caso {nome} — Dr. Maicon"}
+                      onChange={(e) => setForm({ ...form, group_name_template: e.target.value } as any)}
+                      placeholder="Caso {nome} — Dr. Maicon"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Use <code>{"{nome}"}</code>, <code>{"{nomeCrianca}"}</code>, <code>{"{municipio}"}</code> como variáveis.
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Números da equipe (com DDI, um por linha)</Label>
+                    <Textarea
+                      rows={3}
+                      value={((form as any).group_participants ?? []).join("\n")}
+                      onChange={(e) => setForm({
+                        ...form,
+                        group_participants: e.target.value.split("\n").map((s: string) => s.trim()).filter(Boolean),
+                      } as any)}
+                      placeholder={"5551999990001\n5551999990002"}
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Estes números serão adicionados ao grupo junto com o cliente.
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Mensagem de boas-vindas no grupo (opcional)</Label>
+                    <Textarea
+                      rows={4}
+                      value={(form as any).group_welcome_msg ?? ""}
+                      onChange={(e) => setForm({ ...form, group_welcome_msg: e.target.value } as any)}
+                      placeholder="Olá, {nome}! Bem-vindo ao grupo do seu caso. Aqui você receberá todas as atualizações..."
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Deixe em branco para usar a mensagem padrão.</p>
+                  </div>
+                </div>
+              )}
+            </div>
               <Label className="text-xs text-muted-foreground">ID do template no ZapSign (para geração automática de contrato)</Label>
               <Input value={form.zapsign_template_id ?? ""} onChange={(e) => setForm({ ...form, zapsign_template_id: e.target.value || null })} placeholder="ID do template ZapSign" />
             </div>
