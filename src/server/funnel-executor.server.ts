@@ -1,11 +1,12 @@
 /**
  * Funnel Executor — Motor de atendimento automático via WhatsApp
- * 
+ *
  * Fluxo por mensagem recebida:
  * 1. Carrega estado da conversa (fase, dados, mídias enviadas, histórico)
  * 2. Chama IA com prompt da persona + contexto completo
  * 3. Executa resposta: texto → mídias → texto_pos_midia → ação
- * 4. Salva novo estado
+ * 4. Atualiza cliente + caso no Kanban com dados extraídos
+ * 5. Salva novo estado
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -33,6 +34,7 @@ type FunnelState = {
 
 type Funnel = {
   id: string;
+  name: string;
   persona_prompt: string;
   proposal_value: number | null;
   proposal_is_free: boolean;
@@ -42,6 +44,114 @@ type Funnel = {
   media_audio_fechamento: string | null;
   media_video_documentos: string | null;
 };
+
+// ── Mapeamento fase → coluna Kanban ────────────────────────────
+const FASE_TO_STAGE: Record<string, string> = {
+  abertura:   "lead",
+  triagem:    "lead",
+  conexao:    "qualificacao",
+  fechamento: "qualificacao",
+  coleta:     "proposta",
+  assinatura: "em_andamento",
+  encerrado:  "em_andamento",
+};
+
+// ── Sincronizar cliente e caso no Kanban ───────────────────────
+async function syncCRM(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  convId: string,
+  dados: Record<string, any>,
+  fase: string,
+  funnelName: string
+) {
+  try {
+    // 1. Upsert cliente
+    const nome = dados.nome as string | undefined;
+    const phone = await admin.from("conversations").select("phone").eq("id", convId).single()
+      .then(r => r.data?.phone ?? "");
+
+    let clientId: string | null = null;
+
+    // Buscar cliente existente pelo telefone
+    const { data: existingClient } = await admin
+      .from("clients")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("whatsapp", phone)
+      .maybeSingle();
+
+    if (existingClient) {
+      clientId = existingClient.id;
+      // Atualizar dados progressivamente
+      const patch: Record<string, any> = {};
+      if (nome)            patch.full_name  = nome;
+      if (dados.cpf)       patch.document   = dados.cpf;
+      if (dados.endereco)  patch.address    = dados.endereco;
+      if (dados.email)     patch.email      = dados.email;
+      if (Object.keys(patch).length > 0) {
+        await admin.from("clients").update(patch).eq("id", clientId);
+      }
+    } else if (nome || phone) {
+      const { data: newClient } = await admin.from("clients").insert({
+        user_id:   userId,
+        full_name: nome ?? phone,
+        whatsapp:  phone,
+        phone:     phone,
+        document:  dados.cpf ?? null,
+        address:   dados.endereco ?? null,
+      }).select("id").single();
+      clientId = newClient?.id ?? null;
+
+      // Vincular conversa ao cliente
+      if (clientId) {
+        await admin.from("conversations").update({ client_id: clientId }).eq("id", convId);
+      }
+    }
+
+    // 2. Upsert caso no Kanban
+    const stage = FASE_TO_STAGE[fase] ?? "lead";
+    const caseTitle = dados.nomeCrianca
+      ? `Vaga em creche — ${dados.nomeCrianca}${dados.municipio ? ` (${dados.municipio})` : ""}`
+      : dados.nome
+        ? `Caso ${funnelName} — ${dados.nome}`
+        : `Novo lead via WhatsApp — ${phone}`;
+
+    // Buscar caso existente vinculado à conversa
+    const { data: existingCase } = await admin
+      .from("cases")
+      .select("id, stage")
+      .eq("user_id", userId)
+      .eq("client_id", clientId ?? "")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingCase) {
+      // Só avança de fase, nunca volta
+      const stageOrder = ["lead","qualificacao","proposta","em_andamento","aguardando","concluido"];
+      const currentIdx = stageOrder.indexOf(existingCase.stage);
+      const newIdx     = stageOrder.indexOf(stage);
+      const patch: Record<string, any> = { title: caseTitle };
+      if (newIdx > currentIdx) patch.stage = stage;
+      if (dados.nomeCrianca) patch.description = JSON.stringify(dados, null, 2);
+      await admin.from("cases").update(patch).eq("id", existingCase.id);
+    } else if (clientId) {
+      await admin.from("cases").insert({
+        user_id:     userId,
+        client_id:   clientId,
+        title:       caseTitle,
+        stage:       stage,
+        area:        dados.municipio ? "outro" : "outro",
+        priority:    "media",
+        description: JSON.stringify(dados, null, 2),
+      });
+    }
+  } catch (e) {
+    console.error("syncCRM error:", e);
+    // Não fatal — não interrompe o atendimento
+  }
+}
 
 // ── Enviar texto via Evolution API ─────────────────────────────
 async function sendText(
@@ -210,27 +320,39 @@ async function gerarContrato(
   const { data: conv } = await admin
     .from("conversations").select("client_id, phone, contact_name").eq("id", convId).single();
 
-  const valor = funnel.proposal_is_free ? 0 : (funnel.proposal_value ?? 0);
+  const valor      = funnel.proposal_is_free ? 0 : (funnel.proposal_value ?? 0);
   const valorTexto = funnel.proposal_is_free
     ? "Gratuito — honorários pagos pelo município em caso de êxito"
     : `R$ ${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
-  // Criar proposta
+  const caseTitle = dados.nomeCrianca
+    ? `Ação de vaga em creche — ${dados.nomeCrianca}`
+    : `Ação judicial — ${dados.nome ?? "Cliente"}`;
+
+  // Criar proposta vinculada ao cliente já existente
   const { data: prop } = await admin.from("proposals").insert({
-    user_id: userId,
-    client_id: conv?.client_id ?? null,
-    title: dados.nomeCrianca
-      ? `Ação de vaga em creche — ${dados.nomeCrianca}`
-      : `Ação judicial — ${dados.nome ?? "Cliente"}`,
-    scope: dados.nomeCrianca
+    user_id:            userId,
+    client_id:          conv?.client_id ?? null,
+    title:              caseTitle,
+    scope:              dados.nomeCrianca
       ? `Ação judicial para garantir vaga em creche pública ao(à) ${dados.nomeCrianca} em ${dados.municipio ?? ""}`
-      : `Ação judicial para autorização de busca pessoal de medicamento`,
-    value: valor,
-    payment_terms: valorTexto,
+      : `Ação judicial — ${funnel.name}`,
+    value:              valor,
+    payment_terms:      valorTexto,
     estimated_duration: "30 a 60 dias",
-    status: "enviado",
-    ai_generated: true,
+    status:             "enviado",
+    ai_generated:       true,
   }).select().single();
+
+  // Avançar caso no Kanban para "Em andamento"
+  if (conv?.client_id) {
+    const { data: caso } = await admin.from("cases")
+      .select("id").eq("user_id", userId).eq("client_id", conv.client_id)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (caso) {
+      await admin.from("cases").update({ stage: "em_andamento" }).eq("id", caso.id);
+    }
+  }
 
   // Tentar ZapSign
   const token = process.env.ZAPSIGN_API_TOKEN;
@@ -384,15 +506,23 @@ export async function handleFunnelMessage(
   }
 
   // 8. Salvar novo estado
+  const novosDados = { ...state.dados, ...reply.dados_extraidos };
+  const novaFase   = reply.nova_fase ?? state.fase;
+
   await admin.from("funnel_states").update({
-    fase: reply.nova_fase ?? state.fase,
-    dados: { ...state.dados, ...reply.dados_extraidos },
+    fase:            novaFase,
+    dados:           novosDados,
     midias_enviadas: [...state.midias_enviadas, ...novasMidias],
     historico: [
       ...state.historico,
-      { role: "user", content: userMessage },
+      { role: "user",      content: userMessage },
       { role: "assistant", content: reply.texto + (reply.texto_pos_midia ? "\n" + reply.texto_pos_midia : "") },
     ].slice(-60),
     updated_at: new Date().toISOString(),
   }).eq("id", state.id);
+
+  // 9. Sincronizar CRM: cliente + caso no Kanban
+  if (Object.keys(reply.dados_extraidos).length > 0 || reply.nova_fase) {
+    await syncCRM(admin, userId, convId, novosDados, novaFase, funnel.name);
+  }
 }
