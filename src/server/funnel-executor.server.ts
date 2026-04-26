@@ -106,29 +106,52 @@ async function notifyOwner(
   admin: SupabaseClient<any, any, any>,
   userId: string,
   notifyPhone: string,
-  dados: Record<string, any>,
-  convId: string
+  msg: string
 ) {
-  if (!notifyPhone) return;
+  if (!notifyPhone?.trim()) return;
   const { data: inst } = await admin
     .from("whatsapp_instances")
     .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
   if (!inst?.api_url) return;
-
-  const nome     = dados.nome ?? "Lead";
-  const crianca  = dados.nomeCrianca ? ` (${dados.nomeCrianca})` : "";
-  const phone    = await admin.from("conversations").select("phone").eq("id", convId).single()
-    .then(r => r.data?.phone ?? "");
-
-  const msg = `✅ *Novo contrato gerado!*\n\nCliente: *${nome}*${crianca}\nWhatsApp: ${phone}\n\nAcesse o sistema para acompanhar.`;
-
   try {
     await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: inst.api_key },
-      body: JSON.stringify({ number: notifyPhone.replace(/\D/g, ""), text: msg }),
+      body: JSON.stringify({ number: notifyPhone.replace(/\D/g, ""), text: msg, textMessage: { text: msg } }),
     });
   } catch { /* non-fatal */ }
+}
+
+const FASE_EMOJIS: Record<string, string> = {
+  triagem: "📋", conexao: "🤝", fechamento: "🎯",
+  coleta: "📝", assinatura: "✍️", encerrado: "✅",
+};
+const FASE_LABELS_NOTIF: Record<string, string> = {
+  triagem: "Novo lead", conexao: "Lead interessado", fechamento: "Em fechamento",
+  coleta: "Coletando dados", assinatura: "Pronto para assinar", encerrado: "Encerrado",
+};
+
+async function notifyFaseChange(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  notifyPhone: string,
+  novaFase: string,
+  dados: Record<string, any>,
+  convId: string,
+  funnelName: string
+) {
+  if (!notifyPhone?.trim() || !FASE_LABELS_NOTIF[novaFase]) return;
+  const { data: conv } = await admin.from("conversations").select("phone").eq("id", convId).single();
+  const phone = conv?.phone ?? "";
+  const nome = dados.nome ?? phone;
+  const extras = [
+    dados.nomeCrianca ? `👶 ${dados.nomeCrianca}` : "",
+    dados.municipio  ? `📍 ${dados.municipio}`   : "",
+  ].filter(Boolean).join(" | ");
+  const emoji = FASE_EMOJIS[novaFase] ?? "📌";
+  const label = FASE_LABELS_NOTIF[novaFase];
+  const msg = `${emoji} *${label}*\n\nFunil: ${funnelName}\nCliente: *${nome}*${extras ? "\n" + extras : ""}\nWhatsApp: ${phone}\n\nAcesse o Inbox para acompanhar.`;
+  await notifyOwner(admin, userId, notifyPhone, msg);
 }
 
 // ── Sincronizar cliente e caso no Kanban ───────────────────────
@@ -814,7 +837,11 @@ export async function handleFunnelMessage(
     const dadosCompletos = { ...state.dados, ...reply.dados_extraidos };
     await gerarContrato(admin, userId, convId, funnel, dadosCompletos);
     if (funnel.notify_phone) {
-      await notifyOwner(admin, userId, funnel.notify_phone, dadosCompletos, convId);
+      const nomeCliente = dadosCompletos.nome ?? "Cliente";
+      const phoneCliente = await admin.from("conversations").select("phone").eq("id", convId).single().then(r => r.data?.phone ?? "");
+      await notifyOwner(admin, userId, funnel.notify_phone,
+        `✍️ *Contrato gerado!*\n\nFunil: ${funnel.name}\nCliente: *${nomeCliente}*\nWhatsApp: ${phoneCliente}\n\nAcesse Propostas & Contratos para acompanhar.`
+      );
     }
   }
 
@@ -852,7 +879,12 @@ export async function handleFunnelMessage(
     await syncCRM(admin, userId, convId, novosDados, novaFase, funnel.name);
   }
 
-  // 10. Criar grupo WhatsApp quando chegar na fase de assinatura
+  // 10. Notificar dono sobre mudança de fase
+  if (reply.nova_fase && reply.nova_fase !== state.fase && funnel.notify_phone) {
+    await notifyFaseChange(admin, userId, funnel.notify_phone, reply.nova_fase, novosDados, convId, funnel.name);
+  }
+
+  // 11. Criar grupo WhatsApp quando chegar na fase de assinatura
   if (
     reply.nova_fase === "assinatura" &&
     state.fase !== "assinatura" &&
@@ -861,7 +893,15 @@ export async function handleFunnelMessage(
     await createWhatsAppGroup(admin, userId, convId, funnel, novosDados);
   }
 
-  // 11. Agendar follow-up
+  // 12. Notificar quando novo lead entra (primeira mensagem)
+  if (state.fase === "abertura" && !state.historico.length && funnel.notify_phone) {
+    const { data: conv } = await admin.from("conversations").select("phone").eq("id", convId).single();
+    await notifyOwner(admin, userId, funnel.notify_phone,
+      `🆕 *Novo lead!*\n\nFunil: ${funnel.name}\nWhatsApp: ${conv?.phone ?? ""}\n\nAcesse o Inbox para acompanhar.`
+    );
+  }
+
+  // 13. Agendar follow-up
   if (novaFase !== "encerrado" && novaFase !== "assinatura" && (funnel.followup_hours ?? 0) > 0) {
     await scheduleFollowup(admin, userId, convId, state.funnel_id, funnel.followup_hours);
   }
