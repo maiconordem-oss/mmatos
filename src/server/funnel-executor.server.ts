@@ -294,22 +294,28 @@ async function sendMedia(
   userId: string,
   convId: string,
   mediaKey: string,
-  funnel: Funnel
+  funnel: any
 ) {
-  // Mapear chave → URL e tipo
-  const mediaMap: Record<string, { url: string | null; type: string; label: string }> = {
-    video_abertura:   { url: funnel.media_video_abertura,   type: "video", label: "vídeo de apresentação" },
-    video_conexao:    { url: funnel.media_video_conexao,    type: "video", label: "vídeo sobre o caso" },
-    audio_fechamento: { url: funnel.media_audio_fechamento, type: "audio", label: "áudio de avaliação" },
-    video_documentos: { url: funnel.media_video_documentos, type: "video", label: "vídeo sobre documentos" },
+  // Buscar URL no campo JSONB livre
+  const medias: Record<string, string> = funnel.medias ?? {};
+
+  // Fallback para colunas antigas se existirem
+  const legacyMap: Record<string, string | null> = {
+    video_abertura:   funnel.media_video_abertura   ?? null,
+    video_conexao:    funnel.media_video_conexao    ?? null,
+    audio_fechamento: funnel.media_audio_fechamento ?? null,
+    video_documentos: funnel.media_video_documentos ?? null,
   };
 
-  const media = mediaMap[mediaKey];
-  if (!media) return;
+  const mediaUrl = medias[mediaKey] ?? legacyMap[mediaKey] ?? null;
 
-  if (!media.url) {
-    // Placeholder — avisa que vídeo chegará em breve, não trava o fluxo
-    await sendText(admin, userId, convId, `[${media.label} em breve disponível]`);
+  // Detectar tipo pela chave
+  const isAudio = mediaKey.startsWith("audio_") || mediaKey.includes("_audio");
+  const mediaType = isAudio ? "audio" : "video";
+  const label = mediaKey.replace(/_/g, " ");
+
+  if (!mediaUrl) {
+    await sendText(admin, userId, convId, `[${label} — em breve disponível]`, false);
     return;
   }
 
@@ -318,27 +324,28 @@ async function sendMedia(
     .from("whatsapp_instances")
     .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
 
-  // Salvar no banco
   await admin.from("messages").insert({
     user_id: userId, conversation_id: convId,
-    direction: "outbound", content: `[${media.type}]`,
-    media_url: media.url, status: inst?.api_url ? "sent" : "pending",
+    direction: "outbound", content: `[${mediaType}]`,
+    media_url: mediaUrl, status: "sent",
   });
 
   if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
 
+  const number = conv.phone.replace(/\D/g, "");
+  const base   = inst.api_url.replace(/\/$/, "");
+  const headers = { "Content-Type": "application/json", apikey: inst.api_key };
+
   try {
-    if (media.type === "audio") {
-      await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendWhatsAppAudio/${inst.instance_name}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: inst.api_key },
-        body: JSON.stringify({ number: conv.phone, audio: media.url }),
+    if (isAudio) {
+      await fetch(`${base}/message/sendWhatsAppAudio/${inst.instance_name}`, {
+        method: "POST", headers,
+        body: JSON.stringify({ number, audio: mediaUrl }),
       });
     } else {
-      await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendMedia/${inst.instance_name}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: inst.api_key },
-        body: JSON.stringify({ number: conv.phone, mediatype: "video", media: media.url }),
+      await fetch(`${base}/message/sendMedia/${inst.instance_name}`, {
+        method: "POST", headers,
+        body: JSON.stringify({ number, mediatype: "video", media: mediaUrl }),
       });
     }
   } catch { /* non-fatal */ }

@@ -46,9 +46,10 @@ type Funil = {
   zapsign_template_id: string | null;
 };
 
-const EMPTY: Omit<Funil, "id"> = {
+const EMPTY: any = {
   name: "", description: "", is_active: true, is_default: false,
   persona_prompt: "", proposal_value: null, proposal_is_free: false,
+  medias: {},
   media_video_abertura: null, media_video_conexao: null,
   media_audio_fechamento: null, media_video_documentos: null,
   zapsign_template_id: null,
@@ -167,7 +168,18 @@ function FunisPage() {
   }, [simConvId]);
 
   const openNew = () => { setEditing(null); setForm({ ...EMPTY }); setOpen(true); };
-  const openEdit = (f: Funil) => { setEditing(f); setForm({ ...f }); setOpen(true); };
+  const openEdit = (f: Funil) => {
+    setEditing(f);
+    // Migrar colunas antigas para medias se necessário
+    const existingMedias = (f as any).medias ?? {};
+    const legacy: Record<string, string> = {};
+    if ((f as any).media_video_abertura)   legacy.video_abertura   = (f as any).media_video_abertura;
+    if ((f as any).media_video_conexao)    legacy.video_conexao    = (f as any).media_video_conexao;
+    if ((f as any).media_audio_fechamento) legacy.audio_fechamento = (f as any).media_audio_fechamento;
+    if ((f as any).media_video_documentos) legacy.video_documentos = (f as any).media_video_documentos;
+    setForm({ ...f, medias: Object.keys(existingMedias).length > 0 ? existingMedias : legacy });
+    setOpen(true);
+  };
 
   const save = async () => {
     if (!user || !form.name?.trim() || !form.persona_prompt?.trim()) {
@@ -236,12 +248,6 @@ function FunisPage() {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const MEDIAS = [
-    { field: "media_video_abertura",   label: "Vídeo abertura",   Icon: Video },
-    { field: "media_video_conexao",    label: "Vídeo conexão",    Icon: Video },
-    { field: "media_audio_fechamento", label: "Áudio fechamento", Icon: Mic   },
-    { field: "media_video_documentos", label: "Vídeo documentos", Icon: Video },
-  ];
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
@@ -292,17 +298,22 @@ function FunisPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {MEDIAS.map(({ field, label, Icon }) => (
-                <div key={field} className={"flex items-center gap-2 p-2.5 rounded-lg border text-xs " + ((f as any)[field] ? "border-green-500/40 bg-green-500/5 text-green-700" : "border-dashed text-muted-foreground")}>
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{label}</span>
-                  {(f as any)[field]
-                    ? <a href={(f as any)[field]} target="_blank" rel="noreferrer" className="ml-auto shrink-0"><ExternalLink className="h-3 w-3" /></a>
-                    : <span className="ml-auto text-amber-500">⚠</span>}
-                </div>
-              ))}
-            </div>
+            {/* Mídias */}
+            {Object.keys((f as any).medias ?? {}).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {Object.entries((f as any).medias ?? {}).map(([key, url]) => (
+                  <div key={key} className={"flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs " + (url ? "border-green-500/40 bg-green-500/5 text-green-700" : "border-dashed text-muted-foreground")}>
+                    {key.startsWith("audio_") || key.includes("_audio")
+                      ? <Mic className="h-3 w-3 shrink-0" />
+                      : <Video className="h-3 w-3 shrink-0" />}
+                    <span className="font-mono">{key}</span>
+                    {url
+                      ? <a href={url as string} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a>
+                      : <span className="text-amber-500">⚠</span>}
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="border rounded-lg overflow-hidden">
               <button className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium bg-muted/50 hover:bg-muted transition-colors"
@@ -351,16 +362,75 @@ function FunisPage() {
               )}
             </div>
 
-            {/* Mídias */}
+            {/* Mídias — editor livre */}
             <div className="border rounded-lg p-4 space-y-3">
-              <p className="font-medium text-sm flex items-center gap-2"><Video className="h-4 w-4" /> URLs das mídias</p>
-              <p className="text-xs text-muted-foreground">Deixe em branco enquanto não tiver gravado — o sistema envia um placeholder.</p>
-              {MEDIAS.map(({ field, label }) => (
-                <div key={field}>
-                  <Label className="text-xs text-muted-foreground">{label}</Label>
-                  <Input value={(form as any)[field] ?? ""} onChange={(e) => setForm({ ...form, [field]: e.target.value || null })} placeholder="https://..." className="mt-1" />
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-sm flex items-center gap-2"><Video className="h-4 w-4" /> Mídias do funil</p>
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs"
+                  onClick={() => {
+                    const key = prompt("Nome da chave (ex: audio_objecao_custo, video_explicacao):");
+                    if (!key?.trim()) return;
+                    const clean = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+                    if (!clean) return;
+                    setForm({ ...form, medias: { ...(form.medias ?? {}), [clean]: "" } });
+                  }}>
+                  <Plus className="h-3 w-3" /> Adicionar mídia
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Adicione qualquer mídia e use a chave no prompt em <code className="bg-muted px-1 rounded">midias: ["sua_chave"]</code>.
+                A chave que começa com <code className="bg-muted px-1 rounded">audio_</code> é enviada como áudio, o restante como vídeo.
+              </p>
+
+              {Object.keys(form.medias ?? {}).length === 0 && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
+                  Nenhuma mídia cadastrada. Clique em "Adicionar mídia" para começar.
+                </p>
+              )}
+
+              <div className="space-y-2">
+                {Object.entries(form.medias ?? {}).map(([key, url]) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {key.startsWith("audio_") || key.includes("_audio")
+                        ? <Mic className="h-3.5 w-3.5 text-violet-500" />
+                        : <Video className="h-3.5 w-3.5 text-blue-500" />}
+                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{key}</code>
+                    </div>
+                    <Input
+                      value={url as string}
+                      onChange={(e) => setForm({ ...form, medias: { ...(form.medias ?? {}), [key]: e.target.value } })}
+                      placeholder="https://..."
+                      className="flex-1 text-xs"
+                    />
+                    {url && <a href={url as string} target="_blank" rel="noreferrer" className="shrink-0"><ExternalLink className="h-3.5 w-3.5 text-muted-foreground" /></a>}
+                    <button
+                      onClick={() => {
+                        const m = { ...(form.medias ?? {}) };
+                        delete m[key];
+                        setForm({ ...form, medias: m });
+                      }}
+                      className="shrink-0 text-destructive hover:opacity-70">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Sugestões rápidas */}
+              <div className="pt-1">
+                <p className="text-xs text-muted-foreground mb-1.5">Sugestões rápidas:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {["video_abertura","video_conexao","audio_fechamento","video_documentos","audio_objecao_custo","audio_objecao_demora","video_tirzepatida"].map(s => (
+                    !(form.medias ?? {})[s] && (
+                      <button key={s} onClick={() => setForm({ ...form, medias: { ...(form.medias ?? {}), [s]: "" } })}
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-muted hover:bg-muted/80 font-mono">
+                        + {s}
+                      </button>
+                    )
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
 
             {/* Horário */}
