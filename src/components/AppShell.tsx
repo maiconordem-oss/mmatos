@@ -8,6 +8,7 @@ import {
   FileSignature,
   Smartphone,
   Bot,
+  BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -20,6 +21,7 @@ const navMain = [
   { to: "/kanban",     label: "Kanban",               icon: Kanban },
   { to: "/clientes",   label: "Clientes",             icon: Users },
   { to: "/contratos",  label: "Propostas & Contratos",icon: FileSignature },
+  { to: "/manual",     label: "Manual de Prompts",    icon: BookOpen },
 ] as const;
 
 const navBottom = [

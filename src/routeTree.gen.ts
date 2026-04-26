@@ -14,6 +14,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AgentesRouteImport } from './routes/agentes'
+import { Route as ManualRouteImport } from './routes/manual'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
@@ -30,6 +31,7 @@ const FunisRoute = FunisRouteImport.update({ id: '/funis', path: '/funis', getPa
 const DashboardRoute = DashboardRouteImport.update({ id: '/dashboard', path: '/dashboard', getParentRoute: () => rootRouteImport } as any)
 const ContratosRoute = ContratosRouteImport.update({ id: '/contratos', path: '/contratos', getParentRoute: () => rootRouteImport } as any)
 const ClientesRoute = ClientesRouteImport.update({ id: '/clientes', path: '/clientes', getParentRoute: () => rootRouteImport } as any)
+const ManualRoute = ManualRouteImport.update({ id: '/manual', path: '/manual', getParentRoute: () => rootRouteImport } as any)
 const AgentesRoute = AgentesRouteImport.update({ id: '/agentes', path: '/agentes', getParentRoute: () => rootRouteImport } as any)
 const IndexRoute = IndexRouteImport.update({ id: '/', path: '/', getParentRoute: () => rootRouteImport } as any)
 const WorkflowsIdRoute = WorkflowsIdRouteImport.update({ id: '/$id', path: '/$id', getParentRoute: () => WorkflowsRoute } as any)
@@ -93,6 +95,7 @@ export interface RootRouteChildren {
   ContratosRoute: typeof ContratosRoute
   DashboardRoute: typeof DashboardRoute
   FunisRoute: typeof FunisRoute
+  ManualRoute: typeof ManualRoute
   InboxRoute: typeof InboxRoute
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
@@ -111,6 +114,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute,
   FunisRoute,
   InboxRoute,
+  ManualRoute,
   KanbanRoute,
   LoginRoute,
   WhatsappRoute,
