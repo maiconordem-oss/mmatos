@@ -110,6 +110,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           const mediaUrl  = audioMsg?.url    || imageMsg?.url    || documentMsg?.url    || videoMsg?.url    || null;
           const mediaMime = audioMsg?.mimetype || imageMsg?.mimetype || documentMsg?.mimetype || videoMsg?.mimetype || null;
           const mediaId   = audioMsg?.mediaKey || imageMsg?.mediaKey || documentMsg?.mediaKey || videoMsg?.mediaKey || null;
+          let audioTranscription: string | null = null;
 
           await supabaseAdmin.from("messages").insert({
             user_id:         inst.user_id,
@@ -123,28 +124,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
             status:          "sent",
           });
 
-          // ── Processar mídia recebida ───────────────────────
-          if (hasMedia) {
-            await processInboundMedia({
-              admin:          supabaseAdmin,
-              userId:         inst.user_id,
-              convId:         conv.id,
-              mediaType:      mediaType!,
-              mediaUrl,
-              mediaMime,
-              mediaId,
-              caption:        imageMsg?.caption || documentMsg?.caption || videoMsg?.caption || "",
-              fileName:       documentMsg?.fileName || null,
-              instApiUrl:     inst.api_url,
-              instApiKey:     inst.api_key,
-              instName:       inst.instance_name,
-              msgId:          msg?.key?.id || null,
-              transcription:  audioTranscription,
-            });
-          }
-
           // ── Transcrever áudio via IA ───────────────────────
-          let audioTranscription: string | null = null;
           if (audioMsg) {
             const audioUrl = audioMsg.url ?? null;
             if (audioUrl) {
@@ -163,6 +143,26 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
                   .eq("conversation_id", conv.id);
               }
             }
+          }
+
+          // ── Processar mídia recebida ───────────────────────
+          if (hasMedia) {
+            await processInboundMedia({
+              admin:          supabaseAdmin,
+              userId:         inst.user_id,
+              convId:         conv.id,
+              mediaType:      mediaType!,
+              mediaUrl,
+              mediaMime,
+              mediaId,
+              caption:        imageMsg?.caption || documentMsg?.caption || videoMsg?.caption || "",
+              fileName:       documentMsg?.fileName || null,
+              instApiUrl:     inst.api_url ?? "",
+              instApiKey:     inst.api_key ?? "",
+              instName:       inst.instance_name,
+              msgId:          msg?.key?.id || null,
+              transcription:  audioTranscription,
+            });
           }
 
           // ── Executor do funil ──────────────────────────────
