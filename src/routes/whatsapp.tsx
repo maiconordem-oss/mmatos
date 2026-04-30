@@ -41,7 +41,7 @@ type Instance = {
 
 type Funil = { id: string; name: string; is_default: boolean };
 
-const EMPTY_FORM = { instance_name: "", api_url: "", api_key: "", funnel_id: "" };
+const EMPTY_FORM = { instance_name: "", funnel_id: "" };
 
 function WhatsappPage() {
   const { user } = useAuth();
