@@ -50,6 +50,73 @@ export type Database = {
         }
         Relationships: []
       }
+      appointments: {
+        Row: {
+          client_id: string | null
+          conversation_id: string | null
+          created_at: string
+          end_at: string
+          funnel_id: string | null
+          google_event_id: string | null
+          id: string
+          notes: string | null
+          start_at: string
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          end_at: string
+          funnel_id?: string | null
+          google_event_id?: string | null
+          id?: string
+          notes?: string | null
+          start_at: string
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          end_at?: string
+          funnel_id?: string | null
+          google_event_id?: string | null
+          id?: string
+          notes?: string | null
+          start_at?: string
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_funnel_id_fkey"
+            columns: ["funnel_id"]
+            isOneToOne: false
+            referencedRelation: "funnels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_notes: {
         Row: {
           case_id: string
@@ -302,6 +369,150 @@ export type Database = {
           },
         ]
       }
+      funnel_states: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          dados: Json
+          fase: string
+          funnel_id: string | null
+          historico: Json
+          id: string
+          midias_enviadas: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          dados?: Json
+          fase?: string
+          funnel_id?: string | null
+          historico?: Json
+          id?: string
+          midias_enviadas?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          dados?: Json
+          fase?: string
+          funnel_id?: string | null
+          historico?: Json
+          id?: string
+          midias_enviadas?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funnel_states_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funnel_states_funnel_id_fkey"
+            columns: ["funnel_id"]
+            isOneToOne: false
+            referencedRelation: "funnels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funnels: {
+        Row: {
+          calendar_enabled: boolean
+          calendar_end_hour: number | null
+          calendar_google_token: string | null
+          calendar_id: string | null
+          calendar_meeting_desc: string | null
+          calendar_meeting_title: string | null
+          calendar_slot_duration: number | null
+          calendar_start_hour: number | null
+          created_at: string
+          description: string | null
+          handoff_enabled: boolean
+          handoff_msg: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          media_audio_fechamento: string | null
+          media_video_abertura: string | null
+          media_video_conexao: string | null
+          media_video_documentos: string | null
+          medias: Json
+          name: string
+          persona_prompt: string
+          proposal_is_free: boolean
+          proposal_value: number | null
+          updated_at: string
+          user_id: string
+          zapsign_template_id: string | null
+        }
+        Insert: {
+          calendar_enabled?: boolean
+          calendar_end_hour?: number | null
+          calendar_google_token?: string | null
+          calendar_id?: string | null
+          calendar_meeting_desc?: string | null
+          calendar_meeting_title?: string | null
+          calendar_slot_duration?: number | null
+          calendar_start_hour?: number | null
+          created_at?: string
+          description?: string | null
+          handoff_enabled?: boolean
+          handoff_msg?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          media_audio_fechamento?: string | null
+          media_video_abertura?: string | null
+          media_video_conexao?: string | null
+          media_video_documentos?: string | null
+          medias?: Json
+          name: string
+          persona_prompt?: string
+          proposal_is_free?: boolean
+          proposal_value?: number | null
+          updated_at?: string
+          user_id: string
+          zapsign_template_id?: string | null
+        }
+        Update: {
+          calendar_enabled?: boolean
+          calendar_end_hour?: number | null
+          calendar_google_token?: string | null
+          calendar_id?: string | null
+          calendar_meeting_desc?: string | null
+          calendar_meeting_title?: string | null
+          calendar_slot_duration?: number | null
+          calendar_start_hour?: number | null
+          created_at?: string
+          description?: string | null
+          handoff_enabled?: boolean
+          handoff_msg?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          media_audio_fechamento?: string | null
+          media_video_abertura?: string | null
+          media_video_conexao?: string | null
+          media_video_documentos?: string | null
+          medias?: Json
+          name?: string
+          persona_prompt?: string
+          proposal_is_free?: boolean
+          proposal_value?: number | null
+          updated_at?: string
+          user_id?: string
+          zapsign_template_id?: string | null
+        }
+        Relationships: []
+      }
       kanban_stages: {
         Row: {
           color: string
@@ -528,6 +739,7 @@ export type Database = {
           api_key: string | null
           api_url: string | null
           created_at: string
+          funnel_id: string | null
           id: string
           instance_name: string
           last_event_at: string | null
@@ -542,6 +754,7 @@ export type Database = {
           api_key?: string | null
           api_url?: string | null
           created_at?: string
+          funnel_id?: string | null
           id?: string
           instance_name: string
           last_event_at?: string | null
@@ -556,6 +769,7 @@ export type Database = {
           api_key?: string | null
           api_url?: string | null
           created_at?: string
+          funnel_id?: string | null
           id?: string
           instance_name?: string
           last_event_at?: string | null
@@ -566,7 +780,15 @@ export type Database = {
           user_id?: string
           webhook_secret?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_instances_funnel_id_fkey"
+            columns: ["funnel_id"]
+            isOneToOne: false
+            referencedRelation: "funnels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workflow_edges: {
         Row: {
@@ -743,11 +965,11 @@ export type Database = {
           legal_area: string | null
           name: string
           persona_prompt: string
-          proposal_value: number | null
           proposal_is_free: boolean
-          video_url: string | null
+          proposal_value: number | null
           updated_at: string
           user_id: string
+          video_url: string | null
         }
         Insert: {
           created_at?: string
@@ -758,11 +980,11 @@ export type Database = {
           legal_area?: string | null
           name: string
           persona_prompt?: string
-          proposal_value?: number | null
           proposal_is_free?: boolean
-          video_url?: string | null
+          proposal_value?: number | null
           updated_at?: string
           user_id: string
+          video_url?: string | null
         }
         Update: {
           created_at?: string
@@ -773,11 +995,11 @@ export type Database = {
           legal_area?: string | null
           name?: string
           persona_prompt?: string
-          proposal_value?: number | null
           proposal_is_free?: boolean
-          video_url?: string | null
+          proposal_value?: number | null
           updated_at?: string
           user_id?: string
+          video_url?: string | null
         }
         Relationships: []
       }
