@@ -163,20 +163,12 @@ function WhatsappPage() {
             <CardTitle>{editingId ? "Editar instância" : "Nova instância WhatsApp"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label>Nome da instância *</Label>
-                <Input value={form.instance_name} onChange={(e) => setForm({ ...form, instance_name: e.target.value })} placeholder="ex: creche, tirzepatida" />
-                <p className="text-xs text-muted-foreground mt-1">Use um nome que identifique o anúncio</p>
-              </div>
-              <div>
-                <Label>URL da Evolution API *</Label>
-                <Input value={form.api_url} onChange={(e) => setForm({ ...form, api_url: e.target.value })} placeholder="https://evo.seudominio.com" />
-              </div>
-            </div>
             <div>
-              <Label>API Key *</Label>
-              <Input type="password" value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} placeholder="sua-chave-evolution" />
+              <Label>Nome da instância *</Label>
+              <Input value={form.instance_name} onChange={(e) => setForm({ ...form, instance_name: e.target.value })} placeholder="ex: creche, tirzepatida" />
+              <p className="text-xs text-muted-foreground mt-1">
+                Use um nome curto sem espaços (apenas letras, números, _ e -). Identifica o anúncio/campanha.
+              </p>
             </div>
 
             {/* Seleção do funil */}
