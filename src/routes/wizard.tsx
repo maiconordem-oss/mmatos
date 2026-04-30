@@ -67,6 +67,8 @@ type WizardData = {
   objecoes: { gatilho: string; resposta: string }[];
   // Coleta
   camposContrato: string[];
+  // Ações
+  acoes: { momento: string; tipo: string; valor: string; descricao: string }[];
   // Config
   nomeFunil: string;
 };
@@ -91,6 +93,7 @@ const EMPTY_DATA: WizardData = {
     { gatilho: "Você é robô?", resposta: "Sou o Dr. Maicon Matos. Estou aqui para cuidar do seu caso." },
   ],
   camposContrato: ["nome", "cpf", "rg", "estadoCivil", "profissao", "endereco"],
+  acoes: [],
   nomeFunil: "",
 };
 
