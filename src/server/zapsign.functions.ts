@@ -2,13 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-const ZAPSIGN_BASE = "https://api.zapsign.com.br/api/v1";
-
-function getZapsignToken() {
-  const token = process.env.ZAPSIGN_API_TOKEN;
-  if (!token) throw new Error("ZAPSIGN_API_TOKEN não configurado. Configure o token nos secrets para enviar contratos.");
-  return token;
-}
 
 /** Cria documento via template no ZapSign e registra contrato local */
 export const sendContract = createServerFn({ method: "POST" })
