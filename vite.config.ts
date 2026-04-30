@@ -3,20 +3,20 @@
 //   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, cloudflare (build-only),
 //     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
 //     error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
-  // The default importProtection blocks any path under **/server/**.
-  // We allow `src/server/**.functions.ts` (server-fn RPC files are safe to import
-  // from client because the plugin transforms them into RPC stubs) while still
-  // blocking actual server-only modules (`*.server.ts`) and the `server-only` package.
+  // The default `**/server/**` pattern from @lovable.dev/vite-tanstack-config
+  // blocks our server-fn RPC files in `src/server/*.functions.ts`. Those files
+  // are safe to import from client code because the server-fn Vite plugin
+  // transforms them into RPC stubs. We allow `*.functions.ts` files via
+  // onViolation; real server-only modules (`*.server.ts`) remain blocked.
   tanstackStart: {
     importProtection: {
-      behavior: "error",
-      client: {
-        files: ["**/*.server.*"],
-        specifiers: ["server-only"],
+      onViolation: (info: any) => {
+        const id = String(info?.import ?? info?.resolved ?? "");
+        if (/\.functions(\.ts|\.tsx)?$/.test(id)) return false;
+        return true;
       },
     },
   },
