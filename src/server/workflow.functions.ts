@@ -12,7 +12,7 @@ const NodeTypeEnum = z.enum([
 export const listWorkflows = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase } = context as any;
     const { data, error } = await supabase
       .from("workflows")
       .select("*")
@@ -34,7 +34,7 @@ export const createWorkflow = createServerFn({ method: "POST" })
     video_url: z.string().max(500).nullable().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     const { data: wf, error } = await supabase
       .from("workflows")
       .insert({
@@ -81,7 +81,7 @@ export const updateWorkflow = createServerFn({ method: "POST" })
     video_url: z.string().max(500).nullable().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase } = context as any;
     const { id, ...patch } = data;
     const { error } = await supabase.from("workflows").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
@@ -92,7 +92,7 @@ export const deleteWorkflow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("workflows").delete().eq("id", data.id);
+    const { error } = await (context as any).supabase.from("workflows").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -103,7 +103,7 @@ export const getWorkflowGraph = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase } = context as any;
     const [{ data: wf }, { data: nodes }, { data: edges }] = await Promise.all([
       supabase.from("workflows").select("*").eq("id", data.id).single(),
       supabase.from("workflow_nodes").select("*").eq("workflow_id", data.id),
@@ -137,7 +137,7 @@ export const saveWorkflowGraph = createServerFn({ method: "POST" })
     edges: z.array(EdgeSchema).max(400),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     // Replace strategy: delete edges first (FK), then nodes, then re-insert.
     await supabase.from("workflow_edges").delete().eq("workflow_id", data.workflow_id);
     await supabase.from("workflow_nodes").delete().eq("workflow_id", data.workflow_id);
@@ -187,7 +187,7 @@ export const startWorkflowForConversation = createServerFn({ method: "POST" })
     legal_area: z.string().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
 
     let workflowId = data.workflow_id;
     if (!workflowId) {
@@ -229,7 +229,7 @@ export const listExecutions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), workflow_id: z.string().uuid().optional() }).parse)
   .handler(async ({ data, context }) => {
-    let q = context.supabase
+    let q = (context as any).supabase
       .from("workflow_executions")
       .select("*, workflows(name, legal_area), conversations(contact_name, phone)")
       .order("started_at", { ascending: false })
@@ -244,7 +244,7 @@ export const duplicateWorkflow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     const { data: src } = await supabase.from("workflows").select("*").eq("id", data.id).single();
     if (!src) throw new Error("Workflow não encontrado");
 
@@ -296,7 +296,7 @@ export const simulateWorkflow = createServerFn({ method: "POST" })
     leadName: z.string().default("João Lead"),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase } = context as any;
     const [{ data: nodes }, { data: edges }] = await Promise.all([
       supabase.from("workflow_nodes").select("*").eq("workflow_id", data.id),
       supabase.from("workflow_edges").select("*").eq("workflow_id", data.id),

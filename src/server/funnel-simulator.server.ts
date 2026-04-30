@@ -18,7 +18,7 @@ export const simulateFunnel = createServerFn({ method: "POST" })
     message:   z.string().default("oi"),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { userId } = context;
+    const { userId } = context as any;
     const { funnel_id, message } = data;
     const admin = getAdmin();
     const simPhone = `SIM_${userId.slice(0, 8)}`;
@@ -58,7 +58,7 @@ export const resetSimulation = createServerFn({ method: "POST" })
     funnel_id: z.string().uuid(),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { userId } = context;
+    const { userId } = context as any;
     const admin = getAdmin();
     const { data: convs } = await admin.from("conversations").select("id")
       .eq("user_id", userId).like("phone", "SIM_%");

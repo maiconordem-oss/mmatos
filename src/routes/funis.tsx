@@ -389,7 +389,9 @@ function FunisPage() {
               )}
 
               <div className="space-y-2">
-                {Object.entries(form.medias ?? {}).map(([key, url]) => (
+                {Object.entries(form.medias ?? {}).map(([key, rawUrl]) => {
+                  const url = typeof rawUrl === "string" ? rawUrl : "";
+                  return (
                   <div key={key} className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5 shrink-0">
                       {key.startsWith("audio_") || key.includes("_audio")
@@ -403,7 +405,7 @@ function FunisPage() {
                       placeholder="https://..."
                       className="flex-1 text-xs"
                     />
-                    {url && <a href={url as string} target="_blank" rel="noreferrer" className="shrink-0"><ExternalLink className="h-3.5 w-3.5 text-muted-foreground" /></a>}
+                    {url && <a href={url} target="_blank" rel="noreferrer" className="shrink-0"><ExternalLink className="h-3.5 w-3.5 text-muted-foreground" /></a>}
                     <button
                       onClick={() => {
                         const m = { ...(form.medias ?? {}) };
@@ -414,7 +416,7 @@ function FunisPage() {
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                ))}
+                );})}
               </div>
 
               {/* Sugestões rápidas */}

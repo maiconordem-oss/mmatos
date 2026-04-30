@@ -15,7 +15,7 @@ export const sendContract = createServerFn({ method: "POST" })
     variables: z.record(z.string(), z.string()).default({}),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
 
     const { data: tpl } = await supabase
       .from("zapsign_templates").select("*").eq("id", data.templateId).single();
@@ -82,7 +82,7 @@ export const sendContract = createServerFn({ method: "POST" })
 export const listTemplates = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const { data, error } = await (context as any).supabase
       .from("zapsign_templates")
       .select("*")
       .order("created_at", { ascending: false });

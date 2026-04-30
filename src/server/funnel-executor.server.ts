@@ -31,6 +31,7 @@ type FunnelState = {
   dados: Record<string, any>;
   midias_enviadas: string[];
   historico: Array<{ role: string; content: string }>;
+  prompt_variant?: string | null;
 };
 
 type Funnel = {
@@ -856,9 +857,11 @@ async function handleFunnelMessageInner(
       if (promptVariant === "b") personaPrompt = funnel.prompt_b;
     }
     // Registrar entrada do lead para métricas A/B
-    await admin.from("funnel_ab_metrics").insert({
-      funnel_id: funnel.id, variant: promptVariant, event: "lead",
-    }).catch(() => {});
+    try {
+      await admin.from("funnel_ab_events").insert({
+        user_id: userId, conversation_id: convId, funnel_id: funnel.id, variant: promptVariant, event: "lead",
+      });
+    } catch {}
   } else if (promptVariant === "b" && funnel.prompt_b) {
     personaPrompt = funnel.prompt_b;
   }
@@ -920,6 +923,8 @@ async function handleFunnelMessageInner(
     await sendText(admin, userId, convId, reply.texto_pos_midia);
   }
 
+  const novosDados = { ...state.dados, ...reply.dados_extraidos };
+
   // 7. Processar ações
   if (reply.acao === "gerar_contrato") {
     const dadosCompletos = { ...state.dados, ...reply.dados_extraidos };
@@ -947,7 +952,6 @@ async function handleFunnelMessageInner(
   }
 
   // 8. Salvar novo estado
-  const novosDados = { ...state.dados, ...reply.dados_extraidos };
   const novaFase   = reply.nova_fase ?? state.fase;
 
   await admin.from("funnel_states").update({
@@ -994,9 +998,11 @@ async function handleFunnelMessageInner(
     };
     const event = eventMap[reply.nova_fase];
     if (event) {
-      await admin.from("funnel_ab_metrics").insert({
-        funnel_id: funnel.id, variant: promptVariant, event,
-      }).catch(() => {});
+      try {
+        await admin.from("funnel_ab_events").insert({
+          user_id: userId, conversation_id: convId, funnel_id: funnel.id, variant: promptVariant, event,
+        });
+      } catch {}
     }
   }
 

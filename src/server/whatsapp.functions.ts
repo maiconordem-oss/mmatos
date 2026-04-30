@@ -37,7 +37,7 @@ export const upsertInstance = createServerFn({ method: "POST" })
     funnel_id: z.string().uuid().nullable().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     // garante que credenciais existem
     await getEvoCreds(supabase, userId);
 
@@ -66,7 +66,7 @@ export const connectInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     const { data: inst, error } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
     if (error || !inst) throw new Error("Instância não encontrada");
 
@@ -101,7 +101,7 @@ export const refreshStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
     if (!inst) throw new Error("Instância não encontrada");
     const { url, key } = await getEvoCreds(supabase, userId);
@@ -116,7 +116,7 @@ export const disconnectInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
     if (!inst) throw new Error("Não encontrada");
     try {
@@ -135,7 +135,7 @@ export const sendWhatsappMessage = createServerFn({ method: "POST" })
     text: z.string().min(1).max(4000),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.instanceId).single();
     if (!inst) throw new Error("Instância não encontrada");
     const { url, key } = await getEvoCreds(supabase, userId);
@@ -152,7 +152,7 @@ export const getUserSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional() }).parse)
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     const { data } = await supabase
       .from("user_settings")
       .select("evolution_api_url, evolution_api_key")
@@ -172,7 +172,7 @@ export const saveUserSettings = createServerFn({ method: "POST" })
     evolution_api_key: z.string().min(1),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     const { error } = await supabase
       .from("user_settings")
       .upsert({

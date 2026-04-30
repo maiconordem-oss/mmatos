@@ -98,7 +98,7 @@ function KanbanPage() {
           convs?.forEach((conv: any) => {
             const s = scores.data?.find((x: any) => x.conversation_id === conv.id);
             if (s && conv.client_id) {
-              scoreMap[conv.client_id] = s.lead_score;
+              scoreMap[conv.client_id] = s.lead_score ?? 0;
               variantMap[conv.client_id] = s.prompt_variant ?? "a";
             }
           });
@@ -232,6 +232,7 @@ function KanbanPage() {
               <div className="space-y-2 flex-1 overflow-y-auto">
                 {items.map((c) => {
                   const prio = PRIORITIES.find((p) => p.id === c.priority);
+                  const clientId = c.client_id ?? "";
                   return (
                     <Card
                       key={c.id}
@@ -250,14 +251,14 @@ function KanbanPage() {
                             {prio && <Badge className={`text-xs ${prio.color}`}>{prio.label}</Badge>}
                           </div>
                           {c.value && <p className="text-xs text-gold mt-2 font-medium">R$ {Number(c.value).toLocaleString("pt-BR")}</p>}
-                          {leadScores[c.client_id] !== undefined && (
+                          {clientId && leadScores[clientId] !== undefined && (
                             <div className="flex items-center gap-1.5 mt-1.5">
                               <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                                <div className={`h-full rounded-full transition-all ${leadScores[c.client_id] >= 80 ? "bg-green-500" : leadScores[c.client_id] >= 50 ? "bg-amber-500" : "bg-red-400"}`}
-                                  style={{ width: `${leadScores[c.client_id]}%` }} />
+                                <div className={`h-full rounded-full transition-all ${leadScores[clientId] >= 80 ? "bg-green-500" : leadScores[clientId] >= 50 ? "bg-amber-500" : "bg-red-400"}`}
+                                  style={{ width: `${leadScores[clientId]}%` }} />
                               </div>
-                              <span className="text-[10px] text-muted-foreground font-mono">{leadScores[c.client_id]}%</span>
-                              {leadVariants[c.client_id] && leadVariants[c.client_id] !== "a" && (
+                              <span className="text-[10px] text-muted-foreground font-mono">{leadScores[clientId]}%</span>
+                              {leadVariants[clientId] && leadVariants[clientId] !== "a" && (
                                 <span className="text-[9px] px-1 rounded bg-purple-100 text-purple-600 font-bold">B</span>
                               )}
                             </div>

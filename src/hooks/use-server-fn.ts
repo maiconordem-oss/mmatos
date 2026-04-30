@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 type AnyServerFn = (...args: any[]) => Promise<any>;
 
 export function useAuthServerFn<T extends AnyServerFn>(fn: T): T {
-  const wrapped = useServerFn(fn);
+  const wrapped = useServerFn(fn) as unknown as (opts: any) => Promise<any>;
   return (async (opts: any) => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
