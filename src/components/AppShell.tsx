@@ -10,6 +10,7 @@ import {
   Bot,
   BookOpen,
   Wand2,
+  Settings,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -27,7 +28,8 @@ const navMain = [
 ] as const;
 
 const navBottom = [
-  { to: "/whatsapp", label: "Conectar WhatsApp", icon: Smartphone },
+  { to: "/whatsapp",      label: "Conectar WhatsApp", icon: Smartphone },
+  { to: "/configuracoes", label: "Configurações",     icon: Settings },
 ] as const;
 
 function NavItem({ to, label, icon: Icon, active }: { to: string; label: string; icon: React.ElementType; active: boolean }) {

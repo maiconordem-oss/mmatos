@@ -41,7 +41,7 @@ type Instance = {
 
 type Funil = { id: string; name: string; is_default: boolean };
 
-const EMPTY_FORM = { instance_name: "", api_url: "", api_key: "", funnel_id: "" };
+const EMPTY_FORM = { instance_name: "", funnel_id: "" };
 
 function WhatsappPage() {
   const { user } = useAuth();
@@ -90,28 +90,24 @@ function WhatsappPage() {
     setEditingId(inst.id);
     setForm({
       instance_name: inst.instance_name,
-      api_url:       inst.api_url ?? "",
-      api_key:       inst.api_key ?? "",
       funnel_id:     inst.funnel_id ?? "",
     });
     setShowForm(true);
   };
 
   const save = async () => {
-    if (!form.instance_name || !form.api_url || !form.api_key) {
-      toast.error("Preencha nome, URL e API Key");
+    if (!form.instance_name) {
+      toast.error("Informe o nome da instância");
       return;
     }
     setBusy(true);
     try {
       const payload = {
         instance_name: form.instance_name,
-        api_url:       form.api_url,
-        api_key:       form.api_key,
         funnel_id:     form.funnel_id || null,
         ...(editingId ? { id: editingId } : {}),
       };
-      const r = await upsertFn({ data: payload });
+      await upsertFn({ data: payload });
       toast.success(editingId ? "Configuração salva!" : "Instância criada!");
       setShowForm(false);
       load();
@@ -167,20 +163,12 @@ function WhatsappPage() {
             <CardTitle>{editingId ? "Editar instância" : "Nova instância WhatsApp"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label>Nome da instância *</Label>
-                <Input value={form.instance_name} onChange={(e) => setForm({ ...form, instance_name: e.target.value })} placeholder="ex: creche, tirzepatida" />
-                <p className="text-xs text-muted-foreground mt-1">Use um nome que identifique o anúncio</p>
-              </div>
-              <div>
-                <Label>URL da Evolution API *</Label>
-                <Input value={form.api_url} onChange={(e) => setForm({ ...form, api_url: e.target.value })} placeholder="https://evo.seudominio.com" />
-              </div>
-            </div>
             <div>
-              <Label>API Key *</Label>
-              <Input type="password" value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} placeholder="sua-chave-evolution" />
+              <Label>Nome da instância *</Label>
+              <Input value={form.instance_name} onChange={(e) => setForm({ ...form, instance_name: e.target.value })} placeholder="ex: creche, tirzepatida" />
+              <p className="text-xs text-muted-foreground mt-1">
+                Use um nome curto sem espaços (apenas letras, números, _ e -). Identifica o anúncio/campanha.
+              </p>
             </div>
 
             {/* Seleção do funil */}
@@ -257,7 +245,7 @@ function WhatsappPage() {
                     ) : (
                       <p className="text-xs text-amber-600">⚠️ Sem funil vinculado — mensagens não serão respondidas</p>
                     )}
-                    <p className="text-xs text-muted-foreground">{inst.api_url}</p>
+                    
                   </div>
                   <div className="flex items-center gap-2 shrink-0 flex-wrap">
                     <Button size="sm" variant="outline" onClick={() => openEdit(inst)}>Editar</Button>
