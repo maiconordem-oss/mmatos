@@ -35,7 +35,7 @@ export const qualifierReply = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), conversationId: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
 
     const { data: settings } = await supabase
       .from("ai_agent_settings")
@@ -89,7 +89,7 @@ export const extractQualification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), conversationId: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
 
     const { data: settings } = await supabase
       .from("ai_agent_settings").select("ai_model").eq("user_id", userId).maybeSingle();
@@ -152,7 +152,7 @@ export const generateProposal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), qualificationId: z.string().uuid(), clientId: z.string().uuid().optional(), caseId: z.string().uuid().optional() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
 
     const { data: settings } = await supabase
       .from("ai_agent_settings").select("*").eq("user_id", userId).maybeSingle();

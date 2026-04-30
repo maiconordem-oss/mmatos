@@ -5,7 +5,7 @@ import { z } from "zod";
 export const listStages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const { data, error } = await (context as any).supabase
       .from("kanban_stages")
       .select("*")
       .order("position", { ascending: true });
@@ -31,7 +31,7 @@ export const createStage = createServerFn({ method: "POST" })
     is_lost: z.boolean().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     const { data: existing } = await supabase
       .from("kanban_stages").select("position").eq("user_id", userId)
       .order("position", { ascending: false }).limit(1).maybeSingle();
@@ -67,7 +67,7 @@ export const updateStage = createServerFn({ method: "POST" })
   }).parse)
   .handler(async ({ data, context }) => {
     const { id, ...patch } = data;
-    const { error } = await context.supabase
+    const { error } = await (context as any).supabase
       .from("kanban_stages").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -79,7 +79,7 @@ export const reorderStages = createServerFn({ method: "POST" })
     orderedIds: z.array(z.string().uuid()).min(1).max(50),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase } = context as any;
     await Promise.all(
       data.orderedIds.map((id, idx) =>
         supabase.from("kanban_stages").update({ position: idx }).eq("id", id),
@@ -95,7 +95,7 @@ export const deleteStage = createServerFn({ method: "POST" })
     moveCasesToStageKey: z.string().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId } = context as any;
     const { data: stage } = await supabase
       .from("kanban_stages").select("key").eq("id", data.id).single();
     if (!stage) throw new Error("Coluna não encontrada");
@@ -125,7 +125,7 @@ export const updateCase = createServerFn({ method: "POST" })
   }).parse)
   .handler(async ({ data, context }) => {
     const { id, ...patch } = data;
-    const { error } = await context.supabase
+    const { error } = await (context as any).supabase
       .from("cases").update(patch as any).eq("id", id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -135,7 +135,7 @@ export const deleteCase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("cases").delete().eq("id", data.id);
+    const { error } = await (context as any).supabase.from("cases").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
