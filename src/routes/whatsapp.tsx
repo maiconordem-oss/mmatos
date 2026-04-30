@@ -90,28 +90,24 @@ function WhatsappPage() {
     setEditingId(inst.id);
     setForm({
       instance_name: inst.instance_name,
-      api_url:       inst.api_url ?? "",
-      api_key:       inst.api_key ?? "",
       funnel_id:     inst.funnel_id ?? "",
     });
     setShowForm(true);
   };
 
   const save = async () => {
-    if (!form.instance_name || !form.api_url || !form.api_key) {
-      toast.error("Preencha nome, URL e API Key");
+    if (!form.instance_name) {
+      toast.error("Informe o nome da instância");
       return;
     }
     setBusy(true);
     try {
       const payload = {
         instance_name: form.instance_name,
-        api_url:       form.api_url,
-        api_key:       form.api_key,
         funnel_id:     form.funnel_id || null,
         ...(editingId ? { id: editingId } : {}),
       };
-      const r = await upsertFn({ data: payload });
+      await upsertFn({ data: payload });
       toast.success(editingId ? "Configuração salva!" : "Instância criada!");
       setShowForm(false);
       load();
