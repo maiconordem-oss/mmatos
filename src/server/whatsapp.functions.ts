@@ -21,34 +21,46 @@ function publicWebhookUrl(instanceId: string, secret: string) {
   return `${base.replace(/\/$/, "")}/api/public/whatsapp-webhook?id=${instanceId}&secret=${secret}`;
 }
 
+// Lê credenciais Evolution do user_settings; falha com mensagem clara se não houver
+async function getEvoCreds(supabase: any, userId: string) {
+  const { data } = await supabase
+    .from("user_settings")
+    .select("evolution_api_url, evolution_api_key")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const url = data?.evolution_api_url;
+  const key = data?.evolution_api_key;
+  if (!url || !key) {
+    throw new Error("Configure a Evolution API em Configurações antes de conectar uma instância.");
+  }
+  return { url, key };
+}
+
 export const upsertInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(),
     id: z.string().uuid().optional(),
     instance_name: z.string().min(1).max(60).regex(/^[a-zA-Z0-9_-]+$/),
-    api_url: z.string().url(),
-    api_key: z.string().min(1),
     funnel_id: z.string().uuid().nullable().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const payload = {
+    // garante que credenciais existem
+    await getEvoCreds(supabase, userId);
+
+    const payload: any = {
       user_id:      userId,
       instance_name: data.instance_name,
-      api_url:      data.api_url,
-      api_key:      data.api_key,
       funnel_id:    data.funnel_id ?? null,
     };
 
     let row: any;
     if (data.id) {
-      // Atualizar instância existente pelo id
       const { data: updated, error } = await supabase
         .from("whatsapp_instances").update(payload).eq("id", data.id).eq("user_id", userId).select().single();
       if (error) throw new Error(error.message);
       row = updated;
     } else {
-      // Criar nova instância
       const { data: created, error } = await supabase
         .from("whatsapp_instances").insert(payload).select().single();
       if (error) throw new Error(error.message);
@@ -61,14 +73,15 @@ export const connectInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data: inst, error } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
     if (error || !inst) throw new Error("Instância não encontrada");
-    if (!inst.api_url || !inst.api_key) throw new Error("Configure URL e API key primeiro");
+
+    const { url, key } = await getEvoCreds(supabase, userId);
 
     // Try create instance (idempotent — Evolution returns 409 if exists)
     try {
-      await evo(inst.api_url, inst.api_key, "/instance/create", "POST", {
+      await evo(url, key, "/instance/create", "POST", {
         instanceName: inst.instance_name,
         qrcode: true,
         integration: "WHATSAPP-BAILEYS",
@@ -79,7 +92,7 @@ export const connectInstance = createServerFn({ method: "POST" })
     } catch (e) { /* ignore exists */ }
 
     // Fetch QR
-    const qr = await evo(inst.api_url, inst.api_key, `/instance/connect/${inst.instance_name}`);
+    const qr = await evo(url, key, `/instance/connect/${inst.instance_name}`);
     const qrCode = qr?.base64 || qr?.qrcode?.base64 || qr?.code || null;
 
     await supabase.from("whatsapp_instances").update({
@@ -95,10 +108,11 @@ export const refreshStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
-    if (!inst?.api_url || !inst?.api_key) throw new Error("Instância não configurada");
-    const state = await evo(inst.api_url, inst.api_key, `/instance/connectionState/${inst.instance_name}`);
+    if (!inst) throw new Error("Instância não encontrada");
+    const { url, key } = await getEvoCreds(supabase, userId);
+    const state = await evo(url, key, `/instance/connectionState/${inst.instance_name}`);
     const s = state?.instance?.state || state?.state;
     const status = s === "open" ? "connected" : s === "connecting" ? "connecting" : "disconnected";
     await supabase.from("whatsapp_instances").update({ status, last_event_at: new Date().toISOString() }).eq("id", inst.id);
@@ -109,12 +123,13 @@ export const disconnectInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
     if (!inst) throw new Error("Não encontrada");
-    if (inst.api_url && inst.api_key) {
-      try { await evo(inst.api_url, inst.api_key, `/instance/logout/${inst.instance_name}`, "DELETE"); } catch {}
-    }
+    try {
+      const { url, key } = await getEvoCreds(supabase, userId);
+      try { await evo(url, key, `/instance/logout/${inst.instance_name}`, "DELETE"); } catch {}
+    } catch {}
     await supabase.from("whatsapp_instances").update({ status: "disconnected", qr_code: null }).eq("id", inst.id);
     return { ok: true };
   });
@@ -127,12 +142,51 @@ export const sendWhatsappMessage = createServerFn({ method: "POST" })
     text: z.string().min(1).max(4000),
   }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.instanceId).single();
-    if (!inst?.api_url || !inst?.api_key) throw new Error("Instância não configurada");
-    const result = await evo(inst.api_url, inst.api_key, `/message/sendText/${inst.instance_name}`, "POST", {
+    if (!inst) throw new Error("Instância não encontrada");
+    const { url, key } = await getEvoCreds(supabase, userId);
+    const result = await evo(url, key, `/message/sendText/${inst.instance_name}`, "POST", {
       number: data.phone.replace(/\D/g, ""),
       text: data.text,
     });
     return { result };
+  });
+
+// ---------- Settings ----------
+
+export const getUserSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ __token: z.string().optional() }).parse)
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data } = await supabase
+      .from("user_settings")
+      .select("evolution_api_url, evolution_api_key")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return {
+      evolution_api_url: data?.evolution_api_url ?? "",
+      evolution_api_key: data?.evolution_api_key ?? "",
+    };
+  });
+
+export const saveUserSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({
+    __token: z.string().optional(),
+    evolution_api_url: z.string().url(),
+    evolution_api_key: z.string().min(1),
+  }).parse)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("user_settings")
+      .upsert({
+        user_id: userId,
+        evolution_api_url: data.evolution_api_url,
+        evolution_api_key: data.evolution_api_key,
+      }, { onConflict: "user_id" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
