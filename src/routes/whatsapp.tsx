@@ -245,7 +245,7 @@ function WhatsappPage() {
                     ) : (
                       <p className="text-xs text-amber-600">⚠️ Sem funil vinculado — mensagens não serão respondidas</p>
                     )}
-                    <p className="text-xs text-muted-foreground">{inst.api_url}</p>
+                    
                   </div>
                   <div className="flex items-center gap-2 shrink-0 flex-wrap">
                     <Button size="sm" variant="outline" onClick={() => openEdit(inst)}>Editar</Button>
