@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   Wand2, ChevronRight, ChevronLeft, Bot, DollarSign,
   HelpCircle, Shield, FileText, Sparkles, Check,
-  Plus, Trash2, AlertCircle,
+  Plus, Trash2, AlertCircle, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,7 @@ const STEPS: Step[] = [
   { id: "triagem",   label: "Triagem",         icon: HelpCircle,color: "bg-blue-500"   },
   { id: "objecoes",  label: "Objeções",        icon: Shield,    color: "bg-orange-500" },
   { id: "coleta",    label: "Coleta de dados", icon: FileText,  color: "bg-pink-500"   },
+  { id: "acoes",     label: "Ações e Mídias",  icon: Zap,       color: "bg-red-500"    },
   { id: "gerar",     label: "Gerar prompt",    icon: Sparkles,  color: "bg-amber-500"  },
 ];
 
@@ -262,6 +263,28 @@ ${data.objecoes.filter(o => o.gatilho && o.resposta).map(o => `- Gatilho: "${o.g
 
 DADOS A COLETAR PARA O CONTRATO:
 ${data.camposContrato.join(", ")}
+
+QUANDO EXECUTAR CADA AÇÃO (siga EXATAMENTE):
+${data.acoes.length > 0 ? data.acoes.map((a: any) => {
+  const m: Record<string,string> = {
+    abertura: "na primeira mensagem",
+    triagem_completa: "quando triagem completa e caso tem fundamento",
+    conexao_confirmada: "quando lead confirmar que quer abrir o caso",
+    fechamento_audio: "após lead ouvir o áudio e confirmar",
+    dados_confirmados: "quando lead confirmar que dados estão corretos",
+    contrato_assinado: "quando lead confirmar assinatura",
+    pagamento_realizado: "quando lead confirmar pagamento",
+  };
+  const t: Record<string,string> = {
+    midia: "enviar mídia " + a.valor + " em midias: [\"" + a.valor + "\"]",
+    contrato: 'usar acao: "gerar_contrato" + nova_fase: "assinatura"',
+    agendamento: 'usar acao: "agendar_consulta"',
+    pagamento: "enviar link: " + a.valor,
+    grupo: "sistema cria grupo automaticamente na fase assinatura",
+    handoff: 'usar acao: "transferir_humano" + nova_fase: "encerrado"',
+  };
+  return "- " + (m[a.momento] || a.momento) + ": " + (t[a.tipo] || a.tipo);
+}).join("\n") : "use as ações padrão do formato JSON"}
 
 INSTRUÇÕES ADICIONAIS:
 - Primeira mensagem sempre envia video_abertura e muda fase para triagem
@@ -539,8 +562,92 @@ INSTRUÇÕES ADICIONAIS:
         </div>
       );
 
-      // PASSO 6 — Gerar
+      // PASSO 6 — Ações e Mídias
       case 5: return (
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+            <p className="font-medium mb-1">⚡ O que acontece em cada momento?</p>
+            <p>Defina quando enviar vídeo, áudio, gerar contrato, oferecer agendamento, link de pagamento ou transferir para humano. A IA executa automaticamente.</p>
+          </div>
+
+          {[
+            { momento: "abertura",           label: "🟢 Abertura",                desc: "Primeira mensagem do lead" },
+            { momento: "triagem_completa",   label: "📋 Triagem completa",        desc: "Após coletar dados do caso e ter fundamento" },
+            { momento: "conexao_confirmada", label: "🤝 Lead confirmou interesse",desc: "Quando disser sim, pode abrir o caso" },
+            { momento: "apos_audio",         label: "🎙️ Após áudio de avaliação", desc: "Depois do lead ouvir e confirmar" },
+            { momento: "dados_confirmados",  label: "📝 Dados confirmados",       desc: "Lead conferiu e aprovou todos os dados" },
+            { momento: "contrato_assinado",  label: "✍️ Contrato assinado",       desc: "Após assinatura digital" },
+          ].map(({ momento, label, desc }) => {
+            const existentes = (data.acoes ?? []).filter((a: any) => a.momento === momento);
+            return (
+              <div key={momento} className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-sm">{label}</p>
+                    <p className="text-xs text-muted-foreground">{desc}</p>
+                  </div>
+                  <Button size="sm" variant="outline" className="gap-1 text-xs shrink-0"
+                    onClick={() => patch({ acoes: [...(data.acoes ?? []), { momento, tipo: "midia", valor: "", descricao: "" }] })}>
+                    <Plus className="h-3 w-3" /> Adicionar
+                  </Button>
+                </div>
+                {existentes.map((acao: any) => {
+                  const gi = (data.acoes ?? []).indexOf(acao);
+                  return (
+                    <div key={gi} className="flex items-center gap-2 bg-muted/40 rounded-lg p-2">
+                      <select value={acao.tipo}
+                        onChange={e => { const arr = [...(data.acoes ?? [])]; arr[gi] = { ...arr[gi], tipo: e.target.value, valor: "" }; patch({ acoes: arr }); }}
+                        className="text-xs border rounded px-2 py-1 bg-background shrink-0">
+                        <option value="midia">🎬 Enviar mídia (vídeo/áudio)</option>
+                        <option value="contrato">📄 Gerar contrato ZapSign</option>
+                        <option value="agendamento">📅 Oferecer horários (Google Calendar)</option>
+                        <option value="pagamento">💳 Enviar link de pagamento</option>
+                        <option value="grupo">👥 Criar grupo WhatsApp com equipe</option>
+                        <option value="handoff">👤 Transferir para atendimento humano</option>
+                      </select>
+                      {acao.tipo === "midia" && (
+                        <Input className="flex-1 text-xs h-7 font-mono" placeholder="ex: video_abertura, audio_fechamento"
+                          value={acao.valor}
+                          onChange={e => { const arr = [...(data.acoes ?? [])]; arr[gi] = { ...arr[gi], valor: e.target.value }; patch({ acoes: arr }); }} />
+                      )}
+                      {acao.tipo === "pagamento" && (
+                        <Input className="flex-1 text-xs h-7" placeholder="URL do link de pagamento"
+                          value={acao.valor}
+                          onChange={e => { const arr = [...(data.acoes ?? [])]; arr[gi] = { ...arr[gi], valor: e.target.value }; patch({ acoes: arr }); }} />
+                      )}
+                      {["contrato","agendamento","grupo","handoff"].includes(acao.tipo) && (
+                        <span className="flex-1 text-xs text-muted-foreground italic">
+                          {acao.tipo === "contrato" ? "Gerado automaticamente com os dados coletados" :
+                           acao.tipo === "agendamento" ? "Busca horários livres do Google Calendar" :
+                           acao.tipo === "grupo" ? "Cria grupo com o cliente + sua equipe" :
+                           "Pausa a IA e notifica você no Inbox"}
+                        </span>
+                      )}
+                      <button onClick={() => patch({ acoes: (data.acoes ?? []).filter((_: any, i: number) => i !== gi) })}
+                        className="text-destructive hover:opacity-70 shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
+                    </div>
+                  );
+                })}
+                {existentes.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic px-1">Nenhuma ação — clique em Adicionar</p>
+                )}
+              </div>
+            );
+          })}
+
+          {(data.acoes ?? []).length > 0 && (
+            <div className="border rounded-lg p-3 bg-green-50 border-green-200">
+              <p className="text-xs font-medium text-green-800 mb-2">✅ Fluxo configurado:</p>
+              {(data.acoes ?? []).map((a: any, i: number) => (
+                <p key={i} className="text-xs text-green-700">→ {a.momento.replace(/_/g," ")}: {a.tipo === "midia" ? a.valor : a.tipo}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+
+      // PASSO 7 — Gerar
+      case 6: return (
         <div className="space-y-5">
           <div>
             <Label>Nome do funil *</Label>
@@ -682,7 +789,7 @@ INSTRUÇÕES ADICIONAIS:
       </div>
 
       {/* Navegação */}
-      {step >= 0 && step < 5 && (
+      {step >= 0 && step < 6 && (
         <div className="flex gap-3">
           {step > 0 && (
             <Button variant="outline" onClick={() => setStep(s => s - 1)} className="gap-2">
@@ -699,7 +806,7 @@ INSTRUÇÕES ADICIONAIS:
           </Button>
         </div>
       )}
-      {step === 5 && !promptGerado && (
+      {step === 6 && !promptGerado && (
         <Button variant="outline" onClick={() => setStep(4)} className="gap-2 w-full">
           <ChevronLeft className="h-4 w-4" /> Voltar e ajustar
         </Button>
