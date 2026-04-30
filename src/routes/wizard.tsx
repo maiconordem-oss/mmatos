@@ -623,7 +623,8 @@ INSTRUÇÕES ADICIONAIS:
         </div>
       </div>
 
-      {/* Progresso */}
+      {/* Progresso — só mostra a partir do passo 1 */}
+      {step >= 0 && (
       <div className="flex items-center gap-1">
         {STEPS.map((s, i) => {
           const Icon = s.icon;
@@ -652,20 +653,30 @@ INSTRUÇÕES ADICIONAIS:
           );
         })}
       </div>
+      )}
 
       {/* Conteúdo do passo */}
       <div className="border rounded-xl p-6 space-y-4 bg-card min-h-[400px]">
         <div className="flex items-center gap-3 pb-2 border-b">
-          {(() => { const s = STEPS[step]; const Icon = s.icon; return (
+          {step === -1 ? (
             <>
-              <div className={`h-8 w-8 rounded-lg ${s.color} flex items-center justify-center`}>
-                <Icon className="h-4 w-4 text-white" />
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                <Wand2 className="h-4 w-4 text-white" />
               </div>
-              <div>
-                <h2 className="font-semibold">Passo {step + 1} de {STEPS.length} — {s.label}</h2>
-              </div>
+              <h2 className="font-semibold">Escolha um template para começar</h2>
             </>
-          ); })()}
+          ) : (
+            (() => { const s = STEPS[step]; if (!s) return null; const Icon = s.icon; return (
+              <>
+                <div className={`h-8 w-8 rounded-lg ${s.color} flex items-center justify-center`}>
+                  <Icon className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-semibold">Passo {step + 1} de {STEPS.length} — {s.label}</h2>
+                </div>
+              </>
+            ); })()
+          )}
         </div>
         {renderStep()}
       </div>
