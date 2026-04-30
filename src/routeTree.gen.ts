@@ -105,10 +105,14 @@ const WorkflowsIdRoute = WorkflowsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => WorkflowsRoute,
 } as any)
-const ApiGeneratePromptRoute = ApiGeneratePromptRouteImport.update({ id: '/api/generate-prompt', path: '/api/generate-prompt', getParentRoute: () => rootRouteImport } as any)
 const ApiSimulateRoute = ApiSimulateRouteImport.update({
   id: '/api/simulate',
   path: '/api/simulate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGeneratePromptRoute = ApiGeneratePromptRouteImport.update({
+  id: '/api/generate-prompt',
+  path: '/api/generate-prompt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicZapsignWebhookRoute = ApiPublicZapsignWebhookRouteImport.update({
@@ -143,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
+  '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -164,6 +169,7 @@ export interface FileRoutesByTo {
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
+  '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -186,6 +192,7 @@ export interface FileRoutesById {
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
+  '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -209,6 +216,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
+    | '/api/generate-prompt'
     | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
@@ -230,6 +238,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
+    | '/api/generate-prompt'
     | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
+    | '/api/generate-prompt'
     | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
@@ -273,6 +283,7 @@ export interface RootRouteChildren {
   WhatsappRoute: typeof WhatsappRoute
   WizardRoute: typeof WizardRoute
   WorkflowsRoute: typeof WorkflowsRouteWithChildren
+  ApiGeneratePromptRoute: typeof ApiGeneratePromptRoute
   ApiSimulateRoute: typeof ApiSimulateRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicWorkflowTickRoute: typeof ApiPublicWorkflowTickRoute
@@ -393,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSimulateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/generate-prompt': {
+      id: '/api/generate-prompt'
+      path: '/api/generate-prompt'
+      fullPath: '/api/generate-prompt'
+      preLoaderRoute: typeof ApiGeneratePromptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/zapsign-webhook': {
       id: '/api/public/zapsign-webhook'
       path: '/api/public/zapsign-webhook'
@@ -444,6 +462,7 @@ const rootRouteChildren: RootRouteChildren = {
   WhatsappRoute: WhatsappRoute,
   WizardRoute: WizardRoute,
   WorkflowsRoute: WorkflowsRouteWithChildren,
+  ApiGeneratePromptRoute: ApiGeneratePromptRoute,
   ApiSimulateRoute: ApiSimulateRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicWorkflowTickRoute: ApiPublicWorkflowTickRoute,
