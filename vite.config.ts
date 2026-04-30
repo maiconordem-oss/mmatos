@@ -6,15 +6,13 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
-  // The default `**/server/**` pattern from @lovable.dev/vite-tanstack-config
-  // blocks our server-fn RPC files in `src/server/*.functions.ts`. Those files
-  // are safe to import from client code because the server-fn Vite plugin
-  // transforms them into RPC stubs. We allow `*.functions.ts` files via
-  // onViolation; real server-only modules (`*.server.ts`) remain blocked.
   tanstackStart: {
     importProtection: {
+      client: {
+        excludeFiles: ["**/*.functions.ts", "**/*.functions.tsx"],
+      },
       onViolation: (info: any) => {
-        const id = String(info?.import ?? info?.resolved ?? "");
+        const id = String(info?.resolved ?? info?.specifier ?? "");
         if (/\.functions(\.ts|\.tsx)?$/.test(id)) return false;
         return true;
       },
