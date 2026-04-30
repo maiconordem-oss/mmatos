@@ -584,6 +584,43 @@ function FunisPage() {
               )}
             </div>
 
+
+            {/* A/B Testing */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-sm flex items-center gap-2">🧪 Teste A/B de prompts</p>
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.ab_enabled ?? false} onCheckedChange={(v) => setForm({ ...form, ab_enabled: v })} />
+                  <Label className="text-xs">{form.ab_enabled ? "Ativado" : "Desativado"}</Label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Crie uma segunda versão do prompt. O sistema divide automaticamente os leads entre as duas versões e você vê qual converte mais.
+              </p>
+              {form.ab_enabled && (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Divisão do tráfego — Versão A recebe <strong>{form.ab_split ?? 50}%</strong> dos leads</Label>
+                    <input type="range" min={10} max={90} step={10}
+                      value={form.ab_split ?? 50}
+                      onChange={(e) => setForm({ ...form, ab_split: Number(e.target.value) })}
+                      className="w-full mt-1" />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Versão A: {form.ab_split ?? 50}%</span>
+                      <span>Versão B: {100 - (form.ab_split ?? 50)}%</span>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Prompt da Versão B</Label>
+                    <Textarea rows={8} value={form.prompt_b ?? ""} onChange={(e) => setForm({ ...form, prompt_b: e.target.value })}
+                      className="font-mono text-xs" placeholder="Cole aqui o prompt da versão B para comparar com a versão A..." />
+                  </div>
+                  <div className="bg-purple-50 border border-purple-200 rounded p-3 text-xs text-purple-800">
+                    💡 Dica: Mude apenas um elemento por vez (ex: só o tom, ou só a frase de conexão) para saber exatamente o que melhorou.
+                  </div>
+                </div>
+              )}
+            </div>
             {/* ZapSign */}
             <div className="border rounded-lg p-4 space-y-2">
               <p className="font-medium text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Contrato ZapSign</p>

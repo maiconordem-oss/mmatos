@@ -114,11 +114,104 @@ const CAMPOS_DISPONIVEIS = [
   { key: "email",                label: "E-mail" },
 ];
 
+
+// ── Templates por área jurídica ────────────────────────────────
+const TEMPLATES: Record<string, Partial<WizardData>> = {
+  creche: {
+    especialidade: "direito da criança e do adolescente — vaga em creche pública negada",
+    tomVoz: "proximo",
+    apresentacao: "advogado especialista em casos de vaga em creche em Porto Alegre, com centenas de casos resolvidos",
+    nomeServico: "Vaga em Creche — Porto Alegre",
+    descricaoServico: "Ação judicial para garantir vaga em creche pública para crianças até 5 anos negada pelo município",
+    gratuito: true,
+    direitoDefendido: "Direito à educação infantil garantido pela CF/88 art. 208 e pelo ECA. O município tem obrigação constitucional de fornecer vaga em creche para crianças de 0 a 5 anos.",
+    argumentosJuridicos: "STF Tema 548: municípios são obrigados. Alta taxa de êxito. Liminar pode sair em 48h. Jurisprudência consolidada nos TJs. Não custa nada para o responsável.",
+    perguntas: [
+      { texto: "Qual é o seu nome?", exclusao: "" },
+      { texto: "E o nome do seu filho ou filha?", exclusao: "" },
+      { texto: "Quantos anos e meses ele tem?", exclusao: "se a criança tiver mais de 5 anos e 11 meses, encerrar" },
+      { texto: "Em qual cidade foi pedida a vaga?", exclusao: "" },
+      { texto: "Você já fez o pedido formal na Prefeitura ou Secretaria de Educação?", exclusao: "se não fez o pedido, orientar a fazer e encerrar" },
+      { texto: "O que aconteceu depois do pedido — teve negativa ou simplesmente não responderam?", exclusao: "" },
+      { texto: "Você trabalha? Tem alguma urgência como recomendação médica ou vulnerabilidade financeira?", exclusao: "" },
+    ],
+    objecoes: [
+      { gatilho: "Quanto custa? Tem algum custo?", resposta: "Você não paga nada. Quando o município perde — e na maioria dos casos perde — ele é condenado a pagar meus honorários. Quem banca é a Prefeitura. Para você, é gratuito." },
+      { gatilho: "Demora muito? Preciso ir ao escritório?", resposta: "Você não vai precisar ir a lugar nenhum. Eu cuido de tudo. Já vi liminares saírem em 48 horas. Sua parte é só me mandar os documentos." },
+      { gatilho: "Vai funcionar? Já tentei antes.", resposta: "Cobrar informalmente é diferente de entrar com ação judicial. Com a ação, o município é legalmente obrigado a responder. Já resolvi casos iguais." },
+      { gatilho: "Deixa eu pensar / ver depois", resposta: "Sem pressão. Só quero que você saiba que enquanto a gente não abre o processo, o município não tem obrigação nenhuma de te responder. A fila continua andando." },
+      { gatilho: "Você é robô? É IA?", resposta: "Sou o Dr. Maicon Matos. Estou aqui para cuidar do seu caso." },
+      { gatilho: "Quero falar com uma pessoa", resposta: "" },
+    ],
+    camposContrato: ["nome","cpf","rg","estadoCivil","profissao","endereco","nomeCrianca","idadeCrianca","dataNascimentoCrianca","municipio","creche","protocolo"],
+  },
+  tirzepatida: {
+    especialidade: "direito à saúde — ação contra ANVISA para busca pessoal de Tirzepatida no Paraguai",
+    tomVoz: "proximo",
+    apresentacao: "advogado especialista em direito à saúde e medicamentos importados",
+    nomeServico: "Tirzepatida — Autorização ANVISA",
+    descricaoServico: "Ação judicial para autorizar o paciente a buscar Tirzepatida pessoalmente no Paraguai com segurança jurídica",
+    gratuito: false,
+    valorHonorarios: "1500",
+    direitoDefendido: "Direito à saúde (CF/88 art. 196). A ANVISA proíbe a importação pessoal de Tirzepatida, mas é possível obter autorização judicial para busca pessoal com prescrição médica válida.",
+    argumentosJuridicos: "Jurisprudência favorável em TJs para medicamentos com prescrição. Liminar costuma sair em 5-10 dias. Paciente vai ao Paraguai com documento judicial, sem risco de apreensão na fronteira.",
+    perguntas: [
+      { texto: "Qual é o seu nome?", exclusao: "" },
+      { texto: "Você tem prescrição médica para a Tirzepatida?", exclusao: "se não tiver prescrição, informar que é necessária e encerrar" },
+      { texto: "O médico prescreveu para qual finalidade — emagrecimento, diabetes tipo 2 ou outro?", exclusao: "" },
+      { texto: "Você já tentou comprar no Brasil ou pelo plano de saúde e foi negado?", exclusao: "" },
+      { texto: "Você sabe que a ANVISA proíbe a importação pessoal? Estava ciente dessa restrição?", exclusao: "" },
+    ],
+    objecoes: [
+      { gatilho: "Quanto custa?", resposta: "São R$ 1.500 de honorários. O investimento é pontual — e garante que você vá ao Paraguai com segurança jurídica total, sem risco de apreensão na fronteira." },
+      { gatilho: "Demora muito?", resposta: "A liminar costuma sair em 5 a 10 dias úteis. Rápido o suficiente para você planejar a viagem com tranquilidade." },
+      { gatilho: "Vai funcionar?", resposta: "Já obtivemos autorizações judiciais para pacientes buscarem medicamentos no Paraguai. É um direito que a Justiça tem reconhecido com frequência." },
+      { gatilho: "Deixa eu pensar", resposta: "Sem pressão. Só lembre que sem a autorização judicial, o risco na fronteira é real. Quando decidir, é só me chamar." },
+      { gatilho: "Você é robô?", resposta: "Sou o Dr. Maicon Matos. Estou aqui para cuidar do seu caso." },
+      { gatilho: "Quero falar com uma pessoa", resposta: "" },
+    ],
+    camposContrato: ["nome","cpf","rg","estadoCivil","profissao","endereco","dataNascimento","temPrescricao","nomeMedico","crm","cid"],
+  },
+  trabalhista: {
+    especialidade: "direito trabalhista — reclamação por verbas rescisórias e direitos violados",
+    tomVoz: "proximo",
+    nomeServico: "Ação Trabalhista",
+    descricaoServico: "Ação judicial para recuperar verbas rescisórias, horas extras, danos morais e outros direitos trabalhistas violados",
+    gratuito: false,
+    valorHonorarios: "",
+    direitoDefendido: "CLT e CF/88 art. 7º. Trabalhador tem direito a FGTS, férias, 13º, aviso prévio, horas extras, e indenizações por demissão irregular ou assédio.",
+    argumentosJuridicos: "A maioria dos casos trabalhistas tem êxito parcial ou total. Sem custo inicial — honorários são percentual do que for recuperado. Prazo de 2 anos após rescisão.",
+    perguntas: [
+      { texto: "Qual é o seu nome?", exclusao: "" },
+      { texto: "Qual foi o problema com seu empregador — demissão, horas extras não pagas, assédio, acidente?", exclusao: "" },
+      { texto: "Quando foi demitido ou quando o problema ocorreu?", exclusao: "se faz mais de 2 anos da rescisão, verificar prescrição" },
+      { texto: "Você recebeu todas as verbas rescisórias — FGTS, aviso prévio, férias, 13º?", exclusao: "" },
+      { texto: "Tem algum documento: carteira assinada, holerites, contrato ou conversa por escrito?", exclusao: "" },
+    ],
+    objecoes: [
+      { gatilho: "Quanto custa?", resposta: "Não tem custo inicial. Meus honorários são um percentual do que você recuperar — só pago se ganhar. Se não ganhar nada, você não paga nada." },
+      { gatilho: "Vai demorar?", resposta: "Ações trabalhistas costumam ser resolvidas em 6 a 18 meses, dependendo da comarca. Muitos casos são resolvidos em audiência de conciliação sem precisar ir a julgamento." },
+      { gatilho: "A empresa é grande, tenho chance?", resposta: "O tamanho da empresa não muda seus direitos. O que importa é se houve violação da CLT — e se houve, a Justiça do Trabalho é eficiente em garantir esses direitos." },
+      { gatilho: "Deixa eu pensar", resposta: "Fique à vontade. Só lembre que o prazo para entrar com ação trabalhista é de 2 anos após a rescisão. Se estiver próximo desse prazo, me chama logo." },
+      { gatilho: "Você é robô?", resposta: "Sou o Dr. Maicon Matos. Estou aqui para analisar seu caso." },
+      { gatilho: "Quero falar com uma pessoa", resposta: "" },
+    ],
+    camposContrato: ["nome","cpf","rg","estadoCivil","profissao","endereco","email"],
+  },
+};
+
+const TEMPLATE_LABELS = [
+  { key: "creche",      emoji: "🏫", label: "Vaga em Creche",      desc: "Direito à educação infantil" },
+  { key: "tirzepatida", emoji: "💊", label: "Tirzepatida / ANVISA", desc: "Direito à saúde — medicamento" },
+  { key: "trabalhista", emoji: "⚖️", label: "Ação Trabalhista",     desc: "Verbas rescisórias e direitos" },
+  { key: "zero",        emoji: "✨", label: "Do zero",             desc: "Criar do início" },
+];
+
 // ── Componente principal ───────────────────────────────────────
 function WizardPage() {
   const { user } = useAuth();
   const navigate  = useNavigate();
-  const [step, setStep]       = useState(0);
+  const [step, setStep]       = useState(-1);
   const [data, setData]       = useState<WizardData>({ ...EMPTY_DATA });
   const [generating, setGenerating] = useState(false);
   const [promptGerado, setPromptGerado] = useState("");
@@ -241,6 +334,31 @@ INSTRUÇÕES ADICIONAIS:
   // ── Renderizar passo ─────────────────────────────────────────
   const renderStep = () => {
     switch (step) {
+
+      // PASSO 0 — Template
+      case -1: return (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">Escolha um template para começar com tudo pré-configurado, ou comece do zero:</p>
+          <div className="grid grid-cols-2 gap-3">
+            {TEMPLATE_LABELS.map(t => (
+              <button key={t.key} onClick={() => {
+                if (t.key !== "zero" && TEMPLATES[t.key]) {
+                  const tpl = TEMPLATES[t.key];
+                  patch({ ...tpl, nomeFunil: tpl.nomeServico ?? "" });
+                }
+                setStep(0);
+              }} className="flex flex-col items-start gap-2 p-4 border-2 rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left">
+                <span className="text-3xl">{t.emoji}</span>
+                <div>
+                  <p className="font-semibold text-sm">{t.label}</p>
+                  <p className="text-xs text-muted-foreground">{t.desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground text-center">Você pode ajustar tudo depois de escolher o template</p>
+        </div>
+      );
 
       // PASSO 1 — Persona
       case 0: return (
@@ -483,6 +601,7 @@ INSTRUÇÕES ADICIONAIS:
   };
 
   const canNext = () => {
+    if (step === -1) return true;
     if (step === 0) return data.nomeDr.trim() && data.especialidade.trim();
     if (step === 1) return data.nomeServico.trim() && data.direitoDefendido.trim();
     if (step === 2) return data.perguntas.some(p => p.texto.trim());
@@ -552,11 +671,16 @@ INSTRUÇÕES ADICIONAIS:
       </div>
 
       {/* Navegação */}
-      {step < 5 && (
+      {step >= 0 && step < 5 && (
         <div className="flex gap-3">
           {step > 0 && (
             <Button variant="outline" onClick={() => setStep(s => s - 1)} className="gap-2">
               <ChevronLeft className="h-4 w-4" /> Voltar
+            </Button>
+          )}
+          {step === 0 && (
+            <Button variant="outline" onClick={() => setStep(-1)} className="gap-2">
+              <ChevronLeft className="h-4 w-4" /> Trocar template
             </Button>
           )}
           <Button onClick={() => setStep(s => s + 1)} disabled={!canNext()} className="gap-2 flex-1">

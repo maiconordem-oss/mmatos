@@ -72,6 +72,8 @@ function KanbanPage() {
   const [stagesOpen, setStagesOpen] = useState(false);
   const [editCase, setEditCase] = useState<Case | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [leadScores, setLeadScores] = useState<Record<string, number>>({});
+  const [leadVariants, setLeadVariants] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
     title: "", client_id: "", area: "outro", priority: "media", stage: "lead",
@@ -80,11 +82,30 @@ function KanbanPage() {
 
   const load = async () => {
     try {
-      const [stagesRes, cs, cl] = await Promise.all([
+      const [stagesRes, cs, cl, scores] = await Promise.all([
         listStagesFn().catch(() => ({ stages: [] })),
         supabase.from("cases").select("*").order("created_at", { ascending: false }),
         supabase.from("clients").select("id, full_name").order("full_name"),
+        supabase.from("funnel_states").select("conversation_id, lead_score, prompt_variant").not("lead_score", "is", null),
       ]);
+      // Mapear client_id → score via conversations
+      const scoreMap: Record<string, number> = {};
+      const variantMap: Record<string, string> = {};
+      if (scores.data) {
+        const convIds = scores.data.map((s: any) => s.conversation_id);
+        if (convIds.length) {
+          const { data: convs } = await supabase.from("conversations").select("id, client_id").in("id", convIds);
+          convs?.forEach((conv: any) => {
+            const s = scores.data?.find((x: any) => x.conversation_id === conv.id);
+            if (s && conv.client_id) {
+              scoreMap[conv.client_id] = s.lead_score;
+              variantMap[conv.client_id] = s.prompt_variant ?? "a";
+            }
+          });
+        }
+      }
+      setLeadScores(scoreMap);
+      setLeadVariants(variantMap);
       const s = stagesRes?.stages ?? [];
       setStages(s as Stage[]);
       setCases((cs.data ?? []) as Case[]);
@@ -229,6 +250,18 @@ function KanbanPage() {
                             {prio && <Badge className={`text-xs ${prio.color}`}>{prio.label}</Badge>}
                           </div>
                           {c.value && <p className="text-xs text-gold mt-2 font-medium">R$ {Number(c.value).toLocaleString("pt-BR")}</p>}
+                          {leadScores[c.client_id] !== undefined && (
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div className={`h-full rounded-full transition-all ${leadScores[c.client_id] >= 80 ? "bg-green-500" : leadScores[c.client_id] >= 50 ? "bg-amber-500" : "bg-red-400"}`}
+                                  style={{ width: `${leadScores[c.client_id]}%` }} />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground font-mono">{leadScores[c.client_id]}%</span>
+                              {leadVariants[c.client_id] && leadVariants[c.client_id] !== "a" && (
+                                <span className="text-[9px] px-1 rounded bg-purple-100 text-purple-600 font-bold">B</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </Card>

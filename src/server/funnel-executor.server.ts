@@ -375,11 +375,32 @@ async function sendMedia(
   } catch { /* non-fatal */ }
 }
 
-// ── Chamar IA ──────────────────────────────────────────────────
+
+// ── Debounce: lock por conversa ────────────────────────────────
+async function acquireLock(admin: SupabaseClient<any, any, any>, convId: string): Promise<boolean> {
+  try {
+    // Limpar locks expirados
+    await admin.from("conversation_locks").delete().lt("expires_at", new Date().toISOString());
+    // Tentar inserir lock
+    const { error } = await admin.from("conversation_locks").insert({
+      conversation_id: convId,
+      locked_at:       new Date().toISOString(),
+      expires_at:      new Date(Date.now() + 30000).toISOString(),
+    });
+    return !error; // true se conseguiu o lock
+  } catch { return false; }
+}
+
+async function releaseLock(admin: SupabaseClient<any, any, any>, convId: string) {
+  await admin.from("conversation_locks").delete().eq("conversation_id", convId);
+}
+
+// ── Chamar IA com retry automático ─────────────────────────────
 async function callAI(
   personaPrompt: string,
   state: FunnelState,
-  userMessage: string
+  userMessage: string,
+  retries = 2
 ): Promise<AiReply> {
   const apiKey = process.env.LOVABLE_API_KEY ?? "lovable-internal";
 
@@ -407,13 +428,21 @@ Responda APENAS com JSON válido no formato especificado. Nenhum texto fora do J
       body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages, max_tokens: 1500 }),
     });
   } catch (networkErr) {
+    if (retries > 0) {
+      await new Promise(r => setTimeout(r, 1500));
+      return callAI(personaPrompt, state, userMessage, retries - 1);
+    }
     console.error("Erro de rede ao chamar IA:", networkErr);
     throw new Error("Erro de rede");
   }
 
   if (!res.ok) {
-    const errText = await res.text();
+    const errText = await res.text().catch(() => "");
     console.error(`IA erro [${res.status}]:`, errText);
+    if (retries > 0 && res.status >= 500) {
+      await new Promise(r => setTimeout(r, 2000));
+      return callAI(personaPrompt, state, userMessage, retries - 1);
+    }
     throw new Error(`IA [${res.status}]: ${errText}`);
   }
 
@@ -736,6 +765,27 @@ export async function handleFunnelMessage(
   userMessage: string,
   instanceFunnelId: string | null = null
 ) {
+  // ── Debounce: evitar processamento paralelo ───────────────────
+  const locked = await acquireLock(admin, convId);
+  if (!locked) {
+    console.log("handleFunnelMessage: conversa já está sendo processada, ignorando:", convId);
+    return;
+  }
+
+  try {
+    await handleFunnelMessageInner(admin, userId, convId, userMessage, instanceFunnelId);
+  } finally {
+    await releaseLock(admin, convId);
+  }
+}
+
+async function handleFunnelMessageInner(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  convId: string,
+  userMessage: string,
+  instanceFunnelId: string | null = null
+) {
   // ── Verificar se IA está pausada (atendimento humano) ────────
   const { data: convCheck } = await admin
     .from("conversations").select("ai_paused").eq("id", convId).single();
@@ -792,6 +842,44 @@ export async function handleFunnelMessage(
   if (!funnel?.persona_prompt) {
     console.error("Funnel executor: nenhum funil para userId:", userId);
     return;
+  }
+
+  // ── A/B Testing: selecionar variante do prompt ───────────────
+  let personaPrompt = funnel.persona_prompt;
+  let promptVariant = state.prompt_variant ?? "a";
+
+  if (!state.historico?.length) {
+    // Primeira mensagem: definir variante
+    if (funnel.ab_enabled && funnel.prompt_b) {
+      const roll = Math.random() * 100;
+      promptVariant = roll < (funnel.ab_split ?? 50) ? "a" : "b";
+      if (promptVariant === "b") personaPrompt = funnel.prompt_b;
+    }
+    // Registrar entrada do lead para métricas A/B
+    await admin.from("funnel_ab_metrics").insert({
+      funnel_id: funnel.id, variant: promptVariant, event: "lead",
+    }).catch(() => {});
+  } else if (promptVariant === "b" && funnel.prompt_b) {
+    personaPrompt = funnel.prompt_b;
+  }
+
+  // ── Reconhecer lead recorrente ────────────────────────────────
+  if (!state.historico?.length && state.fase === "abertura") {
+    const { data: conv } = await admin.from("conversations").select("phone").eq("id", convId).single();
+    if (conv?.phone) {
+      // Buscar conversas anteriores do mesmo número (excluindo atual e simulações)
+      const { data: prevConvs } = await admin
+        .from("conversations").select("id")
+        .eq("user_id", userId).eq("phone", conv.phone)
+        .neq("id", convId).not("phone", "like", "SIM_%")
+        .limit(1);
+
+      if (prevConvs && prevConvs.length > 0) {
+        // Lead recorrente: personalizar abertura
+        const recurrentNote = "\n\nOBSERVAÇÃO DO SISTEMA: Este número já entrou em contato antes. Reconheça isso de forma natural, ex: 'Olá, que bom te ver de volta!' ou 'Vi que você já esteve aqui antes.' Retome o atendimento com naturalidade.";
+        personaPrompt = personaPrompt + recurrentNote;
+      }
+    }
   }
 
   // ── Verificar horário de atendimento ─────────────────────────
@@ -866,6 +954,7 @@ export async function handleFunnelMessage(
     fase:            novaFase,
     dados:           novosDados,
     midias_enviadas: [...state.midias_enviadas, ...novasMidias],
+    prompt_variant:  promptVariant,
     historico: [
       ...state.historico,
       { role: "user",      content: userMessage },
@@ -879,7 +968,39 @@ export async function handleFunnelMessage(
     await syncCRM(admin, userId, convId, novosDados, novaFase, funnel.name);
   }
 
-  // 10. Notificar dono sobre mudança de fase
+  // 10. Calcular score do lead baseado nos dados coletados
+  if (reply.nova_fase === "coleta" || reply.nova_fase === "assinatura") {
+    const camposImportantes = ["nome","cpf","rg","endereco","nomeCrianca","municipio","temPrescricao","nomeMedico"];
+    const preenchidos = camposImportantes.filter(k => novosDados[k]).length;
+    const score = Math.round((preenchidos / camposImportantes.length) * 100);
+    await admin.from("funnel_states").update({ lead_score: score }).eq("conversation_id", convId);
+
+    // Atualizar score no kanban
+    const { data: conv } = await admin.from("conversations").select("client_id").eq("id", convId).single();
+    if (conv?.client_id) {
+      const { data: caso } = await admin.from("cases").select("id").eq("client_id", conv.client_id)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (caso) {
+        const priority = score >= 80 ? "alta" : score >= 50 ? "media" : "baixa";
+        await admin.from("cases").update({ priority }).eq("id", caso.id);
+      }
+    }
+  }
+
+  // Métricas A/B por evento
+  if (reply.nova_fase && funnel.ab_enabled) {
+    const eventMap: Record<string,string> = {
+      conexao: "qualificado", assinatura: "contrato",
+    };
+    const event = eventMap[reply.nova_fase];
+    if (event) {
+      await admin.from("funnel_ab_metrics").insert({
+        funnel_id: funnel.id, variant: promptVariant, event,
+      }).catch(() => {});
+    }
+  }
+
+  // 11. Notificar dono sobre mudança de fase
   if (reply.nova_fase && reply.nova_fase !== state.fase && funnel.notify_phone) {
     await notifyFaseChange(admin, userId, funnel.notify_phone, reply.nova_fase, novosDados, convId, funnel.name);
   }
