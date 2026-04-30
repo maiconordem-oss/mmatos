@@ -295,25 +295,15 @@ INSTRUÇÕES ADICIONAIS:
 - Nunca prometer resultado garantido
 - Nunca dizer que é IA ou robô`;
 
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const res = await fetch("/api/generate-prompt", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer lovable-internal`,
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user",   content: userMsg },
-          ],
-          max_tokens: 4000,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ systemPrompt, userMsg }),
       });
 
-      if (!res.ok) throw new Error(`IA erro: ${res.status}`);
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
       const aiData = await res.json();
-      const prompt = aiData.choices?.[0]?.message?.content ?? "";
+      const prompt = aiData.prompt ?? "";
       if (!prompt) throw new Error("IA não retornou prompt");
 
       setPromptGerado(prompt);

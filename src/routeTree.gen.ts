@@ -25,6 +25,7 @@ import { Route as AgentesRouteImport } from './routes/agentes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiSimulateRouteImport } from './routes/api/simulate'
+import { Route as ApiGeneratePromptRouteImport } from './routes/api/generate-prompt'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
@@ -104,6 +105,7 @@ const WorkflowsIdRoute = WorkflowsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => WorkflowsRoute,
 } as any)
+const ApiGeneratePromptRoute = ApiGeneratePromptRouteImport.update({ id: '/api/generate-prompt', path: '/api/generate-prompt', getParentRoute: () => rootRouteImport } as any)
 const ApiSimulateRoute = ApiSimulateRouteImport.update({
   id: '/api/simulate',
   path: '/api/simulate',
