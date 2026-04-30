@@ -214,6 +214,54 @@ export type Database = {
           },
         ]
       }
+      client_documents: {
+        Row: {
+          client_id: string | null
+          conversation_id: string | null
+          created_at: string
+          doc_type: string
+          file_url: string
+          id: string
+          label: string | null
+          media_type: string | null
+          notes: string | null
+          transcription: string | null
+          updated_at: string
+          user_id: string
+          whatsapp_media_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          doc_type?: string
+          file_url: string
+          id?: string
+          label?: string | null
+          media_type?: string | null
+          notes?: string | null
+          transcription?: string | null
+          updated_at?: string
+          user_id: string
+          whatsapp_media_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          doc_type?: string
+          file_url?: string
+          id?: string
+          label?: string | null
+          media_type?: string | null
+          notes?: string | null
+          transcription?: string | null
+          updated_at?: string
+          user_id?: string
+          whatsapp_media_id?: string | null
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
@@ -319,6 +367,7 @@ export type Database = {
       conversations: {
         Row: {
           ai_handled: boolean
+          ai_paused: boolean
           client_id: string | null
           contact_name: string | null
           created_at: string
@@ -333,6 +382,7 @@ export type Database = {
         }
         Insert: {
           ai_handled?: boolean
+          ai_paused?: boolean
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
@@ -347,6 +397,7 @@ export type Database = {
         }
         Update: {
           ai_handled?: boolean
+          ai_paused?: boolean
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
@@ -369,6 +420,69 @@ export type Database = {
           },
         ]
       }
+      funnel_ab_events: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          event: string
+          funnel_id: string | null
+          id: string
+          user_id: string
+          variant: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          event: string
+          funnel_id?: string | null
+          id?: string
+          user_id: string
+          variant?: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          event?: string
+          funnel_id?: string | null
+          id?: string
+          user_id?: string
+          variant?: string
+        }
+        Relationships: []
+      }
+      funnel_followups: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          funnel_id: string | null
+          id: string
+          scheduled_at: string
+          sent: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          funnel_id?: string | null
+          id?: string
+          scheduled_at: string
+          sent?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          funnel_id?: string | null
+          id?: string
+          scheduled_at?: string
+          sent?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       funnel_states: {
         Row: {
           conversation_id: string
@@ -378,7 +492,9 @@ export type Database = {
           funnel_id: string | null
           historico: Json
           id: string
+          lead_score: number | null
           midias_enviadas: string[]
+          prompt_variant: string | null
           updated_at: string
           user_id: string
         }
@@ -390,7 +506,9 @@ export type Database = {
           funnel_id?: string | null
           historico?: Json
           id?: string
+          lead_score?: number | null
           midias_enviadas?: string[]
+          prompt_variant?: string | null
           updated_at?: string
           user_id: string
         }
@@ -402,7 +520,9 @@ export type Database = {
           funnel_id?: string | null
           historico?: Json
           id?: string
+          lead_score?: number | null
           midias_enviadas?: string[]
+          prompt_variant?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -425,6 +545,8 @@ export type Database = {
       }
       funnels: {
         Row: {
+          ab_enabled: boolean
+          ab_split: number
           calendar_enabled: boolean
           calendar_end_hour: number | null
           calendar_google_token: string | null
@@ -435,6 +557,12 @@ export type Database = {
           calendar_start_hour: number | null
           created_at: string
           description: string | null
+          followup_hours: number
+          followup_msg: string | null
+          group_enabled: boolean
+          group_name_template: string | null
+          group_participants: string[]
+          group_welcome_msg: string | null
           handoff_enabled: boolean
           handoff_msg: string | null
           id: string
@@ -446,14 +574,22 @@ export type Database = {
           media_video_documentos: string | null
           medias: Json
           name: string
+          notify_phone: string | null
+          outside_hours_msg: string | null
           persona_prompt: string
+          prompt_b: string | null
           proposal_is_free: boolean
           proposal_value: number | null
           updated_at: string
           user_id: string
+          working_days: number[]
+          working_hours_end: string | null
+          working_hours_start: string | null
           zapsign_template_id: string | null
         }
         Insert: {
+          ab_enabled?: boolean
+          ab_split?: number
           calendar_enabled?: boolean
           calendar_end_hour?: number | null
           calendar_google_token?: string | null
@@ -464,6 +600,12 @@ export type Database = {
           calendar_start_hour?: number | null
           created_at?: string
           description?: string | null
+          followup_hours?: number
+          followup_msg?: string | null
+          group_enabled?: boolean
+          group_name_template?: string | null
+          group_participants?: string[]
+          group_welcome_msg?: string | null
           handoff_enabled?: boolean
           handoff_msg?: string | null
           id?: string
@@ -475,14 +617,22 @@ export type Database = {
           media_video_documentos?: string | null
           medias?: Json
           name: string
+          notify_phone?: string | null
+          outside_hours_msg?: string | null
           persona_prompt?: string
+          prompt_b?: string | null
           proposal_is_free?: boolean
           proposal_value?: number | null
           updated_at?: string
           user_id: string
+          working_days?: number[]
+          working_hours_end?: string | null
+          working_hours_start?: string | null
           zapsign_template_id?: string | null
         }
         Update: {
+          ab_enabled?: boolean
+          ab_split?: number
           calendar_enabled?: boolean
           calendar_end_hour?: number | null
           calendar_google_token?: string | null
@@ -493,6 +643,12 @@ export type Database = {
           calendar_start_hour?: number | null
           created_at?: string
           description?: string | null
+          followup_hours?: number
+          followup_msg?: string | null
+          group_enabled?: boolean
+          group_name_template?: string | null
+          group_participants?: string[]
+          group_welcome_msg?: string | null
           handoff_enabled?: boolean
           handoff_msg?: string | null
           id?: string
@@ -504,11 +660,17 @@ export type Database = {
           media_video_documentos?: string | null
           medias?: Json
           name?: string
+          notify_phone?: string | null
+          outside_hours_msg?: string | null
           persona_prompt?: string
+          prompt_b?: string | null
           proposal_is_free?: boolean
           proposal_value?: number | null
           updated_at?: string
           user_id?: string
+          working_days?: number[]
+          working_hours_end?: string | null
+          working_hours_start?: string | null
           zapsign_template_id?: string | null
         }
         Relationships: []
@@ -611,6 +773,8 @@ export type Database = {
           direction: Database["public"]["Enums"]["message_direction"]
           external_id: string | null
           id: string
+          media_mime: string | null
+          media_type: string | null
           media_url: string | null
           status: Database["public"]["Enums"]["message_status"]
           user_id: string
@@ -622,6 +786,8 @@ export type Database = {
           direction: Database["public"]["Enums"]["message_direction"]
           external_id?: string | null
           id?: string
+          media_mime?: string | null
+          media_type?: string | null
           media_url?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           user_id: string
@@ -633,6 +799,8 @@ export type Database = {
           direction?: Database["public"]["Enums"]["message_direction"]
           external_id?: string | null
           id?: string
+          media_mime?: string | null
+          media_type?: string | null
           media_url?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           user_id?: string
