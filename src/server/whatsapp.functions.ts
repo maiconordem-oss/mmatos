@@ -78,17 +78,31 @@ export const connectInstance = createServerFn({ method: "POST" })
 
     const { url, key } = await getEvoCreds(supabase, userId);
 
+    const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
+    const events = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
+
     // Try create instance (idempotent — Evolution returns 409 if exists)
     try {
       await evo(url, key, "/instance/create", "POST", {
         instanceName: inst.instance_name,
         qrcode: true,
         integration: "WHATSAPP-BAILEYS",
-        webhook: publicWebhookUrl(inst.id, inst.webhook_secret),
-        webhook_by_events: true,
-        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
+        webhook: { url: webhookUrl, enabled: true, webhookByEvents: false, events },
       });
     } catch (e) { /* ignore exists */ }
+
+    // Sempre garante webhook configurado (idempotente, sobrescreve config antiga)
+    try {
+      await evo(url, key, `/webhook/set/${inst.instance_name}`, "POST", {
+        webhook: { url: webhookUrl, enabled: true, webhookByEvents: false, webhookBase64: false, events },
+      });
+    } catch {
+      try {
+        await evo(url, key, `/webhook/set/${inst.instance_name}`, "POST", {
+          url: webhookUrl, enabled: true, webhook_by_events: false, events,
+        });
+      } catch { /* não-fatal */ }
+    }
 
     // Fetch QR
     const qr = await evo(url, key, `/instance/connect/${inst.instance_name}`);
