@@ -126,7 +126,7 @@ async function notifyOwner(
     await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: inst.api_key },
-      body: JSON.stringify({ number: notifyPhone.replace(/\D/g, ""), text: msg, textMessage: { text: msg } }),
+      body: JSON.stringify({ number: notifyPhone.replace(/\D/g, ""), text: msg, options: { delay: 300 } }),
     });
   } catch { /* non-fatal */ }
 }
@@ -310,20 +310,17 @@ async function sendText(
     }
 
     // Tentar endpoint v2 primeiro, fallback para v1
+    // Evolution API v2: payload só com "text"
     const res = await fetch(`${base}/message/sendText/${inst.instance_name}`, {
       method: "POST", headers,
-      body: JSON.stringify({
-        number,
-        text,
-        // Alguns versões usam textMessage
-        textMessage: { text },
-        options: { delay: 500 },
-      }),
+      body: JSON.stringify({ number, text, options: { delay: 500 } }),
     });
 
+    const resText = await res.text().catch(() => "");
     if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      console.error(`Evolution API sendText [${res.status}]:`, errBody);
+      console.error(`Evolution sendText [${res.status}]:`, resText);
+    } else {
+      console.log(`Evolution sendText OK [${res.status}]:`, resText.slice(0, 100));
     }
   } catch (e) {
     console.error("sendText network error:", e);

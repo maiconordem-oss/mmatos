@@ -436,7 +436,7 @@ function InboxPage() {
       fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: inst.api_key },
-        body: JSON.stringify({ number, text: content, textMessage: { text: content }, options: { delay: 500 } }),
+        body: JSON.stringify({ number, text: content, options: { delay: 500 } }),
       }).catch(e => console.error("send manual error:", e));
     }
   };
