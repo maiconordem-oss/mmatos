@@ -254,12 +254,86 @@ function InboxPage() {
   const [newConv, setNewConv] = useState({ phone: "", contact_name: "" });
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [showLeadPanel, setShowLeadPanel] = useState(false);
+
+  // IA — estados das ferramentas
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [tone, setTone] = useState<"formal" | "casual" | "amigavel" | "persuasivo">("amigavel");
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiTasks, setAiTasks] = useState<Array<{ tarefa: string; responsavel: string; prazo: string }>>([]);
+  const [aiSentiment, setAiSentiment] = useState<{ sentiment: string; urgency: string; reason: string } | null>(null);
+  const [aiSearchQ, setAiSearchQ] = useState("");
+  const [aiSearchResults, setAiSearchResults] = useState<any[]>([]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef    = useRef<HTMLTextAreaElement>(null);
 
   const qualifierReplyFn      = useAuthServerFn(qualifierReply);
   const extractQualificationFn = useAuthServerFn(extractQualification);
   const generateProposalFn    = useAuthServerFn(generateProposal);
+  const suggestRepliesFn      = useAuthServerFn(suggestReplies);
+  const rewriteMessageFn      = useAuthServerFn(rewriteMessage);
+  const summarizeFn           = useAuthServerFn(summarizeConversation);
+  const extractTasksFn        = useAuthServerFn(extractTasks);
+  const translateFn           = useAuthServerFn(translateText);
+  const sentimentFn           = useAuthServerFn(analyzeSentiment);
+  const searchFn              = useAuthServerFn(semanticSearch);
+
+  // Reset ao trocar de conversa
+  useEffect(() => {
+    setSuggestions([]); setAiSummary(null); setAiTasks([]); setAiSentiment(null);
+    setAiSearchQ(""); setAiSearchResults([]);
+  }, [activeId]);
+
+  // Helpers de IA
+  const runWith = async (key: string, fn: () => Promise<void>) => {
+    setAiBusy(key);
+    try { await fn(); }
+    catch (e: any) { toast.error(e.message ?? "Erro na IA"); }
+    finally { setAiBusy(null); }
+  };
+
+  const doSuggest = (newTone?: typeof tone) => activeId && runWith("suggest", async () => {
+    const t = newTone ?? tone;
+    if (newTone) setTone(newTone);
+    const r = await suggestRepliesFn({ data: { conversationId: activeId, tone: t } });
+    setSuggestions(r.suggestions);
+  });
+
+  const doRewrite = (style: "curta" | "clara" | "profissional" | "persuasiva") => runWith("rewrite", async () => {
+    if (!text.trim()) { toast.error("Digite algo para reescrever"); return; }
+    const r = await rewriteMessageFn({ data: { text: text.trim(), style } });
+    setText(r.rewritten);
+    toast.success("Texto reescrito");
+  });
+
+  const doTranslate = () => runWith("translate", async () => {
+    if (!text.trim()) { toast.error("Digite algo para traduzir"); return; }
+    const r = await translateFn({ data: { text: text.trim(), targetLang: "Português (Brasil)" } });
+    setText(r.translated);
+    toast.success("Traduzido");
+  });
+
+  const doSummary = () => activeId && runWith("summary", async () => {
+    const r = await summarizeFn({ data: { conversationId: activeId } });
+    setAiSummary(r.summary);
+  });
+
+  const doTasks = () => activeId && runWith("tasks", async () => {
+    const r = await extractTasksFn({ data: { conversationId: activeId } });
+    setAiTasks(r.tasks);
+    if (r.tasks.length === 0) toast.info("Nenhuma tarefa identificada");
+  });
+
+  const doSentiment = () => activeId && runWith("sentiment", async () => {
+    const r = await sentimentFn({ data: { conversationId: activeId } });
+    setAiSentiment(r);
+  });
+
+  const doSearch = () => activeId && aiSearchQ.trim() && runWith("search", async () => {
+    const r = await searchFn({ data: { conversationId: activeId, query: aiSearchQ.trim() } });
+    setAiSearchResults(r.matches);
+    if (r.matches.length === 0) toast.info("Nada encontrado");
+  });
 
   const loadConvs = useCallback(async () => {
     const { data } = await supabase.from("conversations").select("*")
