@@ -588,23 +588,37 @@ function InboxPage() {
               </div>
             </div>
 
-            {/* Painel de ferramentas IA */}
+            {/* Painel de ferramentas IA — expandido */}
             {showAiPanel && (
-              <div className="flex items-center gap-2 px-4 py-2 border-b border-[#2a3942] flex-wrap" style={{ background: "#182229" }}>
-                <span className="text-[#8696a0] text-xs font-medium mr-1">Ferramentas IA:</span>
-                <button disabled={aiBusy !== null}
-                  onClick={async () => {
+              <div className="border-b border-[#2a3942] max-h-[50vh] overflow-y-auto" style={{ background: "#182229" }}>
+                {/* Linha 1: ações rápidas */}
+                <div className="flex items-center gap-2 px-4 py-2 flex-wrap border-b border-[#2a3942]/60">
+                  <span className="text-[#8696a0] text-xs font-medium mr-1">Ferramentas IA:</span>
+                  <button disabled={aiBusy !== null} onClick={() => doSummary()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    {aiBusy === "summary" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ScrollText className="h-3 w-3 text-[#53bdeb]" />}
+                    Resumir
+                  </button>
+                  <button disabled={aiBusy !== null} onClick={() => doTasks()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    {aiBusy === "tasks" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ListChecks className="h-3 w-3 text-[#f0c040]" />}
+                    Extrair tarefas
+                  </button>
+                  <button disabled={aiBusy !== null} onClick={() => doSentiment()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    {aiBusy === "sentiment" ? <Loader2 className="h-3 w-3 animate-spin" /> : <SmileIcon className="h-3 w-3 text-[#25d366]" />}
+                    Sentimento
+                  </button>
+                  <button disabled={aiBusy !== null} onClick={async () => {
                     setAiBusy("reply");
                     try { await qualifierReplyFn({ data: { conversationId: active.id } }); toast.success("IA respondeu!"); }
-                    catch (e: any) { toast.error(e.message); }
-                    finally { setAiBusy(null); }
+                    catch (e: any) { toast.error(e.message); } finally { setAiBusy(null); }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
-                  <Bot className="h-3 w-3 text-[#25d366]" />
-                  {aiBusy === "reply" ? "Respondendo..." : "Responder como Dr. Maicon"}
-                </button>
-                <button disabled={aiBusy !== null}
-                  onClick={async () => {
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    <Bot className="h-3 w-3 text-[#25d366]" />
+                    {aiBusy === "reply" ? "Respondendo..." : "Auto-responder"}
+                  </button>
+                  <button disabled={aiBusy !== null} onClick={async () => {
                     setAiBusy("qual");
                     try {
                       const r = await extractQualificationFn({ data: { conversationId: active.id } });
@@ -613,14 +627,95 @@ function InboxPage() {
                         const p = await generateProposalFn({ data: { qualificationId: r.qualification.id } });
                         toast.success(`Proposta: R$ ${Number(p.proposal.value).toLocaleString("pt-BR")}`);
                       }
-                    } catch (e: any) { toast.error(e.message); }
-                    finally { setAiBusy(null); }
+                    } catch (e: any) { toast.error(e.message); } finally { setAiBusy(null); }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
-                  <Sparkles className="h-3 w-3 text-[#f0c040]" />
-                  {aiBusy === "qual" ? "Qualificando..." : "Qualificar + Proposta"}
-                </button>
-                <button onClick={() => setShowAiPanel(false)} className="ml-auto p-1 text-[#8696a0] hover:text-white"><X className="h-3.5 w-3.5" /></button>
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    <Sparkles className="h-3 w-3 text-[#f0c040]" />
+                    {aiBusy === "qual" ? "Qualificando..." : "Qualificar + Proposta"}
+                  </button>
+                  <button onClick={() => setShowAiPanel(false)} className="ml-auto p-1 text-[#8696a0] hover:text-white"><X className="h-3.5 w-3.5" /></button>
+                </div>
+
+                {/* Resultados */}
+                <div className="px-4 py-3 space-y-3">
+                  {aiSentiment && (
+                    <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <SmileIcon className="h-3.5 w-3.5 text-[#25d366]" />
+                        <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Sentimento</span>
+                        <Badge className={cn("text-[10px] px-1.5 py-0",
+                          aiSentiment.sentiment === "positivo" && "bg-green-500/20 text-green-400 border-green-500/30",
+                          aiSentiment.sentiment === "neutro" && "bg-slate-500/20 text-slate-300 border-slate-500/30",
+                          aiSentiment.sentiment === "negativo" && "bg-red-500/20 text-red-400 border-red-500/30",
+                        )}>{aiSentiment.sentiment}</Badge>
+                        <Badge className={cn("text-[10px] px-1.5 py-0",
+                          aiSentiment.urgency === "alta" && "bg-red-500/20 text-red-400 border-red-500/30",
+                          aiSentiment.urgency === "media" && "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                          aiSentiment.urgency === "baixa" && "bg-slate-500/20 text-slate-300 border-slate-500/30",
+                        )}>urgência: {aiSentiment.urgency}</Badge>
+                      </div>
+                      <p className="text-xs text-[#aebac1]">{aiSentiment.reason}</p>
+                    </div>
+                  )}
+
+                  {aiSummary && (
+                    <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <ScrollText className="h-3.5 w-3.5 text-[#53bdeb]" />
+                        <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Resumo</span>
+                      </div>
+                      <p className="text-xs text-white whitespace-pre-wrap leading-relaxed">{aiSummary}</p>
+                    </div>
+                  )}
+
+                  {aiTasks.length > 0 && (
+                    <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <ListChecks className="h-3.5 w-3.5 text-[#f0c040]" />
+                        <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Tarefas identificadas</span>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {aiTasks.map((t, i) => (
+                          <li key={i} className="text-xs text-white flex items-start gap-2">
+                            <span className="text-[#f0c040] mt-0.5">•</span>
+                            <div>
+                              <p className="font-medium">{t.tarefa}</p>
+                              <p className="text-[10px] text-[#8696a0]">{t.responsavel} · {t.prazo}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Busca semântica */}
+                  <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Search className="h-3.5 w-3.5 text-[#aebac1]" />
+                      <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Busca inteligente</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input value={aiSearchQ} onChange={e => setAiSearchQ(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && doSearch()}
+                        placeholder='ex: "qual o endereço que ele mandou?"'
+                        className="flex-1 bg-[#2a3942] border border-[#3b4a54] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-[#25d366]" />
+                      <button onClick={doSearch} disabled={aiBusy !== null || !aiSearchQ.trim()}
+                        className="px-3 py-1.5 rounded text-xs font-medium bg-[#25d366] text-black hover:bg-[#20ba5a] disabled:opacity-50">
+                        {aiBusy === "search" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Buscar"}
+                      </button>
+                    </div>
+                    {aiSearchResults.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {aiSearchResults.map(r => (
+                          <li key={r.id} className="text-xs text-[#aebac1] border-l-2 border-[#25d366] pl-2 py-0.5">
+                            <span className="text-[10px] text-[#8696a0]">{r.direction === "inbound" ? "Cliente" : "Atendente"} · {new Date(r.created_at).toLocaleDateString("pt-BR")}:</span>
+                            <p className="text-white">{r.content}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
