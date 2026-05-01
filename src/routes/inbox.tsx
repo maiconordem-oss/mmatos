@@ -765,16 +765,62 @@ function InboxPage() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Sugestões inteligentes (chips) */}
+            {(suggestions.length > 0 || aiBusy === "suggest") && (
+              <div className="px-4 pt-2 pb-1 shrink-0 border-t border-[#2a3942]/50" style={{ background: "#1a262e" }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Sparkles className="h-3 w-3 text-[#25d366]" />
+                  <span className="text-[10px] text-[#8696a0] uppercase tracking-wide">Sugestões</span>
+                  <select value={tone} onChange={e => doSuggest(e.target.value as any)}
+                    className="text-[10px] bg-[#2a3942] border border-[#3b4a54] rounded px-1.5 py-0.5 text-[#aebac1] outline-none">
+                    <option value="amigavel">Amigável</option>
+                    <option value="formal">Formal</option>
+                    <option value="casual">Casual</option>
+                    <option value="persuasivo">Persuasivo</option>
+                  </select>
+                  <button onClick={() => setSuggestions([])} className="ml-auto text-[10px] text-[#8696a0] hover:text-white">Limpar</button>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {aiBusy === "suggest" && <span className="text-xs text-[#8696a0] flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Gerando...</span>}
+                  {suggestions.map((s, i) => (
+                    <button key={i} onClick={() => { setText(s); textareaRef.current?.focus(); }}
+                      className="text-xs px-3 py-1.5 rounded-full bg-[#2a3942] hover:bg-[#3b4a54] text-white border border-[#3b4a54] text-left max-w-md">
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Input */}
-            <div className="px-4 py-3 flex items-end gap-3 shrink-0" style={{ background: "#202c33" }}>
-              <button className="p-2 text-[#aebac1] hover:text-white shrink-0"><Smile className="h-6 w-6" /></button>
-              <button className="p-2 text-[#aebac1] hover:text-white shrink-0"><Paperclip className="h-6 w-6" /></button>
-              <div className="flex-1 rounded-lg px-4 py-2 flex items-end" style={{ background: "#2a3942" }}>
+            <div className="px-4 py-3 flex items-end gap-2 shrink-0" style={{ background: "#202c33" }}>
+              <button onClick={() => doSuggest()} disabled={aiBusy !== null}
+                title="Sugerir 3 respostas"
+                className="p-2 text-[#aebac1] hover:text-[#25d366] shrink-0 disabled:opacity-50">
+                {aiBusy === "suggest" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+              </button>
+              <div className="flex-1 rounded-lg px-3 py-2 flex flex-col gap-1" style={{ background: "#2a3942" }}>
                 <textarea ref={textareaRef}
                   className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none resize-none leading-relaxed"
                   style={{ height: "40px", maxHeight: "120px" }}
                   placeholder={active.ai_paused ? "Você está no controle — IA pausada" : "Digite uma mensagem"}
                   value={text} onChange={handleTextChange} onKeyDown={handleKeyDown} rows={1} />
+                {/* Barra de reescrita inline */}
+                {text.trim().length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap pt-1 border-t border-[#3b4a54]/50">
+                    <span className="text-[9px] text-[#8696a0] uppercase tracking-wide mr-1">Reescrever:</span>
+                    {(["curta", "clara", "profissional", "persuasiva"] as const).map(s => (
+                      <button key={s} onClick={() => doRewrite(s)} disabled={aiBusy !== null}
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-[#3b4a54] hover:bg-[#4a5a64] text-[#aebac1] hover:text-white disabled:opacity-50">
+                        {aiBusy === "rewrite" ? <Loader2 className="h-2.5 w-2.5 animate-spin inline" /> : <Wand2 className="h-2.5 w-2.5 inline mr-0.5" />} {s}
+                      </button>
+                    ))}
+                    <button onClick={doTranslate} disabled={aiBusy !== null}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-[#3b4a54] hover:bg-[#4a5a64] text-[#aebac1] hover:text-white disabled:opacity-50">
+                      {aiBusy === "translate" ? <Loader2 className="h-2.5 w-2.5 animate-spin inline" /> : <Languages className="h-2.5 w-2.5 inline mr-0.5" />} traduzir
+                    </button>
+                  </div>
+                )}
               </div>
               <button onClick={text.trim() ? handleSend : undefined}
                 className="p-2.5 rounded-full flex items-center justify-center shrink-0"
