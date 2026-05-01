@@ -53,7 +53,7 @@ function useBadges() {
   return { unread, stuckLeads, alerts, waStatus, activeLeads };
 }
 
-function Badge({ count, color = "bg-red-500" }: { count: number; color?: string }) {
+function NavBadge({ count, color = "bg-red-500" }: { count: number; color?: string }) {
   if (!count) return null;
   return (
     <span className={`ml-auto shrink-0 h-5 min-w-5 px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center ${color}`}>
@@ -137,7 +137,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
                 {!collapsed && (
                   <>
                     <span className="truncate flex-1">{item.label}</span>
-                    <Badge count={item.badge ?? 0} color={item.badgeColor} />
+                    <NavBadge count={item.badge ?? 0} color={item.badgeColor} />
                   </>
                 )}
                 {collapsed && (item.badge ?? 0) > 0 && (
