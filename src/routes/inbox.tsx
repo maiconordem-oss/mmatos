@@ -3,13 +3,17 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock } from "lucide-react";
+import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { qualifierReply, extractQualification, generateProposal } from "@/server/ai-agent.functions";
+import {
+  suggestReplies, rewriteMessage, summarizeConversation,
+  extractTasks, translateText, analyzeSentiment, semanticSearch,
+} from "@/server/inbox-ai.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { Badge } from "@/components/ui/badge";
 
@@ -250,12 +254,86 @@ function InboxPage() {
   const [newConv, setNewConv] = useState({ phone: "", contact_name: "" });
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [showLeadPanel, setShowLeadPanel] = useState(false);
+
+  // IA — estados das ferramentas
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [tone, setTone] = useState<"formal" | "casual" | "amigavel" | "persuasivo">("amigavel");
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiTasks, setAiTasks] = useState<Array<{ tarefa: string; responsavel: string; prazo: string }>>([]);
+  const [aiSentiment, setAiSentiment] = useState<{ sentiment: string; urgency: string; reason: string } | null>(null);
+  const [aiSearchQ, setAiSearchQ] = useState("");
+  const [aiSearchResults, setAiSearchResults] = useState<any[]>([]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef    = useRef<HTMLTextAreaElement>(null);
 
   const qualifierReplyFn      = useAuthServerFn(qualifierReply);
   const extractQualificationFn = useAuthServerFn(extractQualification);
   const generateProposalFn    = useAuthServerFn(generateProposal);
+  const suggestRepliesFn      = useAuthServerFn(suggestReplies);
+  const rewriteMessageFn      = useAuthServerFn(rewriteMessage);
+  const summarizeFn           = useAuthServerFn(summarizeConversation);
+  const extractTasksFn        = useAuthServerFn(extractTasks);
+  const translateFn           = useAuthServerFn(translateText);
+  const sentimentFn           = useAuthServerFn(analyzeSentiment);
+  const searchFn              = useAuthServerFn(semanticSearch);
+
+  // Reset ao trocar de conversa
+  useEffect(() => {
+    setSuggestions([]); setAiSummary(null); setAiTasks([]); setAiSentiment(null);
+    setAiSearchQ(""); setAiSearchResults([]);
+  }, [activeId]);
+
+  // Helpers de IA
+  const runWith = async (key: string, fn: () => Promise<void>) => {
+    setAiBusy(key);
+    try { await fn(); }
+    catch (e: any) { toast.error(e.message ?? "Erro na IA"); }
+    finally { setAiBusy(null); }
+  };
+
+  const doSuggest = (newTone?: typeof tone) => activeId && runWith("suggest", async () => {
+    const t = newTone ?? tone;
+    if (newTone) setTone(newTone);
+    const r = await suggestRepliesFn({ data: { conversationId: activeId, tone: t } });
+    setSuggestions(r.suggestions);
+  });
+
+  const doRewrite = (style: "curta" | "clara" | "profissional" | "persuasiva") => runWith("rewrite", async () => {
+    if (!text.trim()) { toast.error("Digite algo para reescrever"); return; }
+    const r = await rewriteMessageFn({ data: { text: text.trim(), style } });
+    setText(r.rewritten);
+    toast.success("Texto reescrito");
+  });
+
+  const doTranslate = () => runWith("translate", async () => {
+    if (!text.trim()) { toast.error("Digite algo para traduzir"); return; }
+    const r = await translateFn({ data: { text: text.trim(), targetLang: "Português (Brasil)" } });
+    setText(r.translated);
+    toast.success("Traduzido");
+  });
+
+  const doSummary = () => activeId && runWith("summary", async () => {
+    const r = await summarizeFn({ data: { conversationId: activeId } });
+    setAiSummary(r.summary);
+  });
+
+  const doTasks = () => activeId && runWith("tasks", async () => {
+    const r = await extractTasksFn({ data: { conversationId: activeId } });
+    setAiTasks(r.tasks);
+    if (r.tasks.length === 0) toast.info("Nenhuma tarefa identificada");
+  });
+
+  const doSentiment = () => activeId && runWith("sentiment", async () => {
+    const r = await sentimentFn({ data: { conversationId: activeId } });
+    setAiSentiment(r);
+  });
+
+  const doSearch = () => activeId && aiSearchQ.trim() && runWith("search", async () => {
+    const r = await searchFn({ data: { conversationId: activeId, query: aiSearchQ.trim() } });
+    setAiSearchResults(r.matches);
+    if (r.matches.length === 0) toast.info("Nada encontrado");
+  });
 
   const loadConvs = useCallback(async () => {
     const { data } = await supabase.from("conversations").select("*")
@@ -510,23 +588,37 @@ function InboxPage() {
               </div>
             </div>
 
-            {/* Painel de ferramentas IA */}
+            {/* Painel de ferramentas IA — expandido */}
             {showAiPanel && (
-              <div className="flex items-center gap-2 px-4 py-2 border-b border-[#2a3942] flex-wrap" style={{ background: "#182229" }}>
-                <span className="text-[#8696a0] text-xs font-medium mr-1">Ferramentas IA:</span>
-                <button disabled={aiBusy !== null}
-                  onClick={async () => {
+              <div className="border-b border-[#2a3942] max-h-[50vh] overflow-y-auto" style={{ background: "#182229" }}>
+                {/* Linha 1: ações rápidas */}
+                <div className="flex items-center gap-2 px-4 py-2 flex-wrap border-b border-[#2a3942]/60">
+                  <span className="text-[#8696a0] text-xs font-medium mr-1">Ferramentas IA:</span>
+                  <button disabled={aiBusy !== null} onClick={() => doSummary()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    {aiBusy === "summary" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ScrollText className="h-3 w-3 text-[#53bdeb]" />}
+                    Resumir
+                  </button>
+                  <button disabled={aiBusy !== null} onClick={() => doTasks()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    {aiBusy === "tasks" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ListChecks className="h-3 w-3 text-[#f0c040]" />}
+                    Extrair tarefas
+                  </button>
+                  <button disabled={aiBusy !== null} onClick={() => doSentiment()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    {aiBusy === "sentiment" ? <Loader2 className="h-3 w-3 animate-spin" /> : <SmileIcon className="h-3 w-3 text-[#25d366]" />}
+                    Sentimento
+                  </button>
+                  <button disabled={aiBusy !== null} onClick={async () => {
                     setAiBusy("reply");
                     try { await qualifierReplyFn({ data: { conversationId: active.id } }); toast.success("IA respondeu!"); }
-                    catch (e: any) { toast.error(e.message); }
-                    finally { setAiBusy(null); }
+                    catch (e: any) { toast.error(e.message); } finally { setAiBusy(null); }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
-                  <Bot className="h-3 w-3 text-[#25d366]" />
-                  {aiBusy === "reply" ? "Respondendo..." : "Responder como Dr. Maicon"}
-                </button>
-                <button disabled={aiBusy !== null}
-                  onClick={async () => {
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    <Bot className="h-3 w-3 text-[#25d366]" />
+                    {aiBusy === "reply" ? "Respondendo..." : "Auto-responder"}
+                  </button>
+                  <button disabled={aiBusy !== null} onClick={async () => {
                     setAiBusy("qual");
                     try {
                       const r = await extractQualificationFn({ data: { conversationId: active.id } });
@@ -535,14 +627,95 @@ function InboxPage() {
                         const p = await generateProposalFn({ data: { qualificationId: r.qualification.id } });
                         toast.success(`Proposta: R$ ${Number(p.proposal.value).toLocaleString("pt-BR")}`);
                       }
-                    } catch (e: any) { toast.error(e.message); }
-                    finally { setAiBusy(null); }
+                    } catch (e: any) { toast.error(e.message); } finally { setAiBusy(null); }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
-                  <Sparkles className="h-3 w-3 text-[#f0c040]" />
-                  {aiBusy === "qual" ? "Qualificando..." : "Qualificar + Proposta"}
-                </button>
-                <button onClick={() => setShowAiPanel(false)} className="ml-auto p-1 text-[#8696a0] hover:text-white"><X className="h-3.5 w-3.5" /></button>
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    <Sparkles className="h-3 w-3 text-[#f0c040]" />
+                    {aiBusy === "qual" ? "Qualificando..." : "Qualificar + Proposta"}
+                  </button>
+                  <button onClick={() => setShowAiPanel(false)} className="ml-auto p-1 text-[#8696a0] hover:text-white"><X className="h-3.5 w-3.5" /></button>
+                </div>
+
+                {/* Resultados */}
+                <div className="px-4 py-3 space-y-3">
+                  {aiSentiment && (
+                    <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <SmileIcon className="h-3.5 w-3.5 text-[#25d366]" />
+                        <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Sentimento</span>
+                        <Badge className={cn("text-[10px] px-1.5 py-0",
+                          aiSentiment.sentiment === "positivo" && "bg-green-500/20 text-green-400 border-green-500/30",
+                          aiSentiment.sentiment === "neutro" && "bg-slate-500/20 text-slate-300 border-slate-500/30",
+                          aiSentiment.sentiment === "negativo" && "bg-red-500/20 text-red-400 border-red-500/30",
+                        )}>{aiSentiment.sentiment}</Badge>
+                        <Badge className={cn("text-[10px] px-1.5 py-0",
+                          aiSentiment.urgency === "alta" && "bg-red-500/20 text-red-400 border-red-500/30",
+                          aiSentiment.urgency === "media" && "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                          aiSentiment.urgency === "baixa" && "bg-slate-500/20 text-slate-300 border-slate-500/30",
+                        )}>urgência: {aiSentiment.urgency}</Badge>
+                      </div>
+                      <p className="text-xs text-[#aebac1]">{aiSentiment.reason}</p>
+                    </div>
+                  )}
+
+                  {aiSummary && (
+                    <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <ScrollText className="h-3.5 w-3.5 text-[#53bdeb]" />
+                        <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Resumo</span>
+                      </div>
+                      <p className="text-xs text-white whitespace-pre-wrap leading-relaxed">{aiSummary}</p>
+                    </div>
+                  )}
+
+                  {aiTasks.length > 0 && (
+                    <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <ListChecks className="h-3.5 w-3.5 text-[#f0c040]" />
+                        <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Tarefas identificadas</span>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {aiTasks.map((t, i) => (
+                          <li key={i} className="text-xs text-white flex items-start gap-2">
+                            <span className="text-[#f0c040] mt-0.5">•</span>
+                            <div>
+                              <p className="font-medium">{t.tarefa}</p>
+                              <p className="text-[10px] text-[#8696a0]">{t.responsavel} · {t.prazo}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Busca semântica */}
+                  <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Search className="h-3.5 w-3.5 text-[#aebac1]" />
+                      <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Busca inteligente</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input value={aiSearchQ} onChange={e => setAiSearchQ(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && doSearch()}
+                        placeholder='ex: "qual o endereço que ele mandou?"'
+                        className="flex-1 bg-[#2a3942] border border-[#3b4a54] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-[#25d366]" />
+                      <button onClick={doSearch} disabled={aiBusy !== null || !aiSearchQ.trim()}
+                        className="px-3 py-1.5 rounded text-xs font-medium bg-[#25d366] text-black hover:bg-[#20ba5a] disabled:opacity-50">
+                        {aiBusy === "search" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Buscar"}
+                      </button>
+                    </div>
+                    {aiSearchResults.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {aiSearchResults.map(r => (
+                          <li key={r.id} className="text-xs text-[#aebac1] border-l-2 border-[#25d366] pl-2 py-0.5">
+                            <span className="text-[10px] text-[#8696a0]">{r.direction === "inbound" ? "Cliente" : "Atendente"} · {new Date(r.created_at).toLocaleDateString("pt-BR")}:</span>
+                            <p className="text-white">{r.content}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -592,16 +765,62 @@ function InboxPage() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Sugestões inteligentes (chips) */}
+            {(suggestions.length > 0 || aiBusy === "suggest") && (
+              <div className="px-4 pt-2 pb-1 shrink-0 border-t border-[#2a3942]/50" style={{ background: "#1a262e" }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Sparkles className="h-3 w-3 text-[#25d366]" />
+                  <span className="text-[10px] text-[#8696a0] uppercase tracking-wide">Sugestões</span>
+                  <select value={tone} onChange={e => doSuggest(e.target.value as any)}
+                    className="text-[10px] bg-[#2a3942] border border-[#3b4a54] rounded px-1.5 py-0.5 text-[#aebac1] outline-none">
+                    <option value="amigavel">Amigável</option>
+                    <option value="formal">Formal</option>
+                    <option value="casual">Casual</option>
+                    <option value="persuasivo">Persuasivo</option>
+                  </select>
+                  <button onClick={() => setSuggestions([])} className="ml-auto text-[10px] text-[#8696a0] hover:text-white">Limpar</button>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {aiBusy === "suggest" && <span className="text-xs text-[#8696a0] flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Gerando...</span>}
+                  {suggestions.map((s, i) => (
+                    <button key={i} onClick={() => { setText(s); textareaRef.current?.focus(); }}
+                      className="text-xs px-3 py-1.5 rounded-full bg-[#2a3942] hover:bg-[#3b4a54] text-white border border-[#3b4a54] text-left max-w-md">
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Input */}
-            <div className="px-4 py-3 flex items-end gap-3 shrink-0" style={{ background: "#202c33" }}>
-              <button className="p-2 text-[#aebac1] hover:text-white shrink-0"><Smile className="h-6 w-6" /></button>
-              <button className="p-2 text-[#aebac1] hover:text-white shrink-0"><Paperclip className="h-6 w-6" /></button>
-              <div className="flex-1 rounded-lg px-4 py-2 flex items-end" style={{ background: "#2a3942" }}>
+            <div className="px-4 py-3 flex items-end gap-2 shrink-0" style={{ background: "#202c33" }}>
+              <button onClick={() => doSuggest()} disabled={aiBusy !== null}
+                title="Sugerir 3 respostas"
+                className="p-2 text-[#aebac1] hover:text-[#25d366] shrink-0 disabled:opacity-50">
+                {aiBusy === "suggest" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+              </button>
+              <div className="flex-1 rounded-lg px-3 py-2 flex flex-col gap-1" style={{ background: "#2a3942" }}>
                 <textarea ref={textareaRef}
                   className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none resize-none leading-relaxed"
                   style={{ height: "40px", maxHeight: "120px" }}
                   placeholder={active.ai_paused ? "Você está no controle — IA pausada" : "Digite uma mensagem"}
                   value={text} onChange={handleTextChange} onKeyDown={handleKeyDown} rows={1} />
+                {/* Barra de reescrita inline */}
+                {text.trim().length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap pt-1 border-t border-[#3b4a54]/50">
+                    <span className="text-[9px] text-[#8696a0] uppercase tracking-wide mr-1">Reescrever:</span>
+                    {(["curta", "clara", "profissional", "persuasiva"] as const).map(s => (
+                      <button key={s} onClick={() => doRewrite(s)} disabled={aiBusy !== null}
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-[#3b4a54] hover:bg-[#4a5a64] text-[#aebac1] hover:text-white disabled:opacity-50">
+                        {aiBusy === "rewrite" ? <Loader2 className="h-2.5 w-2.5 animate-spin inline" /> : <Wand2 className="h-2.5 w-2.5 inline mr-0.5" />} {s}
+                      </button>
+                    ))}
+                    <button onClick={doTranslate} disabled={aiBusy !== null}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-[#3b4a54] hover:bg-[#4a5a64] text-[#aebac1] hover:text-white disabled:opacity-50">
+                      {aiBusy === "translate" ? <Loader2 className="h-2.5 w-2.5 animate-spin inline" /> : <Languages className="h-2.5 w-2.5 inline mr-0.5" />} traduzir
+                    </button>
+                  </div>
+                )}
               </div>
               <button onClick={text.trim() ? handleSend : undefined}
                 className="p-2.5 rounded-full flex items-center justify-center shrink-0"

@@ -16,7 +16,13 @@ async function _evo(url: string, key: string, path: string, method: "GET" | "POS
   return data;
 }
 function _publicWebhookUrl(instanceId: string, secret: string) {
-  const base = process.env.SITE_URL || process.env.VITE_SITE_URL || "";
+  // Tenta env vars; se ausentes, cai no domínio publicado padrão do projeto.
+  let base = process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.PUBLIC_URL || "";
+  if (!base) {
+    const projectId = process.env.VITE_SUPABASE_PROJECT_ID || process.env.SUPABASE_PROJECT_ID || "";
+    // Fallback hardcoded ao domínio publicado conhecido do projeto
+    base = "https://mmatos.lovable.app";
+  }
   return `${base.replace(/\/$/, "")}/api/public/whatsapp-webhook?id=${instanceId}&secret=${secret}`;
 }
 async function _getEvoCreds(supabase: any, userId: string) {
@@ -72,17 +78,31 @@ export const connectInstance = createServerFn({ method: "POST" })
 
     const { url, key } = await getEvoCreds(supabase, userId);
 
+    const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
+    const events = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
+
     // Try create instance (idempotent — Evolution returns 409 if exists)
     try {
       await evo(url, key, "/instance/create", "POST", {
         instanceName: inst.instance_name,
         qrcode: true,
         integration: "WHATSAPP-BAILEYS",
-        webhook: publicWebhookUrl(inst.id, inst.webhook_secret),
-        webhook_by_events: true,
-        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
+        webhook: { url: webhookUrl, enabled: true, webhookByEvents: false, events },
       });
     } catch (e) { /* ignore exists */ }
+
+    // Sempre garante webhook configurado (idempotente, sobrescreve config antiga)
+    try {
+      await evo(url, key, `/webhook/set/${inst.instance_name}`, "POST", {
+        webhook: { url: webhookUrl, enabled: true, webhookByEvents: false, webhookBase64: false, events },
+      });
+    } catch {
+      try {
+        await evo(url, key, `/webhook/set/${inst.instance_name}`, "POST", {
+          url: webhookUrl, enabled: true, webhook_by_events: false, events,
+        });
+      } catch { /* não-fatal */ }
+    }
 
     // Fetch QR
     const qr = await evo(url, key, `/instance/connect/${inst.instance_name}`);
@@ -125,6 +145,40 @@ export const disconnectInstance = createServerFn({ method: "POST" })
     } catch {}
     await supabase.from("whatsapp_instances").update({ status: "disconnected", qr_code: null }).eq("id", inst.id);
     return { ok: true };
+  });
+
+export const setWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
+    if (!inst) throw new Error("Instância não encontrada");
+    const { url, key } = await getEvoCreds(supabase, userId);
+    const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
+
+    // Evolution API v2: POST /webhook/set/{instance}
+    const events = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
+    let ok = false;
+    let lastErr: any = null;
+    // Tentar v2 primeiro
+    try {
+      await evo(url, key, `/webhook/set/${inst.instance_name}`, "POST", {
+        webhook: { url: webhookUrl, enabled: true, webhookByEvents: false, webhookBase64: false, events },
+      });
+      ok = true;
+    } catch (e) { lastErr = e; }
+    if (!ok) {
+      // Fallback v1: payload plano
+      try {
+        await evo(url, key, `/webhook/set/${inst.instance_name}`, "POST", {
+          url: webhookUrl, enabled: true, webhook_by_events: false, events,
+        });
+        ok = true;
+      } catch (e) { lastErr = e; }
+    }
+    if (!ok) throw new Error(`Falha ao configurar webhook: ${lastErr?.message ?? "desconhecido"}`);
+    return { ok: true, webhookUrl };
   });
 
 export const sendWhatsappMessage = createServerFn({ method: "POST" })
