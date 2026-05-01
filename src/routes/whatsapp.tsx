@@ -315,8 +315,23 @@ function WhatsappPage() {
                         </button>
                       )}
                       <button onClick={() => refreshFn({ data: { id: inst.id } }).then(load)}
-                        className="p-2 rounded-lg hover:bg-white/5 text-slate-600 hover:text-slate-300 transition-colors">
+                        className="p-2 rounded-lg hover:bg-white/5 text-slate-600 hover:text-slate-300 transition-colors"
+                        title="Atualizar status">
                         <RefreshCw className="h-4 w-4" />
+                      </button>
+                      <button onClick={async () => {
+                        const debugUrl = `/api/debug-webhook?id=${inst.id}&action=set-webhook`;
+                        try {
+                          const res = await fetch(debugUrl);
+                          const data = await res.json();
+                          if (data.ok) {
+                            toast.success("Webhook configurado automaticamente!");
+                          } else {
+                            toast.error("Erro: " + JSON.stringify(data.response ?? data.error));
+                          }
+                        } catch (e: any) { toast.error(e.message); }
+                      }} className="p-2 rounded-lg hover:bg-amber-500/10 text-slate-600 hover:text-amber-400 transition-colors" title="Configurar webhook automaticamente">
+                        <Zap className="h-4 w-4" />
                       </button>
                       <button onClick={() => openEdit(inst)}
                         className="p-2 rounded-lg hover:bg-white/5 text-slate-600 hover:text-slate-300 transition-colors">
