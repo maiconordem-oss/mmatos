@@ -161,7 +161,7 @@ function KanbanPage() {
       const { data: convs } = await supabase.from("conversations").select("id, client_id").in("id", convIds);
       convs?.forEach((conv: any) => {
         const s = scoresRes.data?.find((x: any) => x.conversation_id === conv.id);
-        if (s && conv.client_id) {
+        if (s && conv.client_id && typeof s.lead_score === "number") {
           scoreMap[conv.client_id]   = s.lead_score;
           variantMap[conv.client_id] = s.prompt_variant ?? "a";
         }
@@ -197,7 +197,7 @@ function KanbanPage() {
 
   const handleCreate = async () => {
     if (!form.title || !form.client_id) { toast.error("Título e cliente são obrigatórios"); return; }
-    const { error } = await supabase.from("cases").insert({
+    const payload = {
       user_id:     user!.id,
       client_id:   form.client_id,
       title:       form.title,
@@ -206,7 +206,8 @@ function KanbanPage() {
       description: form.description,
       value:       form.value ? Number(form.value) : null,
       stage:       form.stage,
-    });
+    } as any;
+    const { error } = await supabase.from("cases").insert(payload);
     if (error) { toast.error(error.message); return; }
     toast.success("Lead criado!");
     setOpen(false);
