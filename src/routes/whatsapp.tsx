@@ -12,9 +12,9 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { connectInstance, disconnectInstance, refreshStatus, upsertInstance } from "@/server/whatsapp.functions";
+import { connectInstance, disconnectInstance, refreshStatus, upsertInstance, setWebhook } from "@/server/whatsapp.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
-import { Smartphone, RefreshCw, LogOut, QrCode, Bot, Plus } from "lucide-react";
+import { Smartphone, RefreshCw, LogOut, QrCode, Bot, Plus, Webhook } from "lucide-react";
 
 export const Route = createFileRoute("/whatsapp")({
   head: () => ({ meta: [{ title: "WhatsApp — Lex CRM" }] }),
@@ -56,6 +56,16 @@ function WhatsappPage() {
   const connectFn     = useAuthServerFn(connectInstance);
   const disconnectFn  = useAuthServerFn(disconnectInstance);
   const refreshFn     = useAuthServerFn(refreshStatus);
+  const setWebhookFn  = useAuthServerFn(setWebhook);
+
+  const reconfigureWebhook = async (inst: Instance) => {
+    setBusy(true);
+    try {
+      const r = await setWebhookFn({ data: { id: inst.id } });
+      toast.success("Webhook reconfigurado", { description: r.webhookUrl });
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(false); }
+  };
 
   const load = async () => {
     if (!user) return;
@@ -254,6 +264,9 @@ function WhatsappPage() {
                         <QrCode className="h-4 w-4 mr-1" /> Conectar
                       </Button>
                     )}
+                    <Button size="sm" variant="outline" onClick={() => reconfigureWebhook(inst)} disabled={busy} title="Reconfigurar webhook na Evolution API">
+                      <Webhook className="h-3.5 w-3.5 mr-1" /> Webhook
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => refreshFn({ data: { id: inst.id } }).then(load)}>
                       <RefreshCw className="h-3.5 w-3.5" />
                     </Button>
