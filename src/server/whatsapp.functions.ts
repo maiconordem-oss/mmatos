@@ -133,6 +133,40 @@ export const disconnectInstance = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const setWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
+    if (!inst) throw new Error("Instância não encontrada");
+    const { url, key } = await getEvoCreds(supabase, userId);
+    const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
+
+    // Evolution API v2: POST /webhook/set/{instance}
+    const events = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
+    let ok = false;
+    let lastErr: any = null;
+    // Tentar v2 primeiro
+    try {
+      await evo(url, key, `/webhook/set/${inst.instance_name}`, "POST", {
+        webhook: { url: webhookUrl, enabled: true, webhookByEvents: false, webhookBase64: false, events },
+      });
+      ok = true;
+    } catch (e) { lastErr = e; }
+    if (!ok) {
+      // Fallback v1: payload plano
+      try {
+        await evo(url, key, `/webhook/set/${inst.instance_name}`, "POST", {
+          url: webhookUrl, enabled: true, webhook_by_events: false, events,
+        });
+        ok = true;
+      } catch (e) { lastErr = e; }
+    }
+    if (!ok) throw new Error(`Falha ao configurar webhook: ${lastErr?.message ?? "desconhecido"}`);
+    return { ok: true, webhookUrl };
+  });
+
 export const sendWhatsappMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(),
