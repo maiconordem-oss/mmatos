@@ -115,6 +115,7 @@ function WhatsappPage() {
       const payload = {
         instance_name: form.instance_name,
         funnel_id:     form.funnel_id || null,
+        is_office:     (form as any).is_office ?? false,
         ...(editingId ? { id: editingId } : {}),
       };
       await upsertFn({ data: payload });
@@ -181,8 +182,31 @@ function WhatsappPage() {
               </p>
             </div>
 
+            {/* Tipo do número */}
+            <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+              <Label className="flex items-center gap-2 font-medium">
+                📱 Tipo deste número
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, is_office: false })}
+                  className={`p-3 rounded-lg border text-left transition-colors ${!(form as any).is_office ? "border-primary bg-primary/10" : "border-border hover:bg-muted/50"}`}>
+                  <p className="font-medium text-sm">🤖 Número do funil</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Atende automaticamente com a IA</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, is_office: true })}
+                  className={`p-3 rounded-lg border text-left transition-colors ${(form as any).is_office ? "border-primary bg-primary/10" : "border-border hover:bg-muted/50"}`}>
+                  <p className="font-medium text-sm">🏢 Número do escritório</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Recebe notificações de todos os funis</p>
+                </button>
+              </div>
+            </div>
+
             {/* Seleção do funil */}
-            <div className="border rounded-lg p-4 bg-muted/30 space-y-2">
+            {!(form as any).is_office && <div className="border rounded-lg p-4 bg-muted/30 space-y-2">
               <Label className="flex items-center gap-2">
                 <Bot className="h-4 w-4 text-green-500" />
                 Funil de atendimento deste número *
@@ -208,7 +232,7 @@ function WhatsappPage() {
                   </SelectContent>
                 </Select>
               )}
-            </div>
+            </div>}
 
             <div className="flex gap-2">
               <Button onClick={save} disabled={busy}>

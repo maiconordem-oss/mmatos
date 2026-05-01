@@ -110,9 +110,17 @@ async function notifyOwner(
   msg: string
 ) {
   if (!notifyPhone?.trim()) return;
-  const { data: inst } = await admin
-    .from("whatsapp_instances")
-    .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+  // Preferir o número do escritório para enviar notificações
+  let inst: any = null;
+  const { data: officeInst } = await admin.from("whatsapp_instances")
+    .select("*").eq("user_id", userId).eq("is_office", true).eq("status", "connected").limit(1).maybeSingle();
+  if (officeInst) {
+    inst = officeInst;
+  } else {
+    const { data: anyInst } = await admin.from("whatsapp_instances")
+      .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+    inst = anyInst;
+  }
   if (!inst?.api_url) return;
   try {
     await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
@@ -262,10 +270,19 @@ async function sendText(
 ) {
   if (!text?.trim()) return;
 
-  const { data: conv } = await admin.from("conversations").select("phone").eq("id", convId).single();
-  const { data: inst } = await admin
-    .from("whatsapp_instances")
-    .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+  const { data: conv } = await admin.from("conversations").select("phone, instance_id").eq("id", convId).single();
+  // Usar a instância que recebeu a mensagem — essencial para múltiplos números
+  let inst: any = null;
+  if (conv?.instance_id) {
+    const { data } = await admin.from("whatsapp_instances").select("*").eq("id", conv.instance_id).maybeSingle();
+    inst = data;
+  }
+  if (!inst) {
+    // Fallback: pegar qualquer instância conectada do usuário
+    const { data } = await admin.from("whatsapp_instances").select("*")
+      .eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+    inst = data;
+  }
 
   // Salvar mensagem no banco SEMPRE
   await admin.from("messages").insert({
@@ -344,10 +361,17 @@ async function sendMedia(
     return;
   }
 
-  const { data: conv } = await admin.from("conversations").select("phone").eq("id", convId).single();
-  const { data: inst } = await admin
-    .from("whatsapp_instances")
-    .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+  const { data: conv } = await admin.from("conversations").select("phone, instance_id").eq("id", convId).single();
+  let inst: any = null;
+  if (conv?.instance_id) {
+    const { data } = await admin.from("whatsapp_instances").select("*").eq("id", conv.instance_id).maybeSingle();
+    inst = data;
+  }
+  if (!inst) {
+    const { data } = await admin.from("whatsapp_instances").select("*")
+      .eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+    inst = data;
+  }
 
   await admin.from("messages").insert({
     user_id: userId, conversation_id: convId,

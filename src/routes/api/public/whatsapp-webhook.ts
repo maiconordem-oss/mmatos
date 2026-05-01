@@ -90,7 +90,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           if (!conv) {
             const { data: created } = await supabaseAdmin.from("conversations").insert({
               user_id: inst.user_id, phone, status: "open",
-              contact_name: null,
+              contact_name: null, instance_id: inst.id,
               last_message_at:      new Date().toISOString(),
               last_message_preview: preview,
             }).select().single();
@@ -100,6 +100,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               last_message_at:      new Date().toISOString(),
               last_message_preview: preview,
               unread_count: (conv.unread_count || 0) + 1,
+              instance_id: conv.instance_id ?? inst.id,
             }).eq("id", conv.id);
           }
 
