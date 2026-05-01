@@ -1,22 +1,21 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, useCallback } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
-import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { updateCaseStage } from "@/server/kanban.functions";
+import { useAuthServerFn } from "@/hooks/use-server-fn";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Plus, GripVertical, Settings2, Trash2, ArrowLeft, ArrowRight, Pencil } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { useAuth } from "@/hooks/use-auth";
-import { useAuthServerFn as useServerFn } from "@/hooks/use-server-fn";
-import { listStages, createStage, updateStage, deleteStage, reorderStages, updateCase, deleteCase } from "@/server/kanban.functions";
+import { MessageSquare, FileText, Calendar, Clock, Bot, AlertTriangle, Plus, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/kanban")({
@@ -30,435 +29,339 @@ export const Route = createFileRoute("/kanban")({
   ),
 });
 
-const AREAS = ["civel", "trabalhista", "criminal", "tributario", "familia", "empresarial", "consumidor", "previdenciario", "outro"];
-const PRIORITIES = [
-  { id: "baixa", label: "Baixa", color: "bg-muted text-muted-foreground" },
-  { id: "media", label: "Média", color: "bg-secondary text-secondary-foreground" },
-  { id: "alta", label: "Alta", color: "bg-warning/20 text-warning-foreground" },
-  { id: "urgente", label: "Urgente", color: "bg-destructive/15 text-destructive" },
-] as const;
+const STAGES = [
+  { id: "lead",         label: "Leads",          color: "#3b82f6", bg: "bg-blue-500/10",    border: "border-blue-500/20" },
+  { id: "qualificacao", label: "Qualificação",   color: "#f97316", bg: "bg-orange-500/10",  border: "border-orange-500/20" },
+  { id: "proposta",     label: "Proposta",        color: "#8b5cf6", bg: "bg-violet-500/10",  border: "border-violet-500/20" },
+  { id: "em_andamento", label: "Em andamento",   color: "#22c55e", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+  { id: "concluido",    label: "Concluído",      color: "#10b981", bg: "bg-teal-500/10",    border: "border-teal-500/20" },
+];
 
-const COLOR_MAP: Record<string, string> = {
-  slate: "bg-slate-500", gray: "bg-gray-500", red: "bg-red-500", orange: "bg-orange-500",
-  amber: "bg-amber-500", yellow: "bg-yellow-500", lime: "bg-lime-500", green: "bg-green-500",
-  emerald: "bg-emerald-500", teal: "bg-teal-500", cyan: "bg-cyan-500", sky: "bg-sky-500",
-  blue: "bg-blue-500", indigo: "bg-indigo-500", violet: "bg-violet-500", purple: "bg-purple-500",
-  fuchsia: "bg-fuchsia-500", pink: "bg-pink-500", rose: "bg-rose-500",
-};
-const COLOR_OPTIONS = Object.keys(COLOR_MAP);
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diff / 3600000);
+  const d = Math.floor(h / 24);
+  if (d > 0) return `${d}d`;
+  if (h > 0) return `${h}h`;
+  return `${Math.floor(diff / 60000)}min`;
+}
 
-type Stage = {
-  id: string; key: string; label: string; color: string;
-  position: number; is_won: boolean; is_lost: boolean;
-};
-
-type Case = {
-  id: string; title: string; stage: string; area: string; priority: string;
-  client_id: string | null; value: number | null;
-  description: string | null; process_number: string | null;
-  next_action_date: string | null;
-};
-
-type Client = { id: string; full_name: string };
-
-function KanbanPage() {
-  const { user } = useAuth();
-  const listStagesFn = useServerFn(listStages);
-
-  const [stages, setStages] = useState<Stage[]>([]);
-  const [cases, setCases] = useState<Case[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [open, setOpen] = useState(false);
-  const [stagesOpen, setStagesOpen] = useState(false);
-  const [editCase, setEditCase] = useState<Case | null>(null);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [leadScores, setLeadScores] = useState<Record<string, number>>({});
-  const [leadVariants, setLeadVariants] = useState<Record<string, string>>({});
-
-  const [form, setForm] = useState({
-    title: "", client_id: "", area: "outro", priority: "media", stage: "lead",
-    value: "", process_number: "", description: "",
-  });
-
-  const load = async () => {
-    try {
-      const [stagesRes, cs, cl, scores] = await Promise.all([
-        listStagesFn().catch(() => ({ stages: [] })),
-        supabase.from("cases").select("*").order("created_at", { ascending: false }),
-        supabase.from("clients").select("id, full_name").order("full_name"),
-        supabase.from("funnel_states").select("conversation_id, lead_score, prompt_variant").not("lead_score", "is", null),
-      ]);
-      // Mapear client_id → score via conversations
-      const scoreMap: Record<string, number> = {};
-      const variantMap: Record<string, string> = {};
-      if (scores.data) {
-        const convIds = scores.data.map((s: any) => s.conversation_id);
-        if (convIds.length) {
-          const { data: convs } = await supabase.from("conversations").select("id, client_id").in("id", convIds);
-          convs?.forEach((conv: any) => {
-            const s = scores.data?.find((x: any) => x.conversation_id === conv.id);
-            if (s && conv.client_id) {
-              scoreMap[conv.client_id] = s.lead_score ?? 0;
-              variantMap[conv.client_id] = s.prompt_variant ?? "a";
-            }
-          });
-        }
-      }
-      setLeadScores(scoreMap);
-      setLeadVariants(variantMap);
-      const s = stagesRes?.stages ?? [];
-      setStages(s as Stage[]);
-      setCases((cs.data ?? []) as Case[]);
-      setClients((cl.data ?? []) as Client[]);
-      if (s.length && !s.some((x: Stage) => x.key === form.stage)) {
-        setForm((f) => ({ ...f, stage: s[0].key }));
-      }
-    } catch (e: any) {
-      toast.error("Erro ao carregar kanban: " + (e?.message ?? e));
-    }
-  };
-
-  useEffect(() => { if (user) load(); }, [user]);
-
-  const handleCreate = async () => {
-    if (!user || !form.title) return;
-    const { error } = await supabase.from("cases").insert({
-      user_id: user.id, title: form.title,
-      client_id: form.client_id || null,
-      area: form.area as never,
-      priority: form.priority as never,
-      stage: form.stage,
-      value: form.value ? Number(form.value) : null,
-      process_number: form.process_number || null,
-      description: form.description || null,
-    });
-    if (error) return toast.error(error.message);
-    toast.success("Caso criado");
-    setOpen(false);
-    setForm({ title: "", client_id: "", area: "outro", priority: "media", stage: stages[0]?.key ?? "lead", value: "", process_number: "", description: "" });
-    load();
-  };
-
-  const handleDrop = async (stageKey: string) => {
-    if (!draggedId) return;
-    const id = draggedId;
-    setDraggedId(null);
-    setCases((prev) => prev.map((c) => (c.id === id ? { ...c, stage: stageKey } : c)));
-    const { error } = await supabase.from("cases").update({ stage: stageKey }).eq("id", id);
-    if (error) { toast.error("Erro ao mover"); load(); }
-  };
-
-  const clientName = (id: string | null) => clients.find((c) => c.id === id)?.full_name ?? "Sem cliente";
-
+function ScoreBar({ score }: { score?: number | null }) {
+  if (score == null) return null;
+  const color = score >= 80 ? "#22c55e" : score >= 50 ? "#f59e0b" : "#ef4444";
   return (
-    <div className="p-8 h-full flex flex-col">
-      <Toaster />
-      <header className="flex justify-between items-center mb-6 gap-3 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Kanban de Casos</h1>
-          <p className="text-muted-foreground mt-1">Arraste os cards entre as colunas</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setStagesOpen(true)}>
-            <Settings2 className="h-4 w-4 mr-2" /> Gerenciar colunas
-          </Button>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" /> Novo caso</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader><DialogTitle>Novo caso</DialogTitle></DialogHeader>
-              <div className="space-y-3">
-                <div><Label>Título *</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Cliente</Label>
-                    <Select value={form.client_id} onValueChange={(v) => setForm({ ...form, client_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Área</Label>
-                    <Select value={form.area} onValueChange={(v) => setForm({ ...form, area: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{AREAS.map((a) => <SelectItem key={a} value={a} className="capitalize">{a}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Prioridade</Label>
-                    <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Coluna</Label>
-                    <Select value={form.stage} onValueChange={(v) => setForm({ ...form, stage: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{stages.map((s) => <SelectItem key={s.id} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div><Label>Valor (R$)</Label><Input type="number" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} /></div>
-                  <div><Label>Nº Processo</Label><Input value={form.process_number} onChange={(e) => setForm({ ...form, process_number: e.target.value })} /></div>
-                </div>
-                <div><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleCreate}>Criar caso</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </header>
-
-      <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
-        {stages.map((stage) => {
-          const items = cases.filter((c) => c.stage === stage.key);
-          return (
-            <div
-              key={stage.id}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(stage.key)}
-              className="w-80 shrink-0 bg-muted/40 rounded-lg p-3 flex flex-col"
-            >
-              <div className="flex justify-between items-center mb-3 px-1">
-                <div className="flex items-center gap-2">
-                  <span className={cn("h-2.5 w-2.5 rounded-full", COLOR_MAP[stage.color] ?? "bg-slate-500")} />
-                  <h3 className="font-semibold text-sm">{stage.label}</h3>
-                </div>
-                <Badge variant="secondary">{items.length}</Badge>
-              </div>
-              <div className="space-y-2 flex-1 overflow-y-auto">
-                {items.map((c) => {
-                  const prio = PRIORITIES.find((p) => p.id === c.priority);
-                  const clientId = c.client_id ?? "";
-                  return (
-                    <Card
-                      key={c.id}
-                      draggable
-                      onDragStart={() => setDraggedId(c.id)}
-                      onClick={() => setEditCase(c)}
-                      className="p-3 cursor-pointer hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start gap-2">
-                        <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{c.title}</p>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">{clientName(c.client_id)}</p>
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            <Badge variant="outline" className="text-xs capitalize">{c.area.replace("_", " ")}</Badge>
-                            {prio && <Badge className={`text-xs ${prio.color}`}>{prio.label}</Badge>}
-                          </div>
-                          {c.value && <p className="text-xs text-gold mt-2 font-medium">R$ {Number(c.value).toLocaleString("pt-BR")}</p>}
-                          {clientId && leadScores[clientId] !== undefined && (
-                            <div className="flex items-center gap-1.5 mt-1.5">
-                              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                                <div className={`h-full rounded-full transition-all ${leadScores[clientId] >= 80 ? "bg-green-500" : leadScores[clientId] >= 50 ? "bg-amber-500" : "bg-red-400"}`}
-                                  style={{ width: `${leadScores[clientId]}%` }} />
-                              </div>
-                              <span className="text-[10px] text-muted-foreground font-mono">{leadScores[clientId]}%</span>
-                              {leadVariants[clientId] && leadVariants[clientId] !== "a" && (
-                                <span className="text-[9px] px-1 rounded bg-purple-100 text-purple-600 font-bold">B</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+    <div className="flex items-center gap-2 mt-1">
+      <div className="flex-1 h-1 rounded-full bg-white/10">
+        <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: color }} />
       </div>
-
-      <StagesManager open={stagesOpen} onOpenChange={setStagesOpen} stages={stages} onChange={load} />
-      <CaseEditor
-        editCase={editCase} onClose={() => setEditCase(null)}
-        stages={stages} clients={clients} onSaved={load}
-      />
+      <span className="text-[10px] font-mono" style={{ color }}>{score}%</span>
     </div>
   );
 }
 
-/* ---------- Stages Manager ---------- */
-function StagesManager({ open, onOpenChange, stages, onChange }:
-  { open: boolean; onOpenChange: (v: boolean) => void; stages: Stage[]; onChange: () => void }) {
-  const create = useServerFn(createStage);
-  const update = useServerFn(updateStage);
-  const reorder = useServerFn(reorderStages);
-  const remove = useServerFn(deleteStage);
-
-  const [label, setLabel] = useState("");
-  const [color, setColor] = useState("slate");
-
-  const handleAdd = async () => {
-    if (!label.trim()) return;
-    try { await create({ data: { label, color } }); setLabel(""); onChange(); toast.success("Coluna criada"); }
-    catch (e: any) { toast.error(e.message); }
-  };
-
-  const move = async (idx: number, dir: -1 | 1) => {
-    const newOrder = [...stages];
-    const j = idx + dir;
-    if (j < 0 || j >= newOrder.length) return;
-    [newOrder[idx], newOrder[j]] = [newOrder[j], newOrder[idx]];
-    await reorder({ data: { orderedIds: newOrder.map((s) => s.id) } });
-    onChange();
-  };
-
-  const handleRename = async (s: Stage, newLabel: string) => {
-    await update({ data: { id: s.id, label: newLabel } });
-    onChange();
-  };
-  const handleColor = async (s: Stage, c: string) => {
-    await update({ data: { id: s.id, color: c } });
-    onChange();
-  };
-
-  const handleDelete = async (s: Stage) => {
-    const others = stages.filter((x) => x.id !== s.id);
-    if (!others.length) return toast.error("Mantenha ao menos uma coluna");
-    const target = others[0].key;
-    if (!confirm(`Excluir "${s.label}"? Os casos nessa coluna irão para "${others[0].label}".`)) return;
-    try {
-      await remove({ data: { id: s.id, moveCasesToStageKey: target } });
-      onChange();
-      toast.success("Coluna excluída");
-    } catch (e: any) { toast.error(e.message); }
-  };
+function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, onClick }: any) {
+  const stageInfo  = STAGES.find(s => s.id === stage)!;
+  const score      = leadScores[card.client_id];
+  const variant    = leadVariants[card.client_id];
+  const stuckHours = Math.floor((Date.now() - new Date(card.updated_at).getTime()) / 3600000);
+  const isStuck    = stuckHours > 24 && ["qualificacao","proposta"].includes(stage);
+  const isUrgent   = stuckHours > 48;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Gerenciar colunas do Kanban</DialogTitle></DialogHeader>
-        <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-2">
-          {stages.map((s, idx) => (
-            <div key={s.id} className="flex items-center gap-2 border rounded-md p-2">
-              <div className="flex flex-col gap-0.5">
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => move(idx, -1)} disabled={idx === 0}><ArrowLeft className="h-3 w-3 rotate-90" /></Button>
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => move(idx, 1)} disabled={idx === stages.length - 1}><ArrowRight className="h-3 w-3 rotate-90" /></Button>
-              </div>
-              <Select value={s.color} onValueChange={(v) => handleColor(s, v)}>
-                <SelectTrigger className="w-12 h-9 px-2"><span className={cn("h-3 w-3 rounded-full", COLOR_MAP[s.color])} /></SelectTrigger>
-                <SelectContent>{COLOR_OPTIONS.map((c) => (
-                  <SelectItem key={c} value={c}><div className="flex items-center gap-2"><span className={cn("h-3 w-3 rounded-full", COLOR_MAP[c])} /> <span className="capitalize">{c}</span></div></SelectItem>
-                ))}</SelectContent>
-              </Select>
-              <Input defaultValue={s.label} onBlur={(e) => e.target.value !== s.label && handleRename(s, e.target.value)} className="flex-1" />
-              <code className="text-xs text-muted-foreground">{s.key}</code>
-              <Button variant="ghost" size="icon" onClick={() => handleDelete(s)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-            </div>
-          ))}
+    <div draggable onDragStart={() => onDragStart(card.id)}
+      onClick={() => onClick(card)}
+      className={cn(
+        "rounded-xl border p-4 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-lg group",
+        isUrgent ? "border-red-500/40 bg-red-500/5 hover:bg-red-500/8" :
+        isStuck  ? "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/8" :
+                   "border-white/8 hover:border-white/15",
+      )}
+      style={{ background: isUrgent ? undefined : isStuck ? undefined : "#0d1424" }}>
+
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+            style={{ background: stageInfo.color + "40" }}>
+            {(card.client_name || card.title || "?")[0].toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{card.client_name || "Sem nome"}</p>
+            <p className="text-[10px] text-slate-500 truncate">{card.funnel_name || card.area || ""}</p>
+          </div>
         </div>
-        <div className="border-t pt-3 flex items-end gap-2">
-          <div className="flex-1"><Label>Nova coluna</Label><Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex: Negociação" /></div>
-          <Select value={color} onValueChange={setColor}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>{COLOR_OPTIONS.map((c) => (
-              <SelectItem key={c} value={c}><div className="flex items-center gap-2"><span className={cn("h-3 w-3 rounded-full", COLOR_MAP[c])} /> <span className="capitalize">{c}</span></div></SelectItem>
-            ))}</SelectContent>
-          </Select>
-          <Button onClick={handleAdd}><Plus className="h-4 w-4 mr-1" /> Adicionar</Button>
+        {variant && variant !== "a" && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-400 font-bold shrink-0">B</span>
+        )}
+      </div>
+
+      {/* Score */}
+      <ScoreBar score={score} />
+
+      {/* Preview */}
+      {card.title && (
+        <p className="text-xs text-slate-500 mt-2 line-clamp-1">{card.title}</p>
+      )}
+
+      {/* Footer */}
+      <div className="flex items-center gap-2 mt-3 flex-wrap">
+        <div className={cn("flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full",
+          isUrgent ? "bg-red-500/20 text-red-400" :
+          isStuck  ? "bg-amber-500/20 text-amber-400" :
+                     "bg-white/5 text-slate-500")}>
+          <Clock className="h-2.5 w-2.5" />
+          {timeAgo(card.updated_at)}
+          {isStuck && " ⚠"}
         </div>
-      </DialogContent>
-    </Dialog>
+        {card.value > 0 && (
+          <span className="text-[10px] text-emerald-400 font-medium">
+            R$ {Number(card.value).toLocaleString("pt-BR")}
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-1">
+          {card.has_docs     && <FileText  className="h-3 w-3 text-slate-600" />}
+          {card.has_meeting  && <Calendar  className="h-3 w-3 text-slate-600" />}
+          {card.ai_handled   && <Bot       className="h-3 w-3 text-emerald-600" />}
+        </div>
+      </div>
+    </div>
   );
 }
 
-/* ---------- Case Editor ---------- */
-function CaseEditor({ editCase, onClose, stages, clients, onSaved }:
-  { editCase: Case | null; onClose: () => void; stages: Stage[]; clients: Client[]; onSaved: () => void }) {
-  const upd = useServerFn(updateCase);
-  const del = useServerFn(deleteCase);
-  const [form, setForm] = useState<any>(null);
+function KanbanPage() {
+  const { user }   = useAuth();
+  const navigate   = useNavigate();
+  const [cards, setCards]         = useState<Record<string, any[]>>({});
+  const [clients, setClients]     = useState<any[]>([]);
+  const [leadScores, setLeadScores]   = useState<Record<string, number>>({});
+  const [leadVariants, setLeadVariants] = useState<Record<string, string>>({});
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [open, setOpen]           = useState(false);
+  const [selectedCard, setSelectedCard] = useState<any>(null);
+  const [form, setForm]           = useState({ title: "", client_id: "", area: "outro", priority: "media", description: "", value: "", stage: "lead" });
+  const updateStageFn = useAuthServerFn(updateCaseStage);
 
-  useEffect(() => {
-    if (editCase) setForm({
-      ...editCase,
-      value: editCase.value?.toString() ?? "",
-      next_action_date: editCase.next_action_date ?? "",
-      description: editCase.description ?? "",
-      process_number: editCase.process_number ?? "",
-      client_id: editCase.client_id ?? "",
+  const load = useCallback(async () => {
+    if (!user) return;
+
+    const [casesRes, clientsRes, scoresRes] = await Promise.all([
+      supabase.from("cases").select("*, clients(full_name, whatsapp)").order("created_at", { ascending: false }),
+      supabase.from("clients").select("id, full_name").order("full_name"),
+      supabase.from("funnel_states").select("conversation_id, lead_score, prompt_variant").not("lead_score", "is", null),
+    ]);
+
+    const cases = (casesRes.data ?? []) as any[];
+    setClients((clientsRes.data ?? []) as any[]);
+
+    // Scores por client_id via conversations
+    const scoreMap: Record<string, number>  = {};
+    const variantMap: Record<string, string> = {};
+    if (scoresRes.data?.length) {
+      const convIds = scoresRes.data.map((s: any) => s.conversation_id);
+      const { data: convs } = await supabase.from("conversations").select("id, client_id").in("id", convIds);
+      convs?.forEach((conv: any) => {
+        const s = scoresRes.data?.find((x: any) => x.conversation_id === conv.id);
+        if (s && conv.client_id) {
+          scoreMap[conv.client_id]   = s.lead_score;
+          variantMap[conv.client_id] = s.prompt_variant ?? "a";
+        }
+      });
+    }
+    setLeadScores(scoreMap);
+    setLeadVariants(variantMap);
+
+    // Agrupar por stage
+    const grouped: Record<string, any[]> = {};
+    STAGES.forEach(s => { grouped[s.id] = []; });
+    cases.forEach(c => {
+      const enriched = {
+        ...c,
+        client_name: (c.clients as any)?.full_name,
+        client_phone: (c.clients as any)?.whatsapp,
+      };
+      if (grouped[c.stage]) grouped[c.stage].push(enriched);
     });
-  }, [editCase]);
+    setCards(grouped);
+  }, [user]);
 
-  if (!editCase || !form) return null;
+  useEffect(() => { load(); }, [load]);
 
-  const save = async () => {
+  const handleDrop = async (toStage: string) => {
+    if (!draggedId || !user) return;
     try {
-      await upd({ data: {
-        id: editCase.id,
-        title: form.title,
-        client_id: form.client_id || null,
-        area: form.area,
-        priority: form.priority,
-        stage: form.stage,
-        value: form.value === "" ? null : Number(form.value),
-        process_number: form.process_number || null,
-        description: form.description || null,
-        next_action_date: form.next_action_date || null,
-      }});
-      toast.success("Caso atualizado");
-      onClose(); onSaved();
+      await updateStageFn({ data: { id: draggedId, stage: toStage } });
+      load();
     } catch (e: any) { toast.error(e.message); }
+    setDraggedId(null);
   };
 
-  const remove = async () => {
-    if (!confirm("Excluir este caso?")) return;
-    try { await del({ data: { id: editCase.id } }); onClose(); onSaved(); toast.success("Excluído"); }
-    catch (e: any) { toast.error(e.message); }
+  const handleCreate = async () => {
+    if (!form.title || !form.client_id) { toast.error("Título e cliente são obrigatórios"); return; }
+    const { error } = await supabase.from("cases").insert({
+      user_id:     user!.id,
+      client_id:   form.client_id,
+      title:       form.title,
+      area:        form.area,
+      priority:    form.priority,
+      description: form.description,
+      value:       form.value ? Number(form.value) : null,
+      stage:       form.stage,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Lead criado!");
+    setOpen(false);
+    load();
   };
 
   return (
-    <Dialog open={!!editCase} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle className="flex items-center gap-2"><Pencil className="h-4 w-4" /> Editar caso</DialogTitle></DialogHeader>
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-          <div><Label>Título</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Cliente</Label>
-              <Select value={form.client_id} onValueChange={(v) => setForm({ ...form, client_id: v })}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Coluna</Label>
-              <Select value={form.stage} onValueChange={(v) => setForm({ ...form, stage: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{stages.map((s) => <SelectItem key={s.id} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Área</Label>
-              <Select value={form.area} onValueChange={(v) => setForm({ ...form, area: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{AREAS.map((a) => <SelectItem key={a} value={a} className="capitalize">{a}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Prioridade</Label>
-              <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div><Label>Valor (R$)</Label><Input type="number" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} /></div>
-            <div><Label>Nº Processo</Label><Input value={form.process_number} onChange={(e) => setForm({ ...form, process_number: e.target.value })} /></div>
-            <div className="col-span-2"><Label>Próxima ação</Label><Input type="date" value={form.next_action_date} onChange={(e) => setForm({ ...form, next_action_date: e.target.value })} /></div>
-          </div>
-          <div><Label>Descrição</Label><Textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+    <div className="flex flex-col h-full">
+      <Toaster />
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/8 shrink-0">
+        <div className="flex items-center gap-3">
+          <Layers className="h-5 w-5 text-slate-400" />
+          <h1 className="text-lg font-bold text-white">Kanban</h1>
+          <span className="text-xs text-slate-600">
+            {Object.values(cards).flat().length} leads total
+          </span>
         </div>
-        <DialogFooter className="flex sm:justify-between">
-          <Button variant="destructive" onClick={remove}><Trash2 className="h-4 w-4 mr-1" /> Excluir</Button>
-          <Button onClick={save}>Salvar alterações</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <Button onClick={() => setOpen(true)} size="sm"
+          className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white border-0">
+          <Plus className="h-3.5 w-3.5" /> Novo lead
+        </Button>
+      </div>
+
+      {/* Colunas */}
+      <div className="flex-1 overflow-x-auto p-6">
+        <div className="flex gap-4 min-w-max h-full">
+          {STAGES.map(stage => {
+            const stageCards = cards[stage.id] || [];
+            const totalValue = stageCards.reduce((a, c) => a + (Number(c.value) || 0), 0);
+            return (
+              <div key={stage.id} className="w-72 flex flex-col shrink-0"
+                onDragOver={e => e.preventDefault()} onDrop={() => handleDrop(stage.id)}>
+
+                {/* Header da coluna */}
+                <div className={cn("flex items-center justify-between px-3 py-2.5 rounded-xl mb-3 border", stage.bg, stage.border)}>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-full" style={{ background: stage.color }} />
+                    <span className="text-sm font-semibold text-white">{stage.label}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/10 text-slate-400">{stageCards.length}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {totalValue > 0 && (
+                      <span className="text-[10px] text-emerald-400 font-medium">
+                        R$ {totalValue.toLocaleString("pt-BR")}
+                      </span>
+                    )}
+                    <button onClick={() => { setForm(f => ({ ...f, stage: stage.id })); setOpen(true); }}
+                      className="h-5 w-5 rounded flex items-center justify-center hover:bg-white/10 text-slate-600 hover:text-white transition-colors">
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cards */}
+                <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+                  {stageCards.map(card => (
+                    <KanbanCard key={card.id} card={card} stage={stage.id}
+                      onDragStart={setDraggedId}
+                      leadScores={leadScores} leadVariants={leadVariants}
+                      onClick={setSelectedCard} />
+                  ))}
+                  {stageCards.length === 0 && (
+                    <div className="border-2 border-dashed border-white/5 rounded-xl p-6 text-center text-slate-600 text-xs">
+                      Solte um card aqui
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Modal criar lead */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg bg-[#0d1424] border-white/10 text-white">
+          <DialogHeader><DialogTitle>Novo lead</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-slate-400 text-xs">Título *</Label>
+              <Input className="bg-white/5 border-white/10 text-white mt-1" value={form.title}
+                onChange={e => setForm({...form, title: e.target.value})} />
+            </div>
+            <div>
+              <Label className="text-slate-400 text-xs">Cliente *</Label>
+              <Select value={form.client_id} onValueChange={v => setForm({...form, client_id: v})}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1e293b] border-white/10">
+                  {clients.map(c => (
+                    <SelectItem key={c.id} value={c.id} className="text-white hover:bg-white/10">{c.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-slate-400 text-xs">Coluna</Label>
+                <Select value={form.stage} onValueChange={v => setForm({...form, stage: v})}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1e293b] border-white/10">
+                    {STAGES.map(s => <SelectItem key={s.id} value={s.id} className="text-white">{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-slate-400 text-xs">Valor (R$)</Label>
+                <Input type="number" className="bg-white/5 border-white/10 text-white mt-1"
+                  value={form.value} onChange={e => setForm({...form, value: e.target.value})} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-slate-400 text-xs">Descrição</Label>
+              <Textarea className="bg-white/5 border-white/10 text-white mt-1" rows={3}
+                value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} className="border-white/10 text-slate-400">Cancelar</Button>
+            <Button onClick={handleCreate} className="bg-emerald-600 hover:bg-emerald-500 text-white border-0">Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Drawer detalhes do card */}
+      {selectedCard && (
+        <div className="fixed inset-0 z-50 flex" onClick={() => setSelectedCard(null)}>
+          <div className="flex-1" />
+          <div className="w-96 h-full border-l border-white/10 p-6 overflow-y-auto" style={{ background: "#0d1424" }}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-bold text-white">{selectedCard.client_name || "Lead"}</h2>
+              <button onClick={() => setSelectedCard(null)} className="text-slate-500 hover:text-white text-sm">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div><p className="text-xs text-slate-500 mb-1">Título</p><p className="text-sm text-white">{selectedCard.title}</p></div>
+              <div><p className="text-xs text-slate-500 mb-1">Área</p><p className="text-sm text-white capitalize">{selectedCard.area}</p></div>
+              <div><p className="text-xs text-slate-500 mb-1">Prioridade</p><p className="text-sm text-white capitalize">{selectedCard.priority}</p></div>
+              {selectedCard.value && <div><p className="text-xs text-slate-500 mb-1">Valor</p><p className="text-sm text-emerald-400 font-bold">R$ {Number(selectedCard.value).toLocaleString("pt-BR")}</p></div>}
+              {selectedCard.description && <div><p className="text-xs text-slate-500 mb-1">Descrição</p><p className="text-sm text-slate-300 whitespace-pre-wrap">{selectedCard.description}</p></div>}
+              <div className="pt-4">
+                <Button onClick={() => { setSelectedCard(null); navigate({ to: "/inbox" }); }}
+                  className="w-full gap-2 bg-emerald-600 hover:bg-emerald-500 text-white border-0">
+                  <MessageSquare className="h-4 w-4" /> Abrir no Inbox
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,28 +1,19 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, useCallback } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Users,
-  FileSignature,
-  TrendingUp,
-  Clock,
-  Flame,
-  Activity,
-  MessageSquare,
-  ArrowRight,
-} from "lucide-react";
-import {
-  ResponsiveContainer,
-  FunnelChart,
-  Funnel,
-  LabelList,
-  Tooltip,
-} from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis,
+  Tooltip, ResponsiveContainer, Cell,
+} from "recharts";
+import {
+  TrendingUp, Users, FileSignature, Clock, Zap,
+  ArrowRight, ArrowUpRight, ArrowDownRight, Bot,
+  MessageSquare, AlertTriangle, CheckCircle2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Lex CRM" }] }),
@@ -35,393 +26,327 @@ export const Route = createFileRoute("/dashboard")({
   ),
 });
 
-type Kpi = {
-  leadsToday: number;
-  contractsMonth: number;
-  conversionRate: number;
-  avgResponseMin: number;
+const FASE_COLORS: Record<string, string> = {
+  abertura:   "#64748b",
+  triagem:    "#3b82f6",
+  conexao:    "#f97316",
+  fechamento: "#ec4899",
+  coleta:     "#8b5cf6",
+  assinatura: "#22c55e",
+  encerrado:  "#10b981",
 };
 
-type FunnelStep = { name: string; value: number; fill: string };
-
-type HotLead = {
-  id: string;
-  contact_name: string | null;
-  phone: string;
-  last_message_at: string | null;
-  last_message_preview: string | null;
+const STAGE_LABELS: Record<string, string> = {
+  lead: "Leads", qualificacao: "Qualificação", proposta: "Proposta",
+  em_andamento: "Em andamento", concluido: "Concluído",
 };
 
-type ActivityItem = {
-  id: string;
-  type: "message" | "conversation" | "contract" | "case";
-  title: string;
-  subtitle?: string;
-  at: string;
-};
-
-function DashboardPage() {
-  const [kpi, setKpi] = useState<Kpi>({
-    leadsToday: 0,
-    contractsMonth: 0,
-    conversionRate: 0,
-    avgResponseMin: 0,
-  });
-  const [funnel, setFunnel] = useState<FunnelStep[]>([]);
-  const [hotLeads, setHotLeads] = useState<HotLead[]>([]);
-  const [activity, setActivity] = useState<ActivityItem[]>([]);
-
-  const loadAll = async () => {
-    const now = new Date();
-    const startDay = new Date(now); startDay.setHours(0, 0, 0, 0);
-    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-
-    const [
-      leadsTodayRes,
-      contractsRes,
-      convsAllRes,
-      convsWonRes,
-      hotRes,
-      msgsRes,
-      contractsRecentRes,
-    ] = await Promise.all([
-      supabase
-        .from("conversations")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", startDay.toISOString()),
-      supabase
-        .from("contracts")
-        .select("id, status, created_at, signed_at")
-        .gte("created_at", startMonth.toISOString()),
-      supabase.from("conversations").select("id", { count: "exact", head: true }),
-      supabase
-        .from("contracts")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "assinado"),
-      supabase
-        .from("conversations")
-        .select("id, contact_name, phone, last_message_at, last_message_preview, status")
-        .eq("status", "open")
-        .lt("last_message_at", twoHoursAgo.toISOString())
-        .order("last_message_at", { ascending: true })
-        .limit(8),
-      supabase
-        .from("messages")
-        .select("id, content, direction, created_at, conversation_id")
-        .order("created_at", { ascending: false })
-        .limit(15),
-      supabase
-        .from("contracts")
-        .select("id, status, created_at, signed_at")
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ]);
-
-    const contracts = contractsRes.data ?? [];
-    const signedThisMonth = contracts.filter((c) => c.status === "assinado").length;
-    const totalConvs = convsAllRes.count ?? 0;
-    const totalSigned = convsWonRes.count ?? 0;
-    const conversion = totalConvs > 0 ? (totalSigned / totalConvs) * 100 : 0;
-
-    // Tempo médio de resposta: diferença entre primeira inbound e primeira outbound seguinte por conversa (amostra)
-    const { data: msgSample } = await supabase
-      .from("messages")
-      .select("conversation_id, direction, created_at")
-      .order("created_at", { ascending: true })
-      .limit(500);
-    const byConv: Record<string, { in?: string; out?: string }> = {};
-    (msgSample ?? []).forEach((m: any) => {
-      const c = byConv[m.conversation_id] ?? {};
-      if (m.direction === "inbound" && !c.in) c.in = m.created_at;
-      if (m.direction === "outbound" && c.in && !c.out) c.out = m.created_at;
-      byConv[m.conversation_id] = c;
-    });
-    const diffs = Object.values(byConv)
-      .filter((c) => c.in && c.out)
-      .map((c) => (new Date(c.out!).getTime() - new Date(c.in!).getTime()) / 60000);
-    const avg = diffs.length ? diffs.reduce((a, b) => a + b, 0) / diffs.length : 0;
-
-    setKpi({
-      leadsToday: leadsTodayRes.count ?? 0,
-      contractsMonth: signedThisMonth,
-      conversionRate: Math.round(conversion * 10) / 10,
-      avgResponseMin: Math.round(avg),
-    });
-
-    // Funnel: conversas → qualificados → propostas → contratos assinados
-    const [{ count: qualifiedCount }, { count: proposalsCount }] = await Promise.all([
-      supabase
-        .from("lead_qualifications")
-        .select("id", { count: "exact", head: true })
-        .eq("qualified", true),
-      supabase.from("proposals").select("id", { count: "exact", head: true }),
-    ]);
-
-    setFunnel([
-      { name: "Leads", value: totalConvs || 1, fill: "hsl(217 91% 60%)" },
-      { name: "Qualificados", value: qualifiedCount ?? 0, fill: "hsl(199 89% 48%)" },
-      { name: "Propostas", value: proposalsCount ?? 0, fill: "hsl(43 96% 56%)" },
-      { name: "Contratos", value: totalSigned, fill: "hsl(142 71% 45%)" },
-    ]);
-
-    setHotLeads((hotRes.data ?? []) as HotLead[]);
-
-    const acts: ActivityItem[] = [];
-    (msgsRes.data ?? []).slice(0, 8).forEach((m: any) => {
-      acts.push({
-        id: `m-${m.id}`,
-        type: "message",
-        title: m.direction === "inbound" ? "Nova mensagem recebida" : "Mensagem enviada",
-        subtitle: (m.content ?? "").slice(0, 80),
-        at: m.created_at,
-      });
-    });
-    (contractsRecentRes.data ?? []).forEach((c: any) => {
-      acts.push({
-        id: `c-${c.id}`,
-        type: "contract",
-        title: c.status === "assinado" ? "Contrato assinado" : "Contrato atualizado",
-        subtitle: `Status: ${c.status}`,
-        at: c.signed_at ?? c.created_at,
-      });
-    });
-    acts.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-    setActivity(acts.slice(0, 12));
-  };
-
-  useEffect(() => {
-    loadAll();
-    const channel = supabase
-      .channel("dashboard-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "contracts" }, () => loadAll())
-      .subscribe();
-    const t = setInterval(loadAll, 60000);
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(t);
-    };
-  }, []);
-
-  const cards = useMemo(
-    () => [
-      {
-        label: "Leads hoje",
-        value: kpi.leadsToday,
-        icon: Users,
-        accent: "from-blue-500/20 to-blue-500/5",
-        ring: "ring-blue-500/30",
-        iconColor: "text-blue-400",
-      },
-      {
-        label: "Contratos no mês",
-        value: kpi.contractsMonth,
-        icon: FileSignature,
-        accent: "from-emerald-500/20 to-emerald-500/5",
-        ring: "ring-emerald-500/30",
-        iconColor: "text-emerald-400",
-      },
-      {
-        label: "Taxa de conversão",
-        value: `${kpi.conversionRate}%`,
-        icon: TrendingUp,
-        accent: "from-amber-500/20 to-amber-500/5",
-        ring: "ring-amber-500/30",
-        iconColor: "text-amber-400",
-      },
-      {
-        label: "Tempo médio resp.",
-        value: kpi.avgResponseMin > 0 ? `${kpi.avgResponseMin} min` : "—",
-        icon: Clock,
-        accent: "from-violet-500/20 to-violet-500/5",
-        ring: "ring-violet-500/30",
-        iconColor: "text-violet-400",
-      },
-    ],
-    [kpi],
-  );
-
+function KpiCard({ label, value, sub, trend, icon: Icon, color }: any) {
+  const up = trend >= 0;
   return (
-    <div className="min-h-full bg-[#0f172a] text-slate-100">
-      <div className="p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-white">Dashboard</h1>
-            <p className="text-slate-400 mt-1 text-sm flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              Em tempo real
-            </p>
-          </div>
-        </header>
-
-        {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {cards.map((c) => (
-            <Card
-              key={c.label}
-              className={`bg-gradient-to-br ${c.accent} border-slate-800 ring-1 ${c.ring} backdrop-blur`}
-            >
-              <CardContent className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-slate-400">{c.label}</p>
-                  <p className="text-3xl font-bold mt-2 text-white">{c.value}</p>
-                </div>
-                <div className={`p-3 rounded-xl bg-slate-900/60 ${c.iconColor}`}>
-                  <c.icon className="h-6 w-6" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+    <div className="rounded-xl border border-white/8 p-5 flex flex-col gap-3" style={{ background: "#0d1424" }}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs uppercase tracking-widest text-slate-500">{label}</span>
+        <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
+          <Icon className="h-4 w-4 text-white" />
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Funil */}
-          <Card className="bg-slate-900/60 border-slate-800 lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-base text-white flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-blue-400" />
-                Funil de conversão
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <FunnelChart>
-                    <Tooltip
-                      contentStyle={{
-                        background: "#0f172a",
-                        border: "1px solid #1e293b",
-                        borderRadius: 8,
-                        color: "#f1f5f9",
-                      }}
-                    />
-                    <Funnel dataKey="value" data={funnel} isAnimationActive>
-                      <LabelList
-                        position="right"
-                        fill="#f1f5f9"
-                        stroke="none"
-                        dataKey="name"
-                        className="text-sm"
-                      />
-                      <LabelList
-                        position="center"
-                        fill="#fff"
-                        stroke="none"
-                        dataKey="value"
-                        className="font-bold"
-                      />
-                    </Funnel>
-                  </FunnelChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Leads quentes */}
-          <Card className="bg-slate-900/60 border-slate-800">
-            <CardHeader>
-              <CardTitle className="text-base text-white flex items-center gap-2">
-                <Flame className="h-4 w-4 text-orange-400" />
-                Leads quentes
-                <Badge variant="secondary" className="ml-auto bg-orange-500/20 text-orange-300 border-orange-500/30">
-                  {hotLeads.length}
-                </Badge>
-              </CardTitle>
-              <p className="text-xs text-slate-400">Parados há mais de 2h</p>
-            </CardHeader>
-            <CardContent className="space-y-2 max-h-[300px] overflow-y-auto">
-              {hotLeads.length === 0 && (
-                <p className="text-sm text-slate-500 py-6 text-center">Nenhum lead pendente 🎉</p>
-              )}
-              {hotLeads.map((l) => (
-                <div
-                  key={l.id}
-                  className="p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors border border-slate-800"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-white truncate">
-                        {l.contact_name || l.phone}
-                      </p>
-                      <p className="text-xs text-slate-400 truncate mt-0.5">
-                        {l.last_message_preview || "—"}
-                      </p>
-                      <p className="text-xs text-orange-300/80 mt-1">
-                        {timeAgo(l.last_message_at)}
-                      </p>
-                    </div>
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="ghost"
-                      className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 shrink-0"
-                    >
-                      <Link to="/inbox">
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Atividade */}
-        <Card className="bg-slate-900/60 border-slate-800">
-          <CardHeader>
-            <CardTitle className="text-base text-white flex items-center gap-2">
-              <Activity className="h-4 w-4 text-emerald-400" />
-              Atividade recente
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {activity.length === 0 && (
-              <p className="text-sm text-slate-500 py-6 text-center">Sem atividade recente.</p>
-            )}
-            {activity.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-800/40 transition-colors"
-              >
-                <div className="p-2 rounded-md bg-slate-800/60 text-slate-300">
-                  {a.type === "message" ? (
-                    <MessageSquare className="h-4 w-4" />
-                  ) : a.type === "contract" ? (
-                    <FileSignature className="h-4 w-4" />
-                  ) : (
-                    <Activity className="h-4 w-4" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-white">{a.title}</p>
-                  {a.subtitle && (
-                    <p className="text-xs text-slate-400 truncate">{a.subtitle}</p>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 shrink-0">{timeAgo(a.at)}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
       </div>
+      <div>
+        <p className="text-3xl font-bold text-white tracking-tight">{value}</p>
+        {sub && <p className="text-xs text-slate-500 mt-0.5">{sub}</p>}
+      </div>
+      {trend !== undefined && (
+        <div className={cn("flex items-center gap-1 text-xs font-medium", up ? "text-emerald-400" : "text-red-400")}>
+          {up ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+          {Math.abs(trend)}% vs ontem
+        </div>
+      )}
     </div>
   );
 }
 
-function timeAgo(iso: string | null): string {
-  if (!iso) return "—";
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const min = Math.floor(diffMs / 60000);
-  if (min < 1) return "agora";
-  if (min < 60) return `${min}min atrás`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h}h atrás`;
-  const d = Math.floor(h / 24);
-  return `${d}d atrás`;
+function DashboardPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [kpis, setKpis]       = useState({ leadsHoje: 0, contratos: 0, conversao: 0, tempoMedio: 0 });
+  const [trends, setTrends]   = useState({ leads: 0, contratos: 0 });
+  const [funil, setFunil]     = useState<{ fase: string; count: number }[]>([]);
+  const [kanban, setKanban]   = useState<Record<string, number>>({});
+  const [quentes, setQuentes] = useState<any[]>([]);
+  const [atividade, setAtividade] = useState<any[]>([]);
+  const [areaData, setAreaData]   = useState<any[]>([]);
+  const [loading, setLoading]     = useState(true);
+
+  const load = useCallback(async () => {
+    if (!user) return;
+    const now     = new Date();
+    const hoje    = new Date(now.setHours(0,0,0,0)).toISOString();
+    const ontem   = new Date(now.getTime() - 86400000).toISOString();
+    const semana  = new Date(Date.now() - 7 * 86400000).toISOString();
+    const doisH   = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+
+    const [statesRes, casesRes, convRes, apptRes] = await Promise.all([
+      supabase.from("funnel_states").select("fase, created_at, updated_at, conversation_id, dados"),
+      supabase.from("cases").select("*"),
+      supabase.from("conversations").select("id, phone, contact_name, last_message_at, last_message_preview, ai_handled"),
+      supabase.from("appointments").select("id, created_at"),
+    ]);
+
+    const states  = statesRes.data ?? [];
+    const cases   = casesRes.data ?? [];
+    const convs   = convRes.data ?? [];
+
+    // KPIs
+    const leadsHoje    = states.filter(s => s.created_at >= hoje).length;
+    const leadsOntem   = states.filter(s => s.created_at >= ontem && s.created_at < hoje).length;
+    const contratos    = cases.filter(c => c.stage === "em_andamento" && c.created_at >= new Date(Date.now() - 30 * 86400000).toISOString()).length;
+    const contratosOntem = cases.filter(c => c.stage === "em_andamento" && c.created_at >= ontem && c.created_at < hoje).length;
+    const total        = states.length || 1;
+    const assinados    = states.filter(s => s.fase === "assinatura" || s.fase === "encerrado").length;
+    const conversao    = Math.round((assinados / total) * 100);
+
+    const comDatas = states.filter(s => s.fase === "encerrado");
+    const tempoMedio = comDatas.length
+      ? Math.round(comDatas.reduce((a, s) => {
+          const diff = new Date(s.updated_at).getTime() - new Date(s.created_at).getTime();
+          return a + diff / (1000 * 60 * 60);
+        }, 0) / comDatas.length)
+      : 0;
+
+    setKpis({ leadsHoje, contratos, conversao, tempoMedio });
+    setTrends({
+      leads: leadsOntem ? Math.round(((leadsHoje - leadsOntem) / leadsOntem) * 100) : 0,
+      contratos: contratosOntem ? Math.round(((contratos - contratosOntem) / contratosOntem) * 100) : 0,
+    });
+
+    // Funil por fase
+    const faseCounts: Record<string, number> = {};
+    states.forEach(s => { faseCounts[s.fase] = (faseCounts[s.fase] || 0) + 1; });
+    const fases = ["abertura","triagem","conexao","fechamento","coleta","assinatura","encerrado"];
+    setFunil(fases.map(f => ({ fase: f, count: faseCounts[f] || 0 })));
+
+    // Kanban
+    const stageCount: Record<string, number> = {};
+    cases.forEach(c => { stageCount[c.stage] = (stageCount[c.stage] || 0) + 1; });
+    setKanban(stageCount);
+
+    // Leads quentes (parados > 2h em fases importantes)
+    const hotStates = states.filter(s =>
+      ["conexao","fechamento","coleta"].includes(s.fase) && s.updated_at < doisH
+    );
+    const hotWithConv = hotStates.slice(0, 5).map(s => {
+      const conv = convs.find(c => c.id === s.conversation_id);
+      const horasParado = Math.round((Date.now() - new Date(s.updated_at).getTime()) / (1000 * 60 * 60));
+      return { ...s, conv, horasParado };
+    }).filter(s => s.conv);
+    setQuentes(hotWithConv);
+
+    // Atividade recente
+    const recent = states
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .slice(0, 6)
+      .map(s => {
+        const conv = convs.find(c => c.id === s.conversation_id);
+        const dados = s.dados as any;
+        const nome = dados?.nome ?? conv?.contact_name ?? conv?.phone ?? "Lead";
+        const mins = Math.round((Date.now() - new Date(s.updated_at).getTime()) / 60000);
+        return { nome, fase: s.fase, mins };
+      });
+    setAtividade(recent);
+
+    // Área chart — leads por dia (últimos 7 dias)
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(Date.now() - (6 - i) * 86400000);
+      const dayStr = d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric" });
+      const dayStart = new Date(d.setHours(0,0,0,0)).toISOString();
+      const dayEnd   = new Date(d.setHours(23,59,59,999)).toISOString();
+      const count    = states.filter(s => s.created_at >= dayStart && s.created_at <= dayEnd).length;
+      return { day: dayStr, leads: count };
+    });
+    setAreaData(days);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const ch = supabase.channel("dashboard-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "funnel_states" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cases" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [load]);
+
+  const Skeleton = () => (
+    <div className="animate-pulse h-8 rounded bg-white/5 w-16" />
+  );
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Dashboard</h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
+            <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs text-emerald-400 font-medium">Tempo real</span>
+          </div>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Leads hoje" value={loading ? "—" : kpis.leadsHoje} trend={trends.leads}
+          icon={Users} color="bg-blue-500/80" sub="novos atendimentos" />
+        <KpiCard label="Contratos (30d)" value={loading ? "—" : kpis.contratos} trend={trends.contratos}
+          icon={FileSignature} color="bg-emerald-500/80" sub="casos em andamento" />
+        <KpiCard label="Taxa de conversão" value={loading ? "—" : `${kpis.conversao}%`}
+          icon={TrendingUp} color="bg-violet-500/80" sub="lead → assinatura" />
+        <KpiCard label="Tempo médio" value={loading ? "—" : `${kpis.tempoMedio}h`}
+          icon={Clock} color="bg-amber-500/80" sub="até o contrato" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Gráfico de área */}
+        <div className="lg:col-span-2 rounded-xl border border-white/8 p-5" style={{ background: "#0d1424" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-semibold text-white">Leads por dia</p>
+              <p className="text-xs text-slate-500">Últimos 7 dias</p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <AreaChart data={areaData}>
+              <defs>
+                <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0}   />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={20} />
+              <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }}
+                labelStyle={{ color: "#94a3b8" }} itemStyle={{ color: "#22c55e" }} />
+              <Area type="monotone" dataKey="leads" stroke="#22c55e" strokeWidth={2} fill="url(#lg)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Kanban mini */}
+        <div className="rounded-xl border border-white/8 p-5" style={{ background: "#0d1424" }}>
+          <p className="text-sm font-semibold text-white mb-4">Pipeline</p>
+          <div className="space-y-3">
+            {Object.entries(STAGE_LABELS).map(([stage, label]) => {
+              const count = kanban[stage] || 0;
+              const total = Object.values(kanban).reduce((a, b) => a + b, 0) || 1;
+              const pct   = Math.round((count / total) * 100);
+              return (
+                <div key={stage}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs text-slate-400">{label}</span>
+                    <span className="text-xs font-bold text-white">{count}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-white/5">
+                    <div className="h-full rounded-full bg-emerald-500/70 transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Funil de conversão */}
+        <div className="rounded-xl border border-white/8 p-5" style={{ background: "#0d1424" }}>
+          <p className="text-sm font-semibold text-white mb-4">Funil de conversão</p>
+          <div className="space-y-2">
+            {funil.map(({ fase, count }) => {
+              const max   = funil[0]?.count || 1;
+              const pct   = Math.round((count / max) * 100);
+              const color = FASE_COLORS[fase] || "#64748b";
+              return (
+                <div key={fase} className="flex items-center gap-3">
+                  <span className="text-xs text-slate-500 w-20 text-right capitalize shrink-0">{fase}</span>
+                  <div className="flex-1 h-6 rounded-md bg-white/5 relative overflow-hidden">
+                    <div className="h-full rounded-md transition-all" style={{ width: `${pct}%`, background: color + "60" }} />
+                    <span className="absolute inset-0 flex items-center px-2 text-xs font-medium text-white">{count}</span>
+                  </div>
+                  <span className="text-xs text-slate-500 w-10 shrink-0">{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Leads quentes */}
+        <div className="rounded-xl border border-white/8 p-5" style={{ background: "#0d1424" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              <p className="text-sm font-semibold text-white">Precisam de atenção</p>
+            </div>
+            <span className="text-xs text-slate-500">parados &gt; 2h</span>
+          </div>
+          {quentes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-slate-600">
+              <CheckCircle2 className="h-8 w-8 mb-2" />
+              <p className="text-sm">Todos os leads estão em dia!</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {quentes.map((q, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 group">
+                  <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-400 font-bold text-sm">
+                    {(q.conv?.contact_name || q.conv?.phone || "?")[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white font-medium truncate">{q.conv?.contact_name || q.conv?.phone}</p>
+                    <p className="text-xs text-amber-400">
+                      {q.fase} • parado há {q.horasParado}h
+                    </p>
+                  </div>
+                  <button onClick={() => navigate({ to: "/inbox" })}
+                    className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30">
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Atividade recente */}
+      <div className="rounded-xl border border-white/8 p-5" style={{ background: "#0d1424" }}>
+        <div className="flex items-center gap-2 mb-4">
+          <Zap className="h-4 w-4 text-emerald-400" />
+          <p className="text-sm font-semibold text-white">Atividade recente</p>
+        </div>
+        <div className="space-y-2">
+          {atividade.length === 0 && (
+            <p className="text-sm text-slate-600 text-center py-4">Nenhuma atividade ainda.</p>
+          )}
+          {atividade.map((a, i) => (
+            <div key={i} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
+              <div className="h-2 w-2 rounded-full shrink-0" style={{ background: FASE_COLORS[a.fase] || "#64748b" }} />
+              <p className="text-sm text-slate-300 flex-1">
+                <span className="font-medium text-white">{a.nome}</span>
+                {" "}entrou na fase{" "}
+                <span className="font-medium" style={{ color: FASE_COLORS[a.fase] }}>{a.fase}</span>
+              </p>
+              <span className="text-xs text-slate-600 shrink-0">
+                {a.mins < 60 ? `${a.mins}min` : `${Math.round(a.mins/60)}h`} atrás
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
