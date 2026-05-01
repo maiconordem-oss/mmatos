@@ -131,6 +131,21 @@ export const updateCase = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateCaseStage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ __token: z.string().optional(),
+    id: z.string().uuid(),
+    stage: z.string().min(1).max(60),
+  }).parse)
+  .handler(async ({ data, context }) => {
+    const { error } = await (context as any).supabase
+      .from("cases")
+      .update({ stage: data.stage })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const deleteCase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
