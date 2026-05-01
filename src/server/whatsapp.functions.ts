@@ -16,7 +16,13 @@ async function _evo(url: string, key: string, path: string, method: "GET" | "POS
   return data;
 }
 function _publicWebhookUrl(instanceId: string, secret: string) {
-  const base = process.env.SITE_URL || process.env.VITE_SITE_URL || "";
+  // Tenta env vars; se ausentes, cai no domínio publicado padrão do projeto.
+  let base = process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.PUBLIC_URL || "";
+  if (!base) {
+    const projectId = process.env.VITE_SUPABASE_PROJECT_ID || process.env.SUPABASE_PROJECT_ID || "";
+    // Fallback hardcoded ao domínio publicado conhecido do projeto
+    base = "https://mmatos.lovable.app";
+  }
   return `${base.replace(/\/$/, "")}/api/public/whatsapp-webhook?id=${instanceId}&secret=${secret}`;
 }
 async function _getEvoCreds(supabase: any, userId: string) {
