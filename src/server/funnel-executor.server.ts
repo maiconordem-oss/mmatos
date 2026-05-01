@@ -277,10 +277,14 @@ async function sendText(
     const { data } = await admin.from("whatsapp_instances").select("*").eq("id", conv.instance_id).maybeSingle();
     inst = data;
   }
-  if (!inst) {
-    // Fallback: pegar qualquer instância conectada do usuário
+  // Validar: instância precisa ter api_url e não pode ser o escritório
+  if (!inst?.api_url || inst?.is_office) {
+    // Fallback: qualquer instância de funil conectada com api_url
     const { data } = await admin.from("whatsapp_instances").select("*")
-      .eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+      .eq("user_id", userId).eq("status", "connected")
+      .eq("is_office", false)
+      .not("api_url", "is", null)
+      .limit(1).maybeSingle();
     inst = data;
   }
 
@@ -364,9 +368,12 @@ async function sendMedia(
     const { data } = await admin.from("whatsapp_instances").select("*").eq("id", conv.instance_id).maybeSingle();
     inst = data;
   }
-  if (!inst) {
+  if (!inst?.api_url || inst?.is_office) {
     const { data } = await admin.from("whatsapp_instances").select("*")
-      .eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+      .eq("user_id", userId).eq("status", "connected")
+      .eq("is_office", false)
+      .not("api_url", "is", null)
+      .limit(1).maybeSingle();
     inst = data;
   }
 
