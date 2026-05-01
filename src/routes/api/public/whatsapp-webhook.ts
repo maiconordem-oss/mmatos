@@ -48,7 +48,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           const msg      = Array.isArray(data?.messages) ? data.messages[0] : data;
           const fromMe   = msg?.key?.fromMe;
           const remoteJid: string = msg?.key?.remoteJid || "";
-          const phone    = remoteJid.split("@")[0];
+          const phone = remoteJid.split("@")[0].replace(/^\+/, "").trim();
           if (!phone || fromMe) return Response.json({ ok: true });
 
           const msgContent = msg?.message ?? {};
