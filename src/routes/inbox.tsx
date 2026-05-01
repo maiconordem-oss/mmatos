@@ -244,8 +244,10 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
 function InboxPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [instances, setInstances]       = useState<any[]>([]);
+  const [activeInstance, setActiveInstance] = useState<string | "all">("all");
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId]           = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
@@ -335,13 +337,23 @@ function InboxPage() {
     if (r.matches.length === 0) toast.info("Nada encontrado");
   });
 
-  const loadConvs = useCallback(async () => {
-    const { data } = await supabase.from("conversations").select("*")
-      .order("last_message_at", { ascending: false, nullsFirst: false });
-    setConversations((data ?? []) as Conversation[]);
+  const loadInstances = useCallback(async () => {
+    const { data } = await supabase.from("whatsapp_instances").select("*").order("instance_name");
+    setInstances(data ?? []);
   }, []);
 
-  useEffect(() => { loadConvs(); }, [loadConvs]);
+  const loadConvs = useCallback(async () => {
+    let q = supabase.from("conversations").select("*")
+      .order("last_message_at", { ascending: false, nullsFirst: false });
+    if (activeInstance !== "all") {
+      q = q.eq("instance_id", activeInstance);
+    }
+    const { data } = await q;
+    setConversations((data ?? []) as Conversation[]);
+  }, [activeInstance]);
+
+  useEffect(() => { loadInstances(); }, [loadInstances]);
+  useEffect(() => { loadConvs(); setActiveId(null); }, [loadConvs]);
 
   // Realtime conversas
   useEffect(() => {
@@ -403,11 +415,21 @@ function InboxPage() {
       last_message_preview: content.slice(0, 80),
     }).eq("id", activeId);
 
-    // Enviar via Evolution API
-    const { data: conv } = await supabase.from("conversations").select("phone").eq("id", activeId).single();
-    const { data: inst } = await supabase
-      .from("whatsapp_instances").select("*")
-      .eq("user_id", user.id).eq("status", "connected").limit(1).maybeSingle();
+    // Enviar via Evolution API — usar a instância vinculada à conversa
+    const { data: conv } = await supabase.from("conversations")
+      .select("phone, instance_id").eq("id", activeId).single();
+
+    let inst: any = null;
+    if (conv?.instance_id) {
+      const { data } = await supabase.from("whatsapp_instances")
+        .select("*").eq("id", conv.instance_id).maybeSingle();
+      inst = data;
+    }
+    if (!inst) {
+      const { data } = await supabase.from("whatsapp_instances").select("*")
+        .eq("user_id", user.id).eq("status", "connected").limit(1).maybeSingle();
+      inst = data;
+    }
 
     if (conv?.phone && inst?.api_url && inst?.api_key) {
       const number = conv.phone.replace(/\D/g, "");
@@ -482,6 +504,44 @@ function InboxPage() {
             <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><MoreVertical className="h-5 w-5" /></button>
           </div>
         </div>
+
+        {/* Seletor de número/instância */}
+        {instances.length > 0 && (
+          <div className="px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto" style={{ background: "#111b21" }}>
+            <button
+              onClick={() => setActiveInstance("all")}
+              className={cn("shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                activeInstance === "all"
+                  ? "bg-[#25d366] text-black"
+                  : "bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]"
+              )}>
+              <span>Todos</span>
+              <span className="text-[10px] opacity-70">({conversations.length})</span>
+            </button>
+            {instances.map(inst => {
+              const count = conversations.filter(c => (c as any).instance_id === inst.id).length;
+              const isActive = activeInstance === inst.id;
+              return (
+                <button key={inst.id}
+                  onClick={() => setActiveInstance(inst.id)}
+                  className={cn("shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                    isActive
+                      ? "bg-[#25d366] text-black"
+                      : "bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]"
+                  )}>
+                  <div className={cn("h-1.5 w-1.5 rounded-full", inst.status === "connected" ? "bg-[#25d366]" : "bg-red-400")}
+                    style={isActive ? { background: "black" } : {}} />
+                  <span className="truncate max-w-[80px]">
+                    {inst.phone_number || inst.instance_name}
+                  </span>
+                  {count > 0 && (
+                    <span className="text-[10px] opacity-70">({count})</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Busca */}
         <div className="px-3 py-2" style={{ background: "#111b21" }}>
@@ -563,7 +623,15 @@ function InboxPage() {
               </div>
               <button className="flex-1 text-left" onClick={() => setShowLeadPanel(!showLeadPanel)}>
                 <p className="text-white font-medium text-sm">{active.contact_name || active.phone}</p>
-                <p className="text-[#8696a0] text-xs">{active.phone} · clique para ver ficha</p>
+                <p className="text-[#8696a0] text-xs">
+                  {active.phone}
+                  {(active as any).instance_id && instances.find(i => i.id === (active as any).instance_id) && (
+                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-[#25d366]/20 text-[#25d366] text-[10px]">
+                      📱 {instances.find(i => i.id === (active as any).instance_id)?.phone_number || instances.find(i => i.id === (active as any).instance_id)?.instance_name}
+                    </span>
+                  )}
+                  {" · clique para ver ficha"}
+                </p>
               </button>
               <div className="flex items-center gap-1">
                 {/* Pausar/retomar IA */}
