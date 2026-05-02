@@ -11,6 +11,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAvailableSlots, createCalendarEvent } from "@/server/google-calendar.server";
+import { analyzeMoment, directiveToPromptBlock, type MomentDirective } from "@/server/funnel-timing.server";
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
