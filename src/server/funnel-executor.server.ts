@@ -301,7 +301,7 @@ async function sendText(
     ai_handled:           true,
   }).eq("id", convId);
 
-  if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
+  if (!conv?.phone || conv.phone.startsWith("SIM_") || !inst?.api_url || !inst?.api_key) return;
 
   const base    = inst.api_url.replace(/\/$/, "");
   const headers = { "Content-Type": "application/json", apikey: inst.api_key };
@@ -384,7 +384,7 @@ async function sendMedia(
     media_url: mediaUrl, status: "sent",
   });
 
-  if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
+  if (!conv?.phone || conv.phone.startsWith("SIM_") || !inst?.api_url || !inst?.api_key) return;
 
   const number = conv.phone.replace(/\D/g, "");
   const base   = inst.api_url.replace(/\/$/, "");
