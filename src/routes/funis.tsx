@@ -133,6 +133,7 @@ function FunisPage() {
   const [simConvId, setSimConvId]       = useState<string | null>(null);
   const [simMessages, setSimMessages]   = useState<any[]>([]);
   const [simInput, setSimInput]         = useState("");
+  const [simDirective, setSimDirective] = useState<any>(null);
 
   const callSimApi = async (action: string, funnel_id: string, message = "") => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -157,13 +158,17 @@ function FunisPage() {
 
   useEffect(() => {
     if (!simConvId) return;
-    supabase.from("messages").select("*").eq("conversation_id", simConvId).order("created_at")
-      .then(({ data }) => setSimMessages(data ?? []));
+    const refresh = () => {
+      supabase.from("messages").select("*").eq("conversation_id", simConvId).order("created_at")
+        .then(({ data }) => setSimMessages(data ?? []));
+      supabase.from("funnel_states").select("dados").eq("conversation_id", simConvId).maybeSingle()
+        .then(({ data }) => setSimDirective((data?.dados as any)?._last_directive ?? null));
+    };
+    refresh();
     const ch = supabase.channel("sim:" + simConvId)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "conversation_id=eq." + simConvId }, () => {
-        supabase.from("messages").select("*").eq("conversation_id", simConvId).order("created_at")
-          .then(({ data }) => setSimMessages(data ?? []));
-      }).subscribe();
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "conversation_id=eq." + simConvId }, refresh)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "funnel_states", filter: "conversation_id=eq." + simConvId }, refresh)
+      .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [simConvId]);
 
