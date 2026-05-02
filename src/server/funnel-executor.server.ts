@@ -922,16 +922,42 @@ async function handleFunnelMessageInner(
     return;
   }
 
-  // 3. Chamar IA
+  // 3. IA de momento certo (timing + objeções escondidas)
+  const midiasDisponiveis = Object.keys((funnel.medias as Record<string, string>) ?? {});
+  let directive: MomentDirective | null = null;
+  try {
+    directive = await analyzeMoment({
+      fase: state.fase,
+      dados: state.dados,
+      midiasJaEnviadas: state.midias_enviadas,
+      midiasDisponiveis,
+      historico: state.historico,
+      ultimaMensagem: userMessage,
+    });
+  } catch (e) {
+    console.error("analyzeMoment falhou:", e);
+  }
+
+  // Injeta diretiva no system prompt (não muda o contrato JSON da IA principal)
+  const personaWithDirective = directive
+    ? `${personaPrompt}\n\n${directiveToPromptBlock(directive)}`
+    : personaPrompt;
+
+  // Pequena pausa "humana" antes de responder (max 4s p/ não travar)
+  if (directive?.pause_seconds && directive.pause_seconds > 0) {
+    await new Promise((r) => setTimeout(r, Math.min(directive!.pause_seconds, 4) * 1000));
+  }
+
+  // 4. Chamar IA principal
   let reply: AiReply;
   try {
-    reply = await callAI(funnel.persona_prompt, state, userMessage);
+    reply = await callAI(personaWithDirective, state, userMessage);
   } catch (e: any) {
     console.error("Funnel executor - erro IA:", e?.message ?? e);
     return;
   }
 
-  // 4. Texto inicial com typing indicator
+  // 5. Texto inicial com typing indicator
   if (reply.texto?.trim()) {
     await sendText(admin, userId, convId, reply.texto);
   }
