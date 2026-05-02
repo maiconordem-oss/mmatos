@@ -372,6 +372,7 @@ export type Database = {
           contact_name: string | null
           created_at: string
           id: string
+          instance_id: string | null
           last_message_at: string | null
           last_message_preview: string | null
           phone: string
@@ -387,6 +388,7 @@ export type Database = {
           contact_name?: string | null
           created_at?: string
           id?: string
+          instance_id?: string | null
           last_message_at?: string | null
           last_message_preview?: string | null
           phone: string
@@ -402,6 +404,7 @@ export type Database = {
           contact_name?: string | null
           created_at?: string
           id?: string
+          instance_id?: string | null
           last_message_at?: string | null
           last_message_preview?: string | null
           phone?: string
@@ -416,6 +419,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
             referencedColumns: ["id"]
           },
         ]
@@ -937,7 +947,9 @@ export type Database = {
           funnel_id: string | null
           id: string
           instance_name: string
+          is_office: boolean
           last_event_at: string | null
+          office_role: string | null
           phone_number: string | null
           qr_code: string | null
           status: Database["public"]["Enums"]["whatsapp_status"]
@@ -952,7 +964,9 @@ export type Database = {
           funnel_id?: string | null
           id?: string
           instance_name: string
+          is_office?: boolean
           last_event_at?: string | null
+          office_role?: string | null
           phone_number?: string | null
           qr_code?: string | null
           status?: Database["public"]["Enums"]["whatsapp_status"]
@@ -967,7 +981,9 @@ export type Database = {
           funnel_id?: string | null
           id?: string
           instance_name?: string
+          is_office?: boolean
           last_event_at?: string | null
+          office_role?: string | null
           phone_number?: string | null
           qr_code?: string | null
           status?: Database["public"]["Enums"]["whatsapp_status"]
