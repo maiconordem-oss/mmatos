@@ -364,6 +364,24 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_locks: {
+        Row: {
+          conversation_id: string
+          expires_at: string
+          locked_at: string
+        }
+        Insert: {
+          conversation_id: string
+          expires_at?: string
+          locked_at?: string
+        }
+        Update: {
+          conversation_id?: string
+          expires_at?: string
+          locked_at?: string
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           ai_handled: boolean
