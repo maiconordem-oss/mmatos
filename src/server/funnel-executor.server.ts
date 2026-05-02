@@ -11,6 +11,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAvailableSlots, createCalendarEvent } from "@/server/google-calendar.server";
+import { analyzeMoment, directiveToPromptBlock, type MomentDirective } from "@/server/funnel-timing.server";
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
@@ -300,7 +301,7 @@ async function sendText(
     ai_handled:           true,
   }).eq("id", convId);
 
-  if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
+  if (!conv?.phone || conv.phone.startsWith("SIM_") || !inst?.api_url || !inst?.api_key) return;
 
   const base    = inst.api_url.replace(/\/$/, "");
   const headers = { "Content-Type": "application/json", apikey: inst.api_key };
@@ -383,7 +384,7 @@ async function sendMedia(
     media_url: mediaUrl, status: "sent",
   });
 
-  if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
+  if (!conv?.phone || conv.phone.startsWith("SIM_") || !inst?.api_url || !inst?.api_key) return;
 
   const number = conv.phone.replace(/\D/g, "");
   const base   = inst.api_url.replace(/\/$/, "");
@@ -921,16 +922,42 @@ async function handleFunnelMessageInner(
     return;
   }
 
-  // 3. Chamar IA
+  // 3. IA de momento certo (timing + objeções escondidas)
+  const midiasDisponiveis = Object.keys((funnel.medias as Record<string, string>) ?? {});
+  let directive: MomentDirective | null = null;
+  try {
+    directive = await analyzeMoment({
+      fase: state.fase,
+      dados: state.dados,
+      midiasJaEnviadas: state.midias_enviadas,
+      midiasDisponiveis,
+      historico: state.historico,
+      ultimaMensagem: userMessage,
+    });
+  } catch (e) {
+    console.error("analyzeMoment falhou:", e);
+  }
+
+  // Injeta diretiva no system prompt (não muda o contrato JSON da IA principal)
+  const personaWithDirective = directive
+    ? `${personaPrompt}\n\n${directiveToPromptBlock(directive)}`
+    : personaPrompt;
+
+  // Pequena pausa "humana" antes de responder (max 4s p/ não travar)
+  if (directive?.pause_seconds && directive.pause_seconds > 0) {
+    await new Promise((r) => setTimeout(r, Math.min(directive!.pause_seconds, 4) * 1000));
+  }
+
+  // 4. Chamar IA principal
   let reply: AiReply;
   try {
-    reply = await callAI(funnel.persona_prompt, state, userMessage);
+    reply = await callAI(personaWithDirective, state, userMessage);
   } catch (e: any) {
     console.error("Funnel executor - erro IA:", e?.message ?? e);
     return;
   }
 
-  // 4. Texto inicial com typing indicator
+  // 5. Texto inicial com typing indicator
   if (reply.texto?.trim()) {
     await sendText(admin, userId, convId, reply.texto);
   }
@@ -984,7 +1011,7 @@ async function handleFunnelMessageInner(
 
   await admin.from("funnel_states").update({
     fase:            novaFase,
-    dados:           novosDados,
+    dados:           { ...novosDados, _last_directive: directive ?? null },
     midias_enviadas: [...state.midias_enviadas, ...novasMidias],
     prompt_variant:  promptVariant,
     historico: [

@@ -133,6 +133,7 @@ function FunisPage() {
   const [simConvId, setSimConvId]       = useState<string | null>(null);
   const [simMessages, setSimMessages]   = useState<any[]>([]);
   const [simInput, setSimInput]         = useState("");
+  const [simDirective, setSimDirective] = useState<any>(null);
 
   const callSimApi = async (action: string, funnel_id: string, message = "") => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -157,13 +158,17 @@ function FunisPage() {
 
   useEffect(() => {
     if (!simConvId) return;
-    supabase.from("messages").select("*").eq("conversation_id", simConvId).order("created_at")
-      .then(({ data }) => setSimMessages(data ?? []));
+    const refresh = () => {
+      supabase.from("messages").select("*").eq("conversation_id", simConvId).order("created_at")
+        .then(({ data }) => setSimMessages(data ?? []));
+      supabase.from("funnel_states").select("dados").eq("conversation_id", simConvId).maybeSingle()
+        .then(({ data }) => setSimDirective((data?.dados as any)?._last_directive ?? null));
+    };
+    refresh();
     const ch = supabase.channel("sim:" + simConvId)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "conversation_id=eq." + simConvId }, () => {
-        supabase.from("messages").select("*").eq("conversation_id", simConvId).order("created_at")
-          .then(({ data }) => setSimMessages(data ?? []));
-      }).subscribe();
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "conversation_id=eq." + simConvId }, refresh)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "funnel_states", filter: "conversation_id=eq." + simConvId }, refresh)
+      .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [simConvId]);
 
@@ -743,6 +748,29 @@ function FunisPage() {
                     </div>
                   )}
                 </div>
+
+                {simDirective && (
+                  <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 text-xs space-y-1.5">
+                    <p className="font-semibold text-violet-900 flex items-center gap-1.5">
+                      🧠 Diretiva da IA neste turno
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-violet-900/80">
+                      <span><b>Tática:</b> {simDirective.tactic}</span>
+                      <span><b>Tom:</b> {simDirective.tone}</span>
+                      <span><b>Urgência:</b> {simDirective.urgency}</span>
+                      <span><b>Mídia agora:</b> {simDirective.send_media_now ? `sim (${simDirective.media_kind})` : "não"}</span>
+                    </div>
+                    {simDirective.hidden_objection && (
+                      <p className="text-amber-800 bg-amber-100/60 rounded px-2 py-1">
+                        <b>Objeção escondida:</b> {simDirective.hidden_objection}
+                        {simDirective.objection_break && <> — <i>quebrar com:</i> "{simDirective.objection_break}"</>}
+                      </p>
+                    )}
+                    {simDirective.reason && (
+                      <p className="text-violet-700/70 italic">{simDirective.reason}</p>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex gap-2">
                   <Input value={simInput} onChange={(e) => setSimInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendSimMsg(); }} placeholder="Digite como se fosse o cliente..." disabled={simRunning} />
