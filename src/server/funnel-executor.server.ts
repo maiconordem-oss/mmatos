@@ -1011,7 +1011,7 @@ async function handleFunnelMessageInner(
 
   await admin.from("funnel_states").update({
     fase:            novaFase,
-    dados:           novosDados,
+    dados:           { ...novosDados, _last_directive: directive ?? null },
     midias_enviadas: [...state.midias_enviadas, ...novasMidias],
     prompt_variant:  promptVariant,
     historico: [
