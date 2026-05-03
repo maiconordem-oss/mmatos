@@ -49,6 +49,8 @@ function ContractsPage() {
   const [selectedProp, setSelectedProp] = useState<any>(null);
   const [signForm, setSignForm] = useState({ templateId: "", signerName: "", signerEmail: "", signerPhone: "" });
   const sendContractFn = useAuthServerFn(sendContract);
+  const checkTokenFn = useAuthServerFn(checkZapsignToken);
+  const [tokenConfigured, setTokenConfigured] = useState<boolean | null>(null);
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: t }, { data: cl }] = await Promise.all([
@@ -61,6 +63,7 @@ function ContractsPage() {
     setContracts(c ?? []);
     setTemplates(t ?? []);
     setClients(cl ?? []);
+    try { const r = await checkTokenFn({ data: {} } as any); setTokenConfigured(r.configured); } catch { setTokenConfigured(false); }
   };
 
   useEffect(() => { load(); }, []);
