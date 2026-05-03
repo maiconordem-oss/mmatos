@@ -126,6 +126,40 @@ function ContractsPage() {
         <p className="text-sm text-muted-foreground">Gerencie propostas geradas pela IA e envie contratos via ZapSign</p>
       </header>
 
+      <Card className={`mb-6 border-l-4 ${tokenConfigured ? "border-l-green-500" : "border-l-amber-500"}`}>
+        <CardContent className="p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {tokenConfigured ? (
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+            )}
+            <div>
+              <p className="font-medium text-sm flex items-center gap-2">
+                <KeyRound className="h-4 w-4" /> Token ZapSign
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {tokenConfigured === null
+                  ? "Verificando..."
+                  : tokenConfigured
+                  ? "Configurado — você já pode enviar contratos para assinatura."
+                  : "Não configurado. Salve seu ZAPSIGN_API_TOKEN para habilitar envio de contratos."}
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant={tokenConfigured ? "outline" : "default"}
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("lov-add-secret", { detail: { name: "ZAPSIGN_API_TOKEN" } }));
+              toast.info("Solicitação enviada — preencha o token no painel seguro do Lovable.");
+            }}
+          >
+            {tokenConfigured ? "Atualizar token" : "Salvar token agora"}
+          </Button>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="proposals">
         <TabsList>
           <TabsTrigger value="proposals">Propostas ({proposals.length})</TabsTrigger>
