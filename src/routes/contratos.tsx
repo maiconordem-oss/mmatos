@@ -13,7 +13,7 @@ import { FileSignature, Send, ExternalLink, KeyRound, CheckCircle2, AlertTriangl
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { sendContract, checkZapsignToken } from "@/server/zapsign.functions";
+import { sendContract, checkZapsignToken, saveZapsignToken, deleteZapsignToken } from "@/server/zapsign.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 
 export const Route = createFileRoute("/contratos")({
@@ -50,7 +50,12 @@ function ContractsPage() {
   const [signForm, setSignForm] = useState({ templateId: "", signerName: "", signerEmail: "", signerPhone: "" });
   const sendContractFn = useAuthServerFn(sendContract);
   const checkTokenFn = useAuthServerFn(checkZapsignToken);
-  const [tokenConfigured, setTokenConfigured] = useState<boolean | null>(null);
+  const saveTokenFn = useAuthServerFn(saveZapsignToken);
+  const deleteTokenFn = useAuthServerFn(deleteZapsignToken);
+  const [tokenInfo, setTokenInfo] = useState<{ configured: boolean; source: string | null; masked: string | null } | null>(null);
+  const [tokenOpen, setTokenOpen] = useState(false);
+  const [tokenInput, setTokenInput] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: t }, { data: cl }] = await Promise.all([
@@ -63,7 +68,7 @@ function ContractsPage() {
     setContracts(c ?? []);
     setTemplates(t ?? []);
     setClients(cl ?? []);
-    try { const r = await checkTokenFn({ data: {} } as any); setTokenConfigured(r.configured); } catch { setTokenConfigured(false); }
+    try { const r = await checkTokenFn({ data: {} } as any); setTokenInfo(r); } catch { setTokenInfo({ configured: false, source: null, masked: null }); }
   };
 
   useEffect(() => { load(); }, []);
@@ -126,10 +131,10 @@ function ContractsPage() {
         <p className="text-sm text-muted-foreground">Gerencie propostas geradas pela IA e envie contratos via ZapSign</p>
       </header>
 
-      <Card className={`mb-6 border-l-4 ${tokenConfigured ? "border-l-green-500" : "border-l-amber-500"}`}>
+      <Card className={`mb-6 border-l-4 ${tokenInfo?.configured ? "border-l-green-500" : "border-l-amber-500"}`}>
         <CardContent className="p-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            {tokenConfigured ? (
+            {tokenInfo?.configured ? (
               <CheckCircle2 className="h-5 w-5 text-green-600" />
             ) : (
               <AlertTriangle className="h-5 w-5 text-amber-600" />
@@ -139,26 +144,79 @@ function ContractsPage() {
                 <KeyRound className="h-4 w-4" /> Token ZapSign
               </p>
               <p className="text-xs text-muted-foreground">
-                {tokenConfigured === null
+                {tokenInfo === null
                   ? "Verificando..."
-                  : tokenConfigured
-                  ? "Configurado — você já pode enviar contratos para assinatura."
-                  : "Não configurado. Salve seu ZAPSIGN_API_TOKEN para habilitar envio de contratos."}
+                  : tokenInfo.configured
+                  ? `Configurado (${tokenInfo.source === "user" ? "salvo por você" : "via secret"}) — ${tokenInfo.masked}`
+                  : "Não configurado. Cole seu token da ZapSign para habilitar envio de contratos."}
               </p>
             </div>
           </div>
-          <Button
-            size="sm"
-            variant={tokenConfigured ? "outline" : "default"}
-            onClick={() => {
-              window.dispatchEvent(new CustomEvent("lov-add-secret", { detail: { name: "ZAPSIGN_API_TOKEN" } }));
-              toast.info("Solicitação enviada — preencha o token no painel seguro do Lovable.");
-            }}
-          >
-            {tokenConfigured ? "Atualizar token" : "Salvar token agora"}
-          </Button>
+          <div className="flex gap-2">
+            {tokenInfo?.configured && tokenInfo.source === "user" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  if (!confirm("Remover o token salvo?")) return;
+                  await deleteTokenFn({ data: {} } as any);
+                  toast.success("Token removido");
+                  load();
+                }}
+              >
+                Remover
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant={tokenInfo?.configured ? "outline" : "default"}
+              onClick={() => { setTokenInput(""); setTokenOpen(true); }}
+            >
+              {tokenInfo?.configured ? "Atualizar token" : "Salvar token"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      <Dialog open={tokenOpen} onOpenChange={setTokenOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Token da ZapSign</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Pegue em ZapSign → Configurações → API. Fica salvo de forma segura na sua conta.
+            </p>
+            <Label>API Token</Label>
+            <Input
+              type="password"
+              placeholder="cole aqui o token"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTokenOpen(false)}>Cancelar</Button>
+            <Button
+              disabled={tokenInput.trim().length < 6 || savingToken}
+              onClick={async () => {
+                setSavingToken(true);
+                try {
+                  await saveTokenFn({ data: { token: tokenInput.trim() } });
+                  toast.success("Token salvo!");
+                  setTokenOpen(false);
+                  load();
+                } catch (e: any) {
+                  toast.error(e.message);
+                } finally {
+                  setSavingToken(false);
+                }
+              }}
+            >
+              {savingToken ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Tabs defaultValue="proposals">
         <TabsList>

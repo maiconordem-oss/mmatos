@@ -2,12 +2,58 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-/** Verifica se o token ZapSign está configurado nos secrets */
+async function getUserToken(supabase: any, userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("user_integrations")
+    .select("config")
+    .eq("user_id", userId)
+    .eq("provider", "zapsign")
+    .maybeSingle();
+  const t = data?.config?.token;
+  return typeof t === "string" && t.length > 5 ? t : null;
+}
+
+/** Verifica se o token ZapSign está configurado (DB do usuário ou env como fallback) */
 export const checkZapsignToken = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    const token = process.env.ZAPSIGN_API_TOKEN;
-    return { configured: !!token && token.length > 10 };
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context as any;
+    const userToken = await getUserToken(supabase, userId);
+    const envToken = process.env.ZAPSIGN_API_TOKEN;
+    const token = userToken ?? (envToken && envToken.length > 10 ? envToken : null);
+    return {
+      configured: !!token,
+      source: userToken ? "user" : envToken ? "env" : null,
+      masked: token ? `${token.slice(0, 4)}…${token.slice(-4)}` : null,
+    };
+  });
+
+/** Salva/atualiza o token ZapSign do usuário */
+export const saveZapsignToken = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ __token: z.string().optional(), token: z.string().min(6) }).parse)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const { error } = await supabase
+      .from("user_integrations")
+      .upsert({ user_id: userId, provider: "zapsign", config: { token: data.token.trim() } });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Remove o token ZapSign do usuário */
+export const deleteZapsignToken = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ __token: z.string().optional() }).parse)
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context as any;
+    const { error } = await supabase
+      .from("user_integrations")
+      .delete()
+      .eq("user_id", userId)
+      .eq("provider", "zapsign");
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 /** Cria documento via template no ZapSign e registra contrato local */
@@ -38,8 +84,9 @@ export const sendContract = createServerFn({ method: "POST" })
     let zapsignError: string | null = null;
 
     try {
-      const token = process.env.ZAPSIGN_API_TOKEN;
-      if (!token) throw new Error("ZAPSIGN_API_TOKEN não configurado. Configure o token nos secrets para enviar contratos.");
+      const userToken = await getUserToken(supabase, userId);
+      const token = userToken ?? process.env.ZAPSIGN_API_TOKEN;
+      if (!token) throw new Error("Token ZapSign não configurado. Salve seu token na tela de Contratos.");
       const payload = {
         template_id: tpl.zapsign_template_id,
         signer_name: data.signerName,
