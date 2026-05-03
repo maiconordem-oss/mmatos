@@ -50,7 +50,12 @@ function ContractsPage() {
   const [signForm, setSignForm] = useState({ templateId: "", signerName: "", signerEmail: "", signerPhone: "" });
   const sendContractFn = useAuthServerFn(sendContract);
   const checkTokenFn = useAuthServerFn(checkZapsignToken);
-  const [tokenConfigured, setTokenConfigured] = useState<boolean | null>(null);
+  const saveTokenFn = useAuthServerFn(saveZapsignToken);
+  const deleteTokenFn = useAuthServerFn(deleteZapsignToken);
+  const [tokenInfo, setTokenInfo] = useState<{ configured: boolean; source: string | null; masked: string | null } | null>(null);
+  const [tokenOpen, setTokenOpen] = useState(false);
+  const [tokenInput, setTokenInput] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: t }, { data: cl }] = await Promise.all([
