@@ -9,11 +9,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileSignature, Send, ExternalLink } from "lucide-react";
+import { FileSignature, Send, ExternalLink, KeyRound, CheckCircle2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { sendContract } from "@/server/zapsign.functions";
+import { sendContract, checkZapsignToken } from "@/server/zapsign.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 
 export const Route = createFileRoute("/contratos")({
