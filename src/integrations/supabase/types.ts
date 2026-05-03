@@ -930,6 +930,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_integrations: {
+        Row: {
+          config: Json
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           created_at: string
