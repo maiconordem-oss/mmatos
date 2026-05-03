@@ -13,7 +13,7 @@ import { FileSignature, Send, ExternalLink, KeyRound, CheckCircle2, AlertTriangl
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { sendContract, checkZapsignToken } from "@/server/zapsign.functions";
+import { sendContract, checkZapsignToken, saveZapsignToken, deleteZapsignToken } from "@/server/zapsign.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 
 export const Route = createFileRoute("/contratos")({
