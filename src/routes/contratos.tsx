@@ -9,11 +9,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileSignature, Send, ExternalLink } from "lucide-react";
+import { FileSignature, Send, ExternalLink, KeyRound, CheckCircle2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { sendContract } from "@/server/zapsign.functions";
+import { sendContract, checkZapsignToken } from "@/server/zapsign.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 
 export const Route = createFileRoute("/contratos")({
@@ -49,6 +49,8 @@ function ContractsPage() {
   const [selectedProp, setSelectedProp] = useState<any>(null);
   const [signForm, setSignForm] = useState({ templateId: "", signerName: "", signerEmail: "", signerPhone: "" });
   const sendContractFn = useAuthServerFn(sendContract);
+  const checkTokenFn = useAuthServerFn(checkZapsignToken);
+  const [tokenConfigured, setTokenConfigured] = useState<boolean | null>(null);
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: t }, { data: cl }] = await Promise.all([
@@ -61,6 +63,7 @@ function ContractsPage() {
     setContracts(c ?? []);
     setTemplates(t ?? []);
     setClients(cl ?? []);
+    try { const r = await checkTokenFn({ data: {} } as any); setTokenConfigured(r.configured); } catch { setTokenConfigured(false); }
   };
 
   useEffect(() => { load(); }, []);
@@ -122,6 +125,40 @@ function ContractsPage() {
         <h1 className="text-2xl font-semibold flex items-center gap-2"><FileSignature className="h-6 w-6 text-gold" /> Propostas & Contratos</h1>
         <p className="text-sm text-muted-foreground">Gerencie propostas geradas pela IA e envie contratos via ZapSign</p>
       </header>
+
+      <Card className={`mb-6 border-l-4 ${tokenConfigured ? "border-l-green-500" : "border-l-amber-500"}`}>
+        <CardContent className="p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {tokenConfigured ? (
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+            )}
+            <div>
+              <p className="font-medium text-sm flex items-center gap-2">
+                <KeyRound className="h-4 w-4" /> Token ZapSign
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {tokenConfigured === null
+                  ? "Verificando..."
+                  : tokenConfigured
+                  ? "Configurado — você já pode enviar contratos para assinatura."
+                  : "Não configurado. Salve seu ZAPSIGN_API_TOKEN para habilitar envio de contratos."}
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant={tokenConfigured ? "outline" : "default"}
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("lov-add-secret", { detail: { name: "ZAPSIGN_API_TOKEN" } }));
+              toast.info("Solicitação enviada — preencha o token no painel seguro do Lovable.");
+            }}
+          >
+            {tokenConfigured ? "Atualizar token" : "Salvar token agora"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="proposals">
         <TabsList>
