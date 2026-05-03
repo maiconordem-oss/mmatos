@@ -68,7 +68,7 @@ function ContractsPage() {
     setContracts(c ?? []);
     setTemplates(t ?? []);
     setClients(cl ?? []);
-    try { const r = await checkTokenFn({ data: {} } as any); setTokenConfigured(r.configured); } catch { setTokenConfigured(false); }
+    try { const r = await checkTokenFn({ data: {} } as any); setTokenInfo(r); } catch { setTokenInfo({ configured: false, source: null, masked: null }); }
   };
 
   useEffect(() => { load(); }, []);
