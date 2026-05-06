@@ -44,11 +44,11 @@ const STAGE_LABELS: Record<string, string> = {
 function KpiCard({ label, value, sub, trend, icon: Icon, color }: any) {
   const up = trend >= 0;
   return (
-    <div className="rounded-xl border border-white/8 p-5 flex flex-col gap-3" style={{ background: "#0d1424" }}>
+    <div className="rounded-xl border border-white/8 p-5 flex flex-col gap-3" className="bg-card">
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-widest text-slate-500">{label}</span>
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">{label}</span>
         <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
-          <Icon className="h-4 w-4 text-white" />
+          <Icon className="h-4 w-4 text-foreground" />
         </div>
       </div>
       <div>
@@ -213,11 +213,11 @@ function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Gráfico de área */}
-        <div className="lg:col-span-2 rounded-xl border border-white/8 p-5" style={{ background: "#0d1424" }}>
+        <div className="lg:col-span-2 rounded-xl border border-white/8 p-5" className="bg-card">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-sm font-semibold text-white">Leads por dia</p>
-              <p className="text-xs text-slate-500">Últimos 7 dias</p>
+              <p className="text-sm font-semibold text-foreground">Leads por dia</p>
+              <p className="text-xs text-muted-foreground">Últimos 7 dias</p>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={160}>
@@ -238,7 +238,7 @@ function DashboardPage() {
         </div>
 
         {/* Kanban mini */}
-        <div className="rounded-xl border border-white/8 p-5" style={{ background: "#0d1424" }}>
+        <div className="rounded-xl border border-white/8 p-5" className="bg-card">
           <p className="text-sm font-semibold text-white mb-4">Pipeline</p>
           <div className="space-y-3">
             {Object.entries(STAGE_LABELS).map(([stage, label]) => {
@@ -248,10 +248,10 @@ function DashboardPage() {
               return (
                 <div key={stage}>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs text-slate-400">{label}</span>
-                    <span className="text-xs font-bold text-white">{count}</span>
+                    <span className="text-xs text-muted-foreground">{label}</span>
+                    <span className="text-xs font-bold text-foreground">{count}</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/5">
+                  <div className="h-1.5 rounded-full bg-muted/50">
                     <div className="h-full rounded-full bg-emerald-500/70 transition-all" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
@@ -263,7 +263,7 @@ function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Funil de conversão */}
-        <div className="rounded-xl border border-white/8 p-5" style={{ background: "#0d1424" }}>
+        <div className="rounded-xl border border-white/8 p-5" className="bg-card">
           <p className="text-sm font-semibold text-white mb-4">Funil de conversão</p>
           <div className="space-y-2">
             {funil.map(({ fase, count }) => {
@@ -275,7 +275,7 @@ function DashboardPage() {
                   <span className="text-xs text-slate-500 w-20 text-right capitalize shrink-0">{fase}</span>
                   <div className="flex-1 h-6 rounded-md bg-white/5 relative overflow-hidden">
                     <div className="h-full rounded-md transition-all" style={{ width: `${pct}%`, background: color + "60" }} />
-                    <span className="absolute inset-0 flex items-center px-2 text-xs font-medium text-white">{count}</span>
+                    <span className="absolute inset-0 flex items-center px-2 text-xs font-medium text-foreground">{count}</span>
                   </div>
                   <span className="text-xs text-slate-500 w-10 shrink-0">{pct}%</span>
                 </div>
@@ -285,16 +285,16 @@ function DashboardPage() {
         </div>
 
         {/* Leads quentes */}
-        <div className="rounded-xl border border-white/8 p-5" style={{ background: "#0d1424" }}>
+        <div className="rounded-xl border border-white/8 p-5" className="bg-card">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-400" />
-              <p className="text-sm font-semibold text-white">Precisam de atenção</p>
+              <p className="text-sm font-semibold text-foreground">Precisam de atenção</p>
             </div>
-            <span className="text-xs text-slate-500">parados &gt; 2h</span>
+            <span className="text-xs text-muted-foreground">parados &gt; 2h</span>
           </div>
           {quentes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-slate-600">
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/70">
               <CheckCircle2 className="h-8 w-8 mb-2" />
               <p className="text-sm">Todos os leads estão em dia!</p>
             </div>
@@ -323,10 +323,10 @@ function DashboardPage() {
       </div>
 
       {/* Atividade recente */}
-      <div className="rounded-xl border border-white/8 p-5" style={{ background: "#0d1424" }}>
+      <div className="rounded-xl border border-white/8 p-5" className="bg-card">
         <div className="flex items-center gap-2 mb-4">
           <Zap className="h-4 w-4 text-emerald-400" />
-          <p className="text-sm font-semibold text-white">Atividade recente</p>
+          <p className="text-sm font-semibold text-foreground">Atividade recente</p>
         </div>
         <div className="space-y-2">
           {atividade.length === 0 && (
@@ -336,7 +336,7 @@ function DashboardPage() {
             <div key={i} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
               <div className="h-2 w-2 rounded-full shrink-0" style={{ background: FASE_COLORS[a.fase] || "#64748b" }} />
               <p className="text-sm text-slate-300 flex-1">
-                <span className="font-medium text-white">{a.nome}</span>
+                <span className="font-medium text-foreground">{a.nome}</span>
                 {" "}entrou na fase{" "}
                 <span className="font-medium" style={{ color: FASE_COLORS[a.fase] }}>{a.fase}</span>
               </p>

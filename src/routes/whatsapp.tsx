@@ -211,28 +211,28 @@ function WhatsappPage() {
   ] as const;
 
   return (
-    <div className="flex flex-col h-full" style={{ background: "#0a0f1e" }}>
+    <div className="flex flex-col h-full" className="bg-background">
       <Toaster />
 
       {/* Header */}
-      <div className="px-6 py-5 border-b border-white/8">
+      <div className="px-6 py-5 border-b border-border">
         <div className="flex items-center gap-3 mb-1">
           <div className="h-9 w-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
             <Smartphone className="h-5 w-5 text-emerald-400" />
           </div>
-          <h1 className="text-xl font-bold text-white">WhatsApp</h1>
+          <h1 className="text-xl font-bold text-foreground">WhatsApp</h1>
         </div>
         <p className="text-slate-500 text-sm">Gerencie seus números de atendimento e configurações da Evolution API</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 px-6 py-3 border-b border-white/8">
+      <div className="flex gap-1 px-6 py-3 border-b border-border">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
             className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
               tab === t.id
                 ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-                : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
+                : "text-slate-500 hover:text-slate-300 hover:bg-muted/50"
             )}>
             <t.icon className="h-4 w-4" />
             {t.label}
@@ -268,7 +268,7 @@ function WhatsappPage() {
                 : "";
 
               return (
-                <div key={inst.id} className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: "#0d1424" }}>
+                <div key={inst.id} className="rounded-2xl border border-white/8 overflow-hidden" className="bg-card">
                   {/* Card header */}
                   <div className="flex items-center gap-4 p-5">
                     {/* Avatar */}
@@ -282,7 +282,7 @@ function WhatsappPage() {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-white">{inst.phone_number || inst.instance_name}</h3>
+                        <h3 className="font-semibold text-foreground">{inst.phone_number || inst.instance_name}</h3>
                         {inst.is_office
                           ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/20">Escritório</span>
                           : funil && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/20">{funil.name}</span>
@@ -291,7 +291,7 @@ function WhatsappPage() {
                       <div className="flex items-center gap-2 mt-1">
                         <div className={cn("h-1.5 w-1.5 rounded-full animate-pulse", status.color)} />
                         <span className={cn("text-xs", status.textColor)}>{status.label}</span>
-                        {inst.phone_number && <span className="text-xs text-slate-600">· {inst.phone_number}</span>}
+                        {inst.phone_number && <span className="text-xs text-muted-foreground/70">· {inst.phone_number}</span>}
                       </div>
                       {!inst.is_office && !inst.funnel_id && (
                         <p className="text-xs text-amber-400 mt-1 flex items-center gap-1">
@@ -346,7 +346,7 @@ function WhatsappPage() {
 
                   {/* QR Code */}
                   {inst.qr_code && inst.status !== "connected" && (showQR === inst.id || inst.status === "qr") && (
-                    <div className="border-t border-white/8 p-5 flex flex-col items-center gap-4" style={{ background: "#060b15" }}>
+                    <div className="border-t border-white/8 p-5 flex flex-col items-center gap-4" className="bg-muted/50">
                       <div className="flex items-center gap-2 text-amber-400 text-sm">
                         <QrCode className="h-4 w-4" />
                         <span>Escaneie com o WhatsApp</span>
@@ -362,7 +362,7 @@ function WhatsappPage() {
                   )}
 
                   {/* Webhook URL */}
-                  <div className="border-t border-white/5 px-5 py-3" style={{ background: "#060b15" }}>
+                  <div className="border-t border-white/5 px-5 py-3" className="bg-muted/50">
                     <p className="text-[10px] text-slate-600 uppercase tracking-wide mb-1">URL do Webhook (configure na Evolution API)</p>
                     <div className="flex items-center gap-2">
                       <code className="text-[11px] text-slate-500 flex-1 truncate">{webhookUrl}</code>
@@ -389,7 +389,7 @@ function WhatsappPage() {
         {tab === "adicionar" && (
           <div className="max-w-xl mx-auto space-y-6">
             <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-lg font-bold text-white">
+              <h2 className="text-lg font-bold text-foreground">
                 {editingId ? "Editar número" : "Adicionar número"}
               </h2>
             </div>
@@ -400,24 +400,24 @@ function WhatsappPage() {
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => setForm({ ...form, is_office: false })}
                   className={cn("p-4 rounded-xl border text-left transition-all",
-                    !form.is_office ? "border-emerald-500/40 bg-emerald-500/10" : "border-white/8 hover:border-white/15 bg-white/3"
+                    !form.is_office ? "border-emerald-500/40 bg-emerald-500/10" : "border-white/8 hover:border-white/15 bg-muted/30"
                   )}>
                   <div className="flex items-center gap-2 mb-2">
-                    <Bot className={cn("h-5 w-5", !form.is_office ? "text-emerald-400" : "text-slate-600")} />
+                    <Bot className={cn("h-5 w-5", !form.is_office ? "text-emerald-400" : "text-muted-foreground/70")} />
                     {!form.is_office && <Check className="h-3.5 w-3.5 text-emerald-400 ml-auto" />}
                   </div>
-                  <p className={cn("font-medium text-sm", !form.is_office ? "text-white" : "text-slate-500")}>Número de funil</p>
+                  <p className={cn("font-medium text-sm", !form.is_office ? "text-foreground" : "text-muted-foreground")}>Número de funil</p>
                   <p className="text-xs text-slate-600 mt-0.5">A IA atende automaticamente pelos funis</p>
                 </button>
                 <button onClick={() => setForm({ ...form, is_office: true, funnel_id: "" })}
                   className={cn("p-4 rounded-xl border text-left transition-all",
-                    form.is_office ? "border-blue-500/40 bg-blue-500/10" : "border-white/8 hover:border-white/15 bg-white/3"
+                    form.is_office ? "border-blue-500/40 bg-blue-500/10" : "border-white/8 hover:border-white/15 bg-muted/30"
                   )}>
                   <div className="flex items-center gap-2 mb-2">
-                    <Building2 className={cn("h-5 w-5", form.is_office ? "text-blue-400" : "text-slate-600")} />
+                    <Building2 className={cn("h-5 w-5", form.is_office ? "text-blue-400" : "text-muted-foreground/70")} />
                     {form.is_office && <Check className="h-3.5 w-3.5 text-blue-400 ml-auto" />}
                   </div>
-                  <p className={cn("font-medium text-sm", form.is_office ? "text-white" : "text-slate-500")}>Número do escritório</p>
+                  <p className={cn("font-medium text-sm", form.is_office ? "text-foreground" : "text-muted-foreground")}>Número do escritório</p>
                   <p className="text-xs text-slate-600 mt-0.5">Recebe notificações de todos os funis</p>
                 </button>
               </div>
@@ -433,10 +433,10 @@ function WhatsappPage() {
             </div>
 
             {/* Evolution API */}
-            <div className="rounded-xl border border-white/8 p-4 space-y-4" style={{ background: "#060b15" }}>
+            <div className="rounded-xl border border-white/8 p-4 space-y-4" className="bg-muted/50">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-amber-400" />
-                <p className="text-sm font-medium text-white">Evolution API</p>
+                <p className="text-sm font-medium text-foreground">Evolution API</p>
                 {globalConfig.evolution_api_url && (
                   <button onClick={() => setForm({ ...form, api_url: globalConfig.evolution_api_url, api_key: globalConfig.evolution_api_key })}
                     className="ml-auto text-xs text-emerald-400 hover:text-emerald-300">
@@ -458,7 +458,7 @@ function WhatsappPage() {
                     value={form.api_key} onChange={e => setForm({ ...form, api_key: e.target.value })}
                     placeholder="sua-chave-global" />
                   <button onClick={() => setShowKey(!showKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-300">
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-foreground/80">
                     {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -467,12 +467,12 @@ function WhatsappPage() {
 
             {/* Funil — só para números de funil */}
             {!form.is_office && (
-              <div className="rounded-xl border border-white/8 p-4 space-y-3" style={{ background: "#060b15" }}>
+              <div className="rounded-xl border border-white/8 p-4 space-y-3" className="bg-muted/50">
                 <div className="flex items-center gap-2">
                   <Bot className="h-4 w-4 text-emerald-400" />
-                  <p className="text-sm font-medium text-white">Funil de atendimento *</p>
+                  <p className="text-sm font-medium text-foreground">Funil de atendimento *</p>
                 </div>
-                <p className="text-xs text-slate-500">Toda mensagem recebida neste número será atendida por este funil automaticamente.</p>
+                <p className="text-xs text-muted-foreground">Toda mensagem recebida neste número será atendida por este funil automaticamente.</p>
                 {funis.length === 0 ? (
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
                     <AlertCircle className="h-4 w-4 shrink-0" />
@@ -480,12 +480,12 @@ function WhatsappPage() {
                   </div>
                 ) : (
                   <Select value={form.funnel_id} onValueChange={v => setForm({ ...form, funnel_id: v })}>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                    <SelectTrigger className="bg-white/5 border-white/10 text-foreground">
                       <SelectValue placeholder="Selecione o funil..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#1e293b] border-white/10">
+                    <SelectContent className="bg-[#1e293b] border-border">
                       {funis.map(f => (
-                        <SelectItem key={f.id} value={f.id} className="text-white focus:bg-white/10">
+                        <SelectItem key={f.id} value={f.id} className="text-white focus:bg-muted">
                           {f.name} {f.is_default ? "(padrão)" : ""}
                         </SelectItem>
                       ))}
@@ -498,7 +498,7 @@ function WhatsappPage() {
             {/* Botões */}
             <div className="flex gap-3">
               <Button onClick={() => { setTab("numeros"); setEditingId(null); }} variant="outline"
-                className="border-white/10 text-slate-400 hover:bg-white/5">
+                className="border-white/10 text-slate-400 hover:bg-muted/50">
                 Cancelar
               </Button>
               <Button onClick={handleSave} disabled={busy === "save"}
@@ -508,8 +508,8 @@ function WhatsappPage() {
             </div>
 
             {!editingId && (
-              <div className="rounded-xl border border-white/8 p-4 space-y-3" style={{ background: "#060b15" }}>
-                <p className="text-xs font-medium text-slate-400">📋 Próximos passos após adicionar:</p>
+              <div className="rounded-xl border border-white/8 p-4 space-y-3" className="bg-muted/50">
+                <p className="text-xs font-medium text-muted-foreground">📋 Próximos passos após adicionar:</p>
                 <div className="space-y-2">
                   {[
                     "Clique em Conectar no card do número",
@@ -517,7 +517,7 @@ function WhatsappPage() {
                     "Configure a URL do Webhook na Evolution API",
                     "Teste enviando uma mensagem para o número",
                   ].map((step, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs text-slate-500">
+                    <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
                       <span className="h-4 w-4 rounded-full bg-white/5 text-slate-600 flex items-center justify-center shrink-0 font-bold">{i + 1}</span>
                       {step}
                     </div>
@@ -539,11 +539,11 @@ function WhatsappPage() {
             </div>
 
             {/* Evolution API global */}
-            <div className="rounded-xl border border-white/8 p-5 space-y-4" style={{ background: "#0d1424" }}>
+            <div className="rounded-xl border border-white/8 p-5 space-y-4" className="bg-card">
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-amber-400" />
                 <div>
-                  <p className="font-medium text-white">Evolution API — configuração padrão</p>
+                  <p className="font-medium text-foreground">Evolution API — configuração padrão</p>
                   <p className="text-xs text-slate-500 mt-0.5">Usada automaticamente ao criar novos números</p>
                 </div>
               </div>
@@ -568,12 +568,12 @@ function WhatsappPage() {
             </div>
 
             {/* Info sobre os números */}
-            <div className="rounded-xl border border-white/8 p-5 space-y-4" style={{ background: "#0d1424" }}>
+            <div className="rounded-xl border border-white/8 p-5 space-y-4" className="bg-card">
               <p className="font-medium text-white flex items-center gap-2">
-                <Smartphone className="h-4 w-4 text-slate-400" /> Resumo dos números
+                <Smartphone className="h-4 w-4 text-muted-foreground" /> Resumo dos números
               </p>
               {instances.length === 0 ? (
-                <p className="text-sm text-slate-500">Nenhum número configurado ainda.</p>
+                <p className="text-sm text-muted-foreground">Nenhum número configurado ainda.</p>
               ) : (
                 <div className="space-y-3">
                   {instances.map(inst => {
@@ -584,7 +584,7 @@ function WhatsappPage() {
                         <div className={cn("h-2 w-2 rounded-full shrink-0", status.color)} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-white font-medium">{inst.phone_number || inst.instance_name}</p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-muted-foreground">
                             {inst.is_office ? "Escritório" : funil?.name || "Sem funil"}
                           </p>
                         </div>

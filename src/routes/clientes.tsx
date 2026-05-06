@@ -51,7 +51,7 @@ function DocIcon({ type }: { type: string | null }) {
   if (type === "audio")    return <Mic      className="h-4 w-4 text-violet-400" />;
   if (type === "image")    return <Image    className="h-4 w-4 text-blue-400" />;
   if (type === "document") return <FileText className="h-4 w-4 text-amber-400" />;
-  return <File className="h-4 w-4 text-slate-500" />;
+  return <File className="h-4 w-4 text-muted-foreground" />;
 }
 
 function ClienteDrawer({ client, onClose }: { client: Client; onClose: () => void }) {
@@ -79,18 +79,18 @@ function ClienteDrawer({ client, onClose }: { client: Client; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex" onClick={onClose}>
       <div className="flex-1" />
-      <div className="w-[420px] h-full border-l border-white/10 flex flex-col" style={{ background: "#0d1424" }}
+      <div className="w-[420px] h-full border-l border-white/10 flex flex-col" className="bg-card"
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center gap-4 p-6 border-b border-white/8">
+        <div className="flex items-center gap-4 p-6 border-b border-border">
           <div className="h-14 w-14 rounded-xl flex items-center justify-center text-2xl font-bold text-white shrink-0"
             style={{ background: `hsl(${client.full_name.charCodeAt(0) * 7 % 360}, 60%, 25%)` }}>
             {client.full_name[0].toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="font-bold text-white text-lg truncate">{client.full_name}</h2>
-            {client.document && <p className="text-xs text-slate-500">CPF: {client.document}</p>}
+            {client.document && <p className="text-xs text-muted-foreground">CPF: {client.document}</p>}
             {client.whatsapp && (
               <button onClick={() => { onClose(); navigate({ to: "/inbox" }); }}
                 className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 mt-1">
@@ -106,7 +106,7 @@ function ClienteDrawer({ client, onClose }: { client: Client; onClose: () => voi
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={cn("flex items-center gap-1.5 px-3 py-3 text-xs font-medium border-b-2 transition-colors",
-                tab === t.id ? "border-emerald-500 text-emerald-400" : "border-transparent text-slate-500 hover:text-slate-300")}>
+                tab === t.id ? "border-emerald-500 text-emerald-400" : "border-transparent text-slate-500 hover:text-foreground/80")}>
               <t.icon className="h-3.5 w-3.5" />
               {t.label}
               {t.badge ? <span className="px-1.5 py-0.5 rounded-full bg-white/10 text-slate-400 text-[10px]">{t.badge}</span> : null}
@@ -128,12 +128,12 @@ function ClienteDrawer({ client, onClose }: { client: Client; onClose: () => voi
                   <Icon className="h-4 w-4 text-slate-600 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wide">{label}</p>
-                    <p className="text-sm text-slate-300">{value}</p>
+                    <p className="text-sm text-foreground/80">{value}</p>
                   </div>
                 </div>
               ) : null)}
               {client.notes && (
-                <div className="p-3 rounded-lg bg-white/5 border border-white/8">
+                <div className="p-3 rounded-lg bg-white/5 border border-border">
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Observações</p>
                   <p className="text-sm text-slate-400 italic">{client.notes}</p>
                 </div>
@@ -156,14 +156,14 @@ function ClienteDrawer({ client, onClose }: { client: Client; onClose: () => voi
           {tab === "docs" && (
             <div className="space-y-2">
               {docs.length === 0 && (
-                <div className="text-center py-10 text-slate-600">
+                <div className="text-center py-10 text-muted-foreground/70">
                   <FileText className="h-10 w-10 mx-auto mb-2 opacity-30" />
                   <p className="text-sm">Nenhum documento recebido ainda.</p>
                   <p className="text-xs mt-1">Documentos enviados via WhatsApp aparecem aqui automaticamente.</p>
                 </div>
               )}
               {docs.map(doc => (
-                <div key={doc.id} className="flex items-start gap-3 p-3 rounded-xl border border-white/8 bg-white/3">
+                <div key={doc.id} className="flex items-start gap-3 p-3 rounded-xl border border-white/8 bg-muted/30">
                   <div className="mt-0.5 shrink-0"><DocIcon type={doc.media_type} /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-white truncate">
@@ -182,7 +182,7 @@ function ClienteDrawer({ client, onClose }: { client: Client; onClose: () => voi
                     </p>
                   </div>
                   {doc.file_url && !doc.file_url.startsWith("whatsapp-media://") && (
-                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="shrink-0 text-slate-600 hover:text-white">
+                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="shrink-0 text-slate-600 hover:text-foreground">
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                   )}
@@ -194,7 +194,7 @@ function ClienteDrawer({ client, onClose }: { client: Client; onClose: () => voi
           {tab === "contratos" && (
             <div className="space-y-3">
               {contracts.length === 0 && (
-                <div className="text-center py-10 text-slate-600">
+                <div className="text-center py-10 text-muted-foreground/70">
                   <FileSignature className="h-10 w-10 mx-auto mb-2 opacity-30" />
                   <p className="text-sm">Nenhum contrato gerado ainda.</p>
                 </div>
@@ -203,7 +203,7 @@ function ClienteDrawer({ client, onClose }: { client: Client; onClose: () => voi
                 <div key={c.id} className="p-3 rounded-xl border border-white/8 bg-white/3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-white capitalize">{c.status}</span>
-                    <span className="text-[10px] text-slate-500">{new Date(c.created_at).toLocaleDateString("pt-BR")}</span>
+                    <span className="text-[10px] text-muted-foreground">{new Date(c.created_at).toLocaleDateString("pt-BR")}</span>
                   </div>
                   {c.signing_url && (
                     <a href={c.signing_url} target="_blank" rel="noreferrer"
@@ -265,9 +265,9 @@ function ClientesPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/8 shrink-0">
         <div className="flex items-center gap-3">
-          <Users className="h-5 w-5 text-slate-400" />
-          <h1 className="text-lg font-bold text-white">Clientes</h1>
-          <span className="text-xs text-slate-600">{clients.length} total</span>
+          <Users className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-lg font-bold text-foreground">Clientes</h1>
+          <span className="text-xs text-muted-foreground/70">{clients.length} total</span>
         </div>
         <Button onClick={() => setOpen(true)} size="sm"
           className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white border-0">
@@ -278,7 +278,7 @@ function ClientesPage() {
       {/* Busca */}
       <div className="px-6 py-3 border-b border-white/5 shrink-0">
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-600" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
           <input className="w-full pl-9 pr-4 py-2 rounded-lg bg-white/5 border border-white/8 text-sm text-white placeholder-slate-600 outline-none focus:border-emerald-500/50"
             placeholder="Buscar por nome, CPF, e-mail..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
@@ -289,7 +289,7 @@ function ClientesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map(c => (
             <div key={c.id} className="rounded-xl border border-white/8 p-4 cursor-pointer hover:border-white/20 transition-all group"
-              style={{ background: "#0d1424" }} onClick={() => setSelected(c)}>
+              className="bg-card" onClick={() => setSelected(c)}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold text-white shrink-0"
@@ -298,7 +298,7 @@ function ClientesPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-white text-sm">{c.full_name}</p>
-                    {c.document && <p className="text-xs text-slate-500">CPF: {c.document}</p>}
+                    {c.document && <p className="text-xs text-muted-foreground">CPF: {c.document}</p>}
                   </div>
                 </div>
                 <button onClick={e => { e.stopPropagation(); handleDelete(c.id); }}
@@ -314,7 +314,7 @@ function ClientesPage() {
             </div>
           ))}
           {filtered.length === 0 && (
-            <div className="col-span-full text-center py-16 text-slate-600">
+            <div className="col-span-full text-center py-16 text-muted-foreground/70">
               <Users className="h-12 w-12 mx-auto mb-3 opacity-20" />
               <p>Nenhum cliente encontrado</p>
             </div>
@@ -327,7 +327,7 @@ function ClientesPage() {
 
       {/* Modal criar */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg bg-[#0d1424] border-white/10 text-white">
+        <DialogContent className="max-w-lg bg-card border-border text-foreground">
           <DialogHeader><DialogTitle>Novo cliente</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
@@ -361,7 +361,7 @@ function ClientesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} className="border-white/10 text-slate-400">Cancelar</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} className="border-white/10 text-muted-foreground">Cancelar</Button>
             <Button onClick={handleCreate} className="bg-emerald-600 hover:bg-emerald-500 text-white border-0">Criar</Button>
           </DialogFooter>
         </DialogContent>

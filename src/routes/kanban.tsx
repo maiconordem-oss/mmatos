@@ -50,7 +50,7 @@ function ScoreBar({ score }: { score?: number | null }) {
   const color = score >= 80 ? "#22c55e" : score >= 50 ? "#f59e0b" : "#ef4444";
   return (
     <div className="flex items-center gap-2 mt-1">
-      <div className="flex-1 h-1 rounded-full bg-white/10">
+      <div className="flex-1 h-1 rounded-full bg-muted">
         <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: color }} />
       </div>
       <span className="text-[10px] font-mono" style={{ color }}>{score}%</span>
@@ -73,9 +73,9 @@ function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, onClic
         "rounded-xl border p-4 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-lg group",
         isUrgent ? "border-red-500/40 bg-red-500/5 hover:bg-red-500/8" :
         isStuck  ? "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/8" :
-                   "border-white/8 hover:border-white/15",
+                   "border-white/8 hover:border-border",
       )}
-      style={{ background: isUrgent ? undefined : isStuck ? undefined : "#0d1424" }}>
+      style={{ background: isUrgent ? undefined : isStuck ? undefined : undefined }}>
 
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -107,7 +107,7 @@ function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, onClic
         <div className={cn("flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full",
           isUrgent ? "bg-red-500/20 text-red-400" :
           isStuck  ? "bg-amber-500/20 text-amber-400" :
-                     "bg-white/5 text-slate-500")}>
+                     "bg-white/5 text-muted-foreground")}>
           <Clock className="h-2.5 w-2.5" />
           {timeAgo(card.updated_at)}
           {isStuck && " ⚠"}
@@ -118,8 +118,8 @@ function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, onClic
           </span>
         )}
         <div className="ml-auto flex items-center gap-1">
-          {card.has_docs     && <FileText  className="h-3 w-3 text-slate-600" />}
-          {card.has_meeting  && <Calendar  className="h-3 w-3 text-slate-600" />}
+          {card.has_docs     && <FileText  className="h-3 w-3 text-muted-foreground/70" />}
+          {card.has_meeting  && <Calendar  className="h-3 w-3 text-muted-foreground/70" />}
           {card.ai_handled   && <Bot       className="h-3 w-3 text-emerald-600" />}
         </div>
       </div>
@@ -220,9 +220,9 @@ function KanbanPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/8 shrink-0">
         <div className="flex items-center gap-3">
-          <Layers className="h-5 w-5 text-slate-400" />
-          <h1 className="text-lg font-bold text-white">Kanban</h1>
-          <span className="text-xs text-slate-600">
+          <Layers className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-lg font-bold text-foreground">Kanban</h1>
+          <span className="text-xs text-muted-foreground/70">
             {Object.values(cards).flat().length} leads total
           </span>
         </div>
@@ -246,8 +246,8 @@ function KanbanPage() {
                 <div className={cn("flex items-center justify-between px-3 py-2.5 rounded-xl mb-3 border", stage.bg, stage.border)}>
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 rounded-full" style={{ background: stage.color }} />
-                    <span className="text-sm font-semibold text-white">{stage.label}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/10 text-slate-400">{stageCards.length}</span>
+                    <span className="text-sm font-semibold text-foreground">{stage.label}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/10 text-muted-foreground">{stageCards.length}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {totalValue > 0 && (
@@ -284,7 +284,7 @@ function KanbanPage() {
 
       {/* Modal criar lead */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg bg-[#0d1424] border-white/10 text-white">
+        <DialogContent className="max-w-lg bg-card border-border text-foreground">
           <DialogHeader><DialogTitle>Novo lead</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
@@ -298,9 +298,9 @@ function KanbanPage() {
                 <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1">
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
-                <SelectContent className="bg-[#1e293b] border-white/10">
+                <SelectContent className="bg-[#1e293b] border-border">
                   {clients.map(c => (
-                    <SelectItem key={c.id} value={c.id} className="text-white hover:bg-white/10">{c.full_name}</SelectItem>
+                    <SelectItem key={c.id} value={c.id} className="text-white hover:bg-muted">{c.full_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -312,8 +312,8 @@ function KanbanPage() {
                   <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1e293b] border-white/10">
-                    {STAGES.map(s => <SelectItem key={s.id} value={s.id} className="text-white">{s.label}</SelectItem>)}
+                  <SelectContent className="bg-[#1e293b] border-border">
+                    {STAGES.map(s => <SelectItem key={s.id} value={s.id} className="text-foreground">{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -330,7 +330,7 @@ function KanbanPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} className="border-white/10 text-slate-400">Cancelar</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} className="border-white/10 text-muted-foreground">Cancelar</Button>
             <Button onClick={handleCreate} className="bg-emerald-600 hover:bg-emerald-500 text-white border-0">Criar</Button>
           </DialogFooter>
         </DialogContent>
@@ -340,14 +340,14 @@ function KanbanPage() {
       {selectedCard && (
         <div className="fixed inset-0 z-50 flex" onClick={() => setSelectedCard(null)}>
           <div className="flex-1" />
-          <div className="w-96 h-full border-l border-white/10 p-6 overflow-y-auto" style={{ background: "#0d1424" }}
+          <div className="w-96 h-full border-l border-white/10 p-6 overflow-y-auto" className="bg-card"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-bold text-white">{selectedCard.client_name || "Lead"}</h2>
+              <h2 className="font-bold text-foreground">{selectedCard.client_name || "Lead"}</h2>
               <button onClick={() => setSelectedCard(null)} className="text-slate-500 hover:text-white text-sm">✕</button>
             </div>
             <div className="space-y-4">
-              <div><p className="text-xs text-slate-500 mb-1">Título</p><p className="text-sm text-white">{selectedCard.title}</p></div>
+              <div><p className="text-xs text-slate-500 mb-1">Título</p><p className="text-sm text-foreground">{selectedCard.title}</p></div>
               <div><p className="text-xs text-slate-500 mb-1">Área</p><p className="text-sm text-white capitalize">{selectedCard.area}</p></div>
               <div><p className="text-xs text-slate-500 mb-1">Prioridade</p><p className="text-sm text-white capitalize">{selectedCard.priority}</p></div>
               {selectedCard.value && <div><p className="text-xs text-slate-500 mb-1">Valor</p><p className="text-sm text-emerald-400 font-bold">R$ {Number(selectedCard.value).toLocaleString("pt-BR")}</p></div>}
