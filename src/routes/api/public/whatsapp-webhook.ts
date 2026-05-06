@@ -148,12 +148,30 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
 
           // ── Processar mídia recebida ───────────────────────
           if (hasMedia) {
-            await processInboundMedia({
+            // Baixar mídia e salvar permanentemente no Supabase Storage
+          const msgKeyId = msg?.key?.id || null;
+          let permanentUrl = mediaUrl;
+          if (hasMedia && msgKeyId && inst.api_url && inst.api_key) {
+            const stored = await downloadAndStoreMedia(
+              supabaseAdmin, inst.user_id, msgKeyId,
+              inst.api_url, inst.api_key, inst.instance_name, mediaMime
+            );
+            if (stored) {
+              permanentUrl = stored;
+              // Atualizar a mensagem com a URL permanente
+              await supabaseAdmin.from("messages")
+                .update({ media_url: stored })
+                .eq("external_id", msgKeyId)
+                .eq("conversation_id", conv.id);
+            }
+          }
+
+          await processInboundMedia({
               admin:          supabaseAdmin,
               userId:         inst.user_id,
               convId:         conv.id,
               mediaType:      mediaType!,
-              mediaUrl,
+              mediaUrl:       permanentUrl,
               mediaMime,
               mediaId,
               caption:        imageMsg?.caption || documentMsg?.caption || videoMsg?.caption || "",
@@ -161,7 +179,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               instApiUrl:     inst.api_url ?? "",
               instApiKey:     inst.api_key ?? "",
               instName:       inst.instance_name,
-              msgId:          msg?.key?.id || null,
+              msgId:          msgKeyId,
               transcription:  audioTranscription,
             });
           }
@@ -310,6 +328,65 @@ async function transcribeViaGateway(
 }
 
 // ── Processar mídia: salvar como documento do cliente ────────
+
+// ── Baixar mídia da Evolution e salvar no Supabase Storage ─────
+async function downloadAndStoreMedia(
+  admin: any,
+  userId: string,
+  msgId: string,
+  instApiUrl: string,
+  instApiKey: string,
+  instName: string,
+  mediaMime: string | null
+): Promise<string | null> {
+  if (!instApiUrl || !instApiKey || !instName || !msgId) return null;
+  try {
+    // Pegar base64 via Evolution API
+    const res = await fetch(
+      `${instApiUrl.replace(/\/$/, "")}/chat/getBase64FromMediaMessage/${instName}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: instApiKey },
+        body: JSON.stringify({ message: { key: { id: msgId } }, convertToMp4: false }),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const base64 = data?.base64 || data?.data;
+    if (!base64) return null;
+
+    // Converter base64 para bytes
+    const clean = base64.replace(/^data:[^;]+;base64,/, "");
+    const bin   = atob(clean);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    const mime = data?.mimetype || mediaMime || "application/octet-stream";
+    const ext  = mime.split("/")[1]?.split(";")[0] || "bin";
+    const path = `${userId}/media/${msgId}.${ext}`;
+
+    // Upload para Supabase Storage
+    const { data: up, error } = await admin.storage
+      .from("whatsapp-media")
+      .upload(path, bytes, { contentType: mime, upsert: true });
+
+    if (error) {
+      console.error("Storage upload error:", error.message);
+      return null;
+    }
+
+    // URL pública (bucket público) ou signed URL (bucket privado)
+    const { data: urlData } = admin.storage
+      .from("whatsapp-media")
+      .getPublicUrl(path);
+
+    return urlData?.publicUrl ?? null;
+  } catch (e: any) {
+    console.error("downloadAndStoreMedia error:", e.message);
+    return null;
+  }
+}
+
 async function processInboundMedia(opts: {
   admin: any; userId: string; convId: string;
   mediaType: string; mediaUrl: string | null; mediaMime: string | null;
