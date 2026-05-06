@@ -27,6 +27,7 @@ import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiSimulateRouteImport } from './routes/api/simulate'
 import { Route as ApiGeneratePromptRouteImport } from './routes/api/generate-prompt'
 import { Route as ApiDebugWebhookRouteImport } from './routes/api/debug-webhook'
+import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
@@ -116,6 +117,7 @@ const ApiGeneratePromptRoute = ApiGeneratePromptRouteImport.update({
   path: '/api/generate-prompt',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaProxyRoute = ApiMediaProxyRouteImport.update({ id: '/api/media-proxy', path: '/api/media-proxy', getParentRoute: () => rootRouteImport } as any)
 const ApiDebugWebhookRoute = ApiDebugWebhookRouteImport.update({
   id: '/api/debug-webhook',
   path: '/api/debug-webhook',
