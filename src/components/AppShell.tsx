@@ -80,7 +80,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
 
       {/* Sidebar */}
       <aside className={cn(
-        "shrink-0 flex flex-col border-r border-border bg-sidebar transition-all duration-300",
+        "shrink-0 flex flex-col border-r border-border bg-sidebar transition-all duration-300 shadow-sm",
         collapsed ? "w-[60px]" : "w-56"
       )}>
 
