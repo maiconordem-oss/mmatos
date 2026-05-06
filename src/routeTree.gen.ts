@@ -207,6 +207,7 @@ export interface FileRoutesById {
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/simulate': typeof ApiSimulateRoute
+  '/api/media-proxy': typeof ApiMediaProxyRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
@@ -232,6 +233,7 @@ export interface FileRouteTypes {
     | '/api/debug-webhook'
     | '/api/generate-prompt'
     | '/api/simulate'
+    | '/api/media-proxy'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
@@ -255,6 +257,7 @@ export interface FileRouteTypes {
     | '/api/debug-webhook'
     | '/api/generate-prompt'
     | '/api/simulate'
+    | '/api/media-proxy'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
@@ -278,6 +281,7 @@ export interface FileRouteTypes {
     | '/api/debug-webhook'
     | '/api/generate-prompt'
     | '/api/simulate'
+    | '/api/media-proxy'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
@@ -302,6 +306,7 @@ export interface RootRouteChildren {
   ApiDebugWebhookRoute: typeof ApiDebugWebhookRoute
   ApiGeneratePromptRoute: typeof ApiGeneratePromptRoute
   ApiSimulateRoute: typeof ApiSimulateRoute
+  ApiMediaProxyRoute: typeof ApiMediaProxyRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicWorkflowTickRoute: typeof ApiPublicWorkflowTickRoute
   ApiPublicZapsignWebhookRoute: typeof ApiPublicZapsignWebhookRoute
@@ -489,6 +494,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDebugWebhookRoute: ApiDebugWebhookRoute,
   ApiGeneratePromptRoute: ApiGeneratePromptRoute,
   ApiSimulateRoute: ApiSimulateRoute,
+  ApiMediaProxyRoute: ApiMediaProxyRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicWorkflowTickRoute: ApiPublicWorkflowTickRoute,
   ApiPublicZapsignWebhookRoute: ApiPublicZapsignWebhookRoute,
