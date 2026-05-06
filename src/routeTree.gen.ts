@@ -158,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/simulate': typeof ApiSimulateRoute
+  '/api/media-proxy': typeof ApiMediaProxyRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
@@ -181,6 +182,7 @@ export interface FileRoutesByTo {
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/simulate': typeof ApiSimulateRoute
+  '/api/media-proxy': typeof ApiMediaProxyRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute

@@ -73,9 +73,9 @@ function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, onClic
         "rounded-xl border p-4 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-lg group",
         isUrgent ? "border-red-500/40 bg-red-500/5 hover:bg-red-500/8" :
         isStuck  ? "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/8" :
-                   "border-white/8 hover:border-border",
+                   "border-border hover:border-foreground/20",
       )}
-      style={{ background: isUrgent ? undefined : isStuck ? undefined : undefined }}>
+>
 
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-2">
