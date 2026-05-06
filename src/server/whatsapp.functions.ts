@@ -27,9 +27,9 @@ function _publicWebhookUrl(instanceId: string, secret: string) {
 }
 async function _getEvoCreds(supabase: any, userId: string) {
   const { data } = await supabase.from("user_settings").select("evolution_api_url, evolution_api_key").eq("user_id", userId).maybeSingle();
-  const url = data?.evolution_api_url; const key = data?.evolution_api_key;
-  if (!url || !key) throw new Error("Configure a Evolution API em Configurações antes de conectar uma instância.");
-  return { url, key };
+  const url = data?.evolution_api_url;
+  const key = data?.evolution_api_key;
+  return { url: url ?? null, key: key ?? null };
 }
 const evo = _evo;
 const publicWebhookUrl = _publicWebhookUrl;
@@ -38,20 +38,33 @@ const getEvoCreds = _getEvoCreds;
 export const upsertInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(),
-    id: z.string().uuid().optional(),
+    id:            z.string().uuid().optional(),
     instance_name: z.string().min(1).max(60).regex(/^[a-zA-Z0-9_-]+$/),
-    funnel_id: z.string().uuid().nullable().optional(),
+    api_url:       z.string().url().optional(),
+    api_key:       z.string().optional(),
+    funnel_id:     z.string().uuid().nullable().optional(),
+    is_office:     z.boolean().optional(),
   }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
-    // garante que credenciais existem
-    await getEvoCreds(supabase, userId);
 
     const payload: any = {
-      user_id:      userId,
+      user_id:       userId,
       instance_name: data.instance_name,
-      funnel_id:    data.funnel_id ?? null,
+      funnel_id:     data.funnel_id ?? null,
+      is_office:     data.is_office ?? false,
     };
+
+    // Salvar api_url e api_key se fornecidos
+    if (data.api_url)  payload.api_url  = data.api_url;
+    if (data.api_key)  payload.api_key  = data.api_key;
+
+    // Se não fornecidos, usar as credenciais globais do usuário
+    if (!payload.api_url || !payload.api_key) {
+      const creds = await getEvoCreds(supabase, userId);
+      if (!payload.api_url && creds?.url)  payload.api_url  = creds.url;
+      if (!payload.api_key && creds?.key)  payload.api_key  = creds.key;
+    }
 
     let row: any;
     if (data.id) {
@@ -76,7 +89,11 @@ export const connectInstance = createServerFn({ method: "POST" })
     const { data: inst, error } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
     if (error || !inst) throw new Error("Instância não encontrada");
 
-    const { url, key } = await getEvoCreds(supabase, userId);
+    // Usar api_url da própria instância, ou fallback para global
+    const creds = await getEvoCreds(supabase, userId);
+    const url = inst.api_url || creds.url;
+    const key = inst.api_key || creds.key;
+    if (!url || !key) throw new Error("Configure a URL e API Key da Evolution API na instância ou em Configurações.");
 
     const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
     const events = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"];

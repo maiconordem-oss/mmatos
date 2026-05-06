@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2 } from "lucide-react";
+import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2, Image, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -802,24 +802,85 @@ function InboxPage() {
                   </div>
                   {group.messages.map(m => (
                     <div key={m.id} className={cn("flex mb-1", m.direction === "outbound" ? "justify-end" : "justify-start")}>
-                      <div className={cn("max-w-[65%] px-3 py-2 rounded-lg text-sm", m.direction === "outbound" ? "rounded-tr-none" : "rounded-tl-none")}
+                      <div className={cn("max-w-[65%] rounded-lg text-sm overflow-hidden", m.direction === "outbound" ? "rounded-tr-none" : "rounded-tl-none")}
                         style={{ background: m.direction === "outbound" ? "#005c4b" : "#202c33" }}>
-                        {m.media_type === "audio" && (
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)" }}>
+
+                        {/* IMAGEM */}
+                        {m.media_type === "image" && m.media_url && (
+                          <a href={m.media_url} target="_blank" rel="noreferrer">
+                            <img src={m.media_url} alt="imagem" className="max-w-full block" style={{ maxHeight: 280, minWidth: 160 }}
+                              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                          </a>
+                        )}
+                        {m.media_type === "image" && !m.media_url && (
+                          <div className="flex items-center gap-2 px-3 py-2">
+                            <Image className="h-5 w-5 text-white/50" />
+                            <span className="text-white/60 text-xs">Imagem</span>
+                          </div>
+                        )}
+
+                        {/* ÁUDIO — player nativo */}
+                        {m.media_type === "audio" && m.media_url && (
+                          <div className="px-2 py-2">
+                            <audio controls src={m.media_url} className="h-8 w-48" style={{ filter: "invert(0.8)" }} />
+                          </div>
+                        )}
+                        {m.media_type === "audio" && !m.media_url && (
+                          <div className="flex items-center gap-3 px-3 py-2.5">
+                            <div className="h-9 w-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.15)" }}>
                               <Mic className="h-4 w-4 text-white" />
                             </div>
-                            <div className="flex-1">
-                              <div className="h-1 rounded-full opacity-40 bg-white w-24" />
-                              <p className="text-[10px] text-white/60 mt-0.5">Áudio</p>
+                            <div>
+                              <div className="flex gap-0.5 items-end h-5">
+                                {[3,5,4,6,3,5,4,3,5,6,4,3].map((h,i) => (
+                                  <div key={i} className="w-0.5 rounded-full bg-white/40" style={{ height: h*3 }} />
+                                ))}
+                              </div>
+                              <p className="text-[10px] text-white/50 mt-0.5">Áudio</p>
                             </div>
                           </div>
                         )}
-                        {m.media_type === "image" && m.media_url && (
-                          <img src={m.media_url} alt="img" className="rounded mb-1 max-w-full" style={{ maxHeight: 200 }} />
+
+                        {/* VÍDEO */}
+                        {m.media_type === "video" && m.media_url && (
+                          <video controls src={m.media_url} className="max-w-full block" style={{ maxHeight: 280, minWidth: 160 }} />
                         )}
-                        <p className="text-white leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
-                        <div className="flex items-center gap-1 justify-end mt-1">
+                        {m.media_type === "video" && !m.media_url && (
+                          <div className="flex items-center gap-2 px-3 py-2">
+                            <Video className="h-5 w-5 text-white/50" />
+                            <span className="text-white/60 text-xs">Vídeo</span>
+                          </div>
+                        )}
+
+                        {/* DOCUMENTO */}
+                        {m.media_type === "document" && (
+                          <div className="flex items-center gap-3 px-3 py-2.5" style={{ minWidth: 200 }}>
+                            <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>
+                              <FileText className="h-5 w-5 text-white/70" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white text-xs font-medium truncate">{m.content || "Documento"}</p>
+                              <p className="text-white/40 text-[10px]">Documento</p>
+                            </div>
+                            {m.media_url && (
+                              <a href={m.media_url} target="_blank" rel="noreferrer"
+                                className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        {/* TEXTO */}
+                        {m.content && m.media_type !== "document" && (
+                          <p className="text-white leading-relaxed whitespace-pre-wrap break-words px-3 py-2">{m.content}</p>
+                        )}
+                        {!m.content && !m.media_type && (
+                          <p className="text-white/30 text-xs px-3 py-2 italic">Mensagem</p>
+                        )}
+
+                        {/* Timestamp */}
+                        <div className="flex items-center gap-1 justify-end px-2 pb-1.5 -mt-1">
                           <span className="text-[10px] text-[#8696a0]">{formatMsgTime(m.created_at)}</span>
                           {m.direction === "outbound" && (
                             <CheckCheck className={cn("h-3 w-3", m.status === "read" ? "text-[#53bdeb]" : "text-[#8696a0]")} />
