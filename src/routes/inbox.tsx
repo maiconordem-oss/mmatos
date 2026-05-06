@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2, Image, ExternalLink } from "lucide-react";
+import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2, Image, ExternalLink, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -32,7 +32,14 @@ type Conversation = {
   id: string; phone: string; contact_name: string | null;
   last_message_preview: string | null; last_message_at: string | null;
   unread_count: number; ai_paused: boolean; ai_handled: boolean;
+  ticket_status: 'pending' | 'open' | 'resolved';
+  assigned_to: string | null;
+  tags: string[];
+  instance_id: string | null;
 };
+
+type QuickReply = { id: string; shortcut: string; message: string };
+type ConvTag    = { id: string; name: string; color: string };
 
 type Message = {
   id: string; direction: "inbound" | "outbound";
@@ -247,10 +254,17 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
 function InboxPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [instances, setInstances]       = useState<any[]>([]);
+  const [instances, setInstances]         = useState<any[]>([]);
   const [activeInstance, setActiveInstance] = useState<string | "all">("all");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId]           = useState<string | null>(null);
+  const [ticketFilter, setTicketFilter]   = useState<"all"|"pending"|"open"|"resolved">("all");
+  const [quickReplies, setQuickReplies]   = useState<QuickReply[]>([]);
+  const [tags, setTags]                   = useState<ConvTag[]>([]);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [quickSearch, setQuickSearch]     = useState("");
+  const [showTagMenu, setShowTagMenu]     = useState(false);
+  const [businessHours, setBusinessHours] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
@@ -345,17 +359,41 @@ function InboxPage() {
     setInstances(data ?? []);
   }, []);
 
+  const loadQuickReplies = useCallback(async () => {
+    const { data } = await supabase.from("quick_replies").select("*").order("shortcut");
+    setQuickReplies(data ?? []);
+  }, []);
+
+  const loadTags = useCallback(async () => {
+    const { data } = await supabase.from("conversation_tags").select("*").order("name");
+    setTags(data ?? []);
+  }, []);
+
+  const loadBusinessHours = useCallback(async () => {
+    const { data } = await supabase.from("business_hours").select("*").maybeSingle();
+    setBusinessHours(data);
+  }, []);
+
   const loadConvs = useCallback(async () => {
     let q = supabase.from("conversations").select("*")
       .order("last_message_at", { ascending: false, nullsFirst: false });
-    if (activeInstance !== "all") {
-      q = q.eq("instance_id", activeInstance);
-    }
+    if (activeInstance !== "all") q = q.eq("instance_id", activeInstance);
     const { data } = await q;
     setConversations((data ?? []) as Conversation[]);
   }, [activeInstance]);
 
-  useEffect(() => { loadInstances(); }, [loadInstances]);
+  // Filtrar conversas por status de ticket
+  const filteredConvs = conversations.filter(c => {
+    if (ticketFilter === "all") return true;
+    return (c.ticket_status ?? "pending") === ticketFilter;
+  });
+
+  useEffect(() => {
+    loadInstances();
+    loadQuickReplies();
+    loadTags();
+    loadBusinessHours();
+  }, [loadInstances, loadQuickReplies, loadTags, loadBusinessHours]);
   useEffect(() => { loadConvs(); setActiveId(null); }, [loadConvs]);
 
   // Realtime conversas
@@ -402,11 +440,64 @@ function InboxPage() {
     if (data) { setActiveId(data.id); setShowLeadPanel(true); }
   };
 
+  // Aceitar ticket (assume o atendimento)
+  const acceptTicket = async (convId: string) => {
+    await supabase.from("conversations").update({
+      ticket_status: "open",
+      accepted_at:   new Date().toISOString(),
+      assigned_to:   user?.id ?? null,
+    }).eq("id", convId);
+    loadConvs();
+    toast.success("Atendimento aceito!");
+  };
+
+  // Resolver ticket
+  const resolveTicket = async (convId: string) => {
+    await supabase.from("conversations").update({
+      ticket_status: "resolved",
+      resolved_at:   new Date().toISOString(),
+    }).eq("id", convId);
+    setActiveId(null);
+    loadConvs();
+    toast.success("Ticket encerrado!");
+  };
+
+  // Reabrir ticket
+  const reopenTicket = async (convId: string) => {
+    await supabase.from("conversations").update({
+      ticket_status: "open",
+      resolved_at:   null,
+    }).eq("id", convId);
+    loadConvs();
+  };
+
+  // Adicionar/remover tag
+  const toggleTag = async (convId: string, tagName: string, currentTags: string[]) => {
+    const newTags = currentTags.includes(tagName)
+      ? currentTags.filter(t => t !== tagName)
+      : [...currentTags, tagName];
+    await supabase.from("conversations").update({ tags: newTags }).eq("id", convId);
+    loadConvs();
+  };
+
+  // Inserir resposta rápida no texto
+  const insertQuickReply = (message: string) => {
+    setText(message);
+    setShowQuickReplies(false);
+    setQuickSearch("");
+    if (textareaRef.current) textareaRef.current.focus();
+  };
+
   const handleSend = async () => {
     if (!user || !activeId || !text.trim()) return;
     const content = text.trim();
     setText("");
     if (textareaRef.current) textareaRef.current.style.height = "40px";
+    // Verificar se marcou ticket como aceito ao enviar manualmente
+    const conv = conversations.find(c => c.id === activeId);
+    if (conv && (conv.ticket_status ?? "pending") === "pending") {
+      await supabase.from("conversations").update({ ticket_status: "open", accepted_at: new Date().toISOString(), assigned_to: user?.id ?? null }).eq("id", activeId ?? "");
+    }
 
     // Salvar no banco
     await supabase.from("messages").insert({
@@ -446,6 +537,7 @@ function InboxPage() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Escape") { setShowQuickReplies(false); }
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -461,7 +553,7 @@ function InboxPage() {
   };
 
   const active  = conversations.find(c => c.id === activeId);
-  const filtered = conversations.filter(c =>
+  const filtered = filteredConvs.filter(c =>
     (c.contact_name || c.phone).toLowerCase().includes(search.toLowerCase())
   );
   const grouped = groupByDate(messages);
@@ -546,6 +638,35 @@ function InboxPage() {
           </div>
         )}
 
+        {/* Abas de status do ticket */}
+        <div className="flex border-b border-[#2a3942] shrink-0" style={{ background: "#202c33" }}>
+          {([
+            { key: "all",      label: "Todos" },
+            { key: "pending",  label: "Pendentes" },
+            { key: "open",     label: "Abertos" },
+            { key: "resolved", label: "Resolvidos" },
+          ] as const).map(tab => {
+            const count = tab.key === "all"
+              ? conversations.length
+              : conversations.filter(c => (c.ticket_status ?? "pending") === tab.key).length;
+            return (
+              <button key={tab.key} onClick={() => setTicketFilter(tab.key)}
+                className={cn("flex-1 py-2 text-[11px] font-medium transition-colors border-b-2",
+                  ticketFilter === tab.key
+                    ? "border-[#25d366] text-[#25d366]"
+                    : "border-transparent text-[#8696a0] hover:text-[#aebac1]")}>
+                {tab.label}
+                {count > 0 && (
+                  <span className="ml-1 px-1 py-0.5 rounded-full text-[9px] font-bold"
+                    style={{ background: ticketFilter === tab.key ? "#25d366" : "#2a3942", color: ticketFilter === tab.key ? "#000" : "#8696a0" }}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Busca */}
         <div className="px-3 py-2" style={{ background: "#111b21" }}>
           <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "#202c33" }}>
@@ -587,18 +708,41 @@ function InboxPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center">
                     <span className="text-white font-medium text-sm truncate">{c.contact_name || c.phone}</span>
-                    <span className={cn("text-xs shrink-0 ml-2", c.unread_count > 0 ? "text-[#25d366]" : "text-[#8696a0]")}>
-                      {c.last_message_at ? formatTime(c.last_message_at) : ""}
-                    </span>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      {/* Badge de status */}
+                      {(c.ticket_status ?? "pending") === "pending" && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold">NOVO</span>
+                      )}
+                      {(c.ticket_status ?? "pending") === "resolved" && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-500/20 text-slate-400 font-bold">✓</span>
+                      )}
+                      <span className={cn("text-xs", c.unread_count > 0 ? "text-[#25d366]" : "text-[#8696a0]")}>
+                        {c.last_message_at ? formatTime(c.last_message_at) : ""}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex justify-between items-center mt-0.5">
-                    <p className="text-[#8696a0] text-xs truncate">{c.last_message_preview || "Sem mensagens"}</p>
+                    <p className="text-[#8696a0] text-xs truncate flex-1">{c.last_message_preview || "Sem mensagens"}</p>
                     {c.unread_count > 0 && (
                       <span className="ml-2 shrink-0 h-5 min-w-5 px-1 rounded-full bg-[#25d366] text-black text-xs font-bold flex items-center justify-center">
                         {c.unread_count}
                       </span>
                     )}
                   </div>
+                  {/* Tags */}
+                  {c.tags?.length > 0 && (
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {c.tags.slice(0,3).map(tag => {
+                        const t = tags.find(x => x.name === tag);
+                        return (
+                          <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
+                            style={{ background: (t?.color ?? "#6366f1") + "30", color: t?.color ?? "#6366f1" }}>
+                            {tag}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </button>
             );
@@ -650,6 +794,56 @@ function InboxPage() {
                   <Bot className="h-3.5 w-3.5" />
                   {active.ai_paused ? "IA pausada" : "IA ativa"}
                 </button>
+
+                {/* Aceitar ticket */}
+                {(active.ticket_status ?? "pending") === "pending" && (
+                  <button onClick={() => acceptTicket(active.id)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors">
+                    <CheckCheck className="h-3.5 w-3.5" /> Aceitar
+                  </button>
+                )}
+                {/* Resolver ticket */}
+                {(active.ticket_status ?? "pending") !== "resolved" && (
+                  <button onClick={() => resolveTicket(active.id)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-slate-500/20 text-slate-400 hover:bg-slate-500/30 transition-colors">
+                    ✓ Resolver
+                  </button>
+                )}
+                {(active.ticket_status ?? "pending") === "resolved" && (
+                  <button onClick={() => reopenTicket(active.id)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors">
+                    ↩ Reabrir
+                  </button>
+                )}
+
+                {/* Tags */}
+                <div className="relative">
+                  <button onClick={() => setShowTagMenu(!showTagMenu)}
+                    className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-[#aebac1] hover:bg-[#3b4a54] transition-colors">
+                    🏷️ Tags
+                  </button>
+                  {showTagMenu && (
+                    <div className="absolute top-8 right-0 z-50 w-48 rounded-xl border border-[#2a3942] shadow-xl overflow-hidden" style={{ background: "#202c33" }}>
+                      <p className="text-[10px] text-[#8696a0] uppercase px-3 pt-2 pb-1">Adicionar tag</p>
+                      {tags.length === 0 && (
+                        <p className="text-xs text-[#8696a0] px-3 pb-3">Sem tags. Crie em configurações.</p>
+                      )}
+                      {tags.map(tag => {
+                        const hasTag = (active.tags ?? []).includes(tag.name);
+                        return (
+                          <button key={tag.id}
+                            onClick={() => toggleTag(active.id, tag.name, active.tags ?? [])}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#2a3942] text-left transition-colors">
+                            <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: tag.color }} />
+                            <span className="text-sm text-white flex-1">{tag.name}</span>
+                            {hasTag && <span className="text-[#25d366] text-xs">✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 <button onClick={() => setShowAiPanel(!showAiPanel)}
                   className={cn("p-2 rounded-full transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "hover:bg-[#2a3942] text-[#aebac1]")}>
                   <Sparkles className="h-5 w-5" />
@@ -897,6 +1091,34 @@ function InboxPage() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Quick Replies */}
+            {showQuickReplies && (
+              <div className="border-t border-[#2a3942] px-3 py-2" style={{ background: "#1a262e" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[#25d366] text-xs font-medium">⚡ Respostas rápidas</span>
+                  <input
+                    className="flex-1 bg-[#2a3942] rounded px-2 py-1 text-xs text-white placeholder-[#8696a0] outline-none"
+                    placeholder="Buscar..." value={quickSearch} onChange={e => setQuickSearch(e.target.value)} autoFocus />
+                  <button onClick={() => { setShowQuickReplies(false); setQuickSearch(""); }}
+                    className="text-[#8696a0] hover:text-white"><X className="h-4 w-4" /></button>
+                </div>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {quickReplies
+                    .filter(r => quickSearch === "" || r.shortcut.includes(quickSearch) || r.message.toLowerCase().includes(quickSearch.toLowerCase()))
+                    .map(r => (
+                      <button key={r.id} onClick={() => insertQuickReply(r.message)}
+                        className="w-full flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-[#2a3942] text-left transition-colors">
+                        <span className="text-[#25d366] text-xs font-mono shrink-0">/{r.shortcut}</span>
+                        <span className="text-white/80 text-xs truncate">{r.message}</span>
+                      </button>
+                    ))}
+                  {quickReplies.filter(r => quickSearch === "" || r.shortcut.includes(quickSearch) || r.message.toLowerCase().includes(quickSearch.toLowerCase())).length === 0 && (
+                    <p className="text-[#8696a0] text-xs text-center py-2">Nenhuma resposta encontrada</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Sugestões inteligentes (chips) */}
             {(suggestions.length > 0 || aiBusy === "suggest") && (
               <div className="px-4 pt-2 pb-1 shrink-0 border-t border-[#2a3942]/50" style={{ background: "#1a262e" }}>
@@ -926,6 +1148,12 @@ function InboxPage() {
 
             {/* Input */}
             <div className="px-4 py-3 flex items-end gap-2 shrink-0" style={{ background: "#202c33" }}>
+              {/* Quick Replies button */}
+              <button onClick={() => setShowQuickReplies(!showQuickReplies)}
+                title="Respostas rápidas (⚡)"
+                className={cn("p-2 shrink-0 transition-colors", showQuickReplies ? "text-[#25d366]" : "text-[#aebac1] hover:text-[#25d366]")}>
+                <Zap className="h-5 w-5" />
+              </button>
               <button onClick={() => doSuggest()} disabled={aiBusy !== null}
                 title="Sugerir 3 respostas"
                 className="p-2 text-[#aebac1] hover:text-[#25d366] shrink-0 disabled:opacity-50">
