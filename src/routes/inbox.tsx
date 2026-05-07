@@ -69,14 +69,31 @@ function useAudioRecorder() {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const getMimeType = () => {
+    const types = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/ogg;codecs=opus",
+      "audio/ogg",
+      "audio/mp4",
+    ];
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return "";
+  };
+
   const start = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+      const mimeType = getMimeType();
+      const mr = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
       chunksRef.current = [];
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/ogg; codecs=opus" });
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
         setAudioBlob(blob);
         stream.getTracks().forEach(t => t.stop());
       };
@@ -85,19 +102,24 @@ function useAudioRecorder() {
       setRecording(true);
       setDuration(0);
       timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
-    } catch (e) {
-      toast.error("Microfone não autorizado. Permita o acesso nas configurações do navegador.");
+    } catch (e: any) {
+      if (e.name === "NotAllowedError") {
+        toast.error("Permissão de microfone negada. Clique no ícone de cadeado na barra de endereço e permita o microfone.");
+      } else {
+        toast.error(`Erro ao acessar microfone: ${e.message}`);
+      }
     }
   };
 
   const stop = () => {
-    mediaRef.current?.stop();
+    if (mediaRef.current?.state === "recording") mediaRef.current.stop();
     setRecording(false);
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
   const cancel = () => {
-    mediaRef.current?.stop();
+    if (mediaRef.current?.state === "recording") mediaRef.current.stop();
+    chunksRef.current = [];
     setRecording(false);
     setAudioBlob(null);
     setDuration(0);
@@ -626,37 +648,43 @@ function InboxPage() {
     if (!recorder.audioBlob || !activeId || !user) return;
     setSendingAudio(true);
     try {
-      // Salvar no Supabase Storage
-      const fileName = `${user.id}/audio/${Date.now()}.ogg`;
-      const { data: uploaded, error: upErr } = await supabase.storage
-        .from("whatsapp-media")
-        .upload(fileName, recorder.audioBlob, { contentType: "audio/ogg; codecs=opus", upsert: true });
+      const mime = recorder.audioBlob.type || "audio/webm";
+      const ext  = mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "mp4" : "webm";
+      const fileName = `${user.id}/audio/${Date.now()}.${ext}`;
 
-      if (upErr) throw upErr;
+      const { error: upErr } = await supabase.storage
+        .from("whatsapp-media")
+        .upload(fileName, recorder.audioBlob, { contentType: mime, upsert: true });
+
+      if (upErr) throw new Error(`Upload: ${upErr.message}`);
 
       const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(fileName);
       const audioUrl = urlData?.publicUrl;
+      if (!audioUrl) throw new Error("URL não gerada");
 
-      // Salvar mensagem no banco
       await supabase.from("messages").insert({
         user_id: user.id, conversation_id: activeId,
         direction: "outbound", content: "[Áudio]",
         media_type: "audio", media_url: audioUrl, status: "sent",
       });
+      await supabase.from("conversations").update({
+        last_message_at: new Date().toISOString(),
+        last_message_preview: "🎤 Áudio",
+      }).eq("id", activeId);
 
-      // Enviar via Evolution API
-      const { data: conv } = await supabase.from("conversations").select("phone, instance_id").eq("id", activeId).single();
+      const { data: conv } = await supabase.from("conversations")
+        .select("phone, instance_id").eq("id", activeId).single();
       let inst: any = null;
       if (conv?.instance_id) {
-        const { data } = await supabase.from("whatsapp_instances").select("*").eq("id", conv.instance_id).maybeSingle();
+        const { data } = await supabase.from("whatsapp_instances")
+          .select("*").eq("id", conv.instance_id).maybeSingle();
         inst = data;
       }
-      if (!inst) {
+      if (!inst?.api_url) {
         const { data } = await supabase.from("whatsapp_instances").select("*")
           .eq("user_id", user.id).eq("status", "connected").eq("is_office", false).limit(1).maybeSingle();
         inst = data;
       }
-
       if (conv?.phone && inst?.api_url && audioUrl) {
         fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendWhatsAppAudio/${inst.instance_name}`, {
           method: "POST",
@@ -668,7 +696,7 @@ function InboxPage() {
       recorder.reset();
       toast.success("Áudio enviado!");
     } catch (e: any) {
-      toast.error(`Erro ao enviar áudio: ${e.message}`);
+      toast.error(`Erro: ${e.message}`);
     } finally {
       setSendingAudio(false);
     }
