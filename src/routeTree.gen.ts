@@ -12,8 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as WizardRouteImport } from './routes/wizard'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
-import { Route as ManualRouteImport } from './routes/manual'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as ManualRouteImport } from './routes/manual'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
 import { Route as InboxRouteImport } from './routes/inbox'
@@ -162,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
+  '/relatorios': typeof RelatoriosRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
@@ -186,6 +187,7 @@ export interface FileRoutesByTo {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
+  '/relatorios': typeof RelatoriosRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
@@ -211,6 +213,7 @@ export interface FileRoutesById {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
+  '/relatorios': typeof RelatoriosRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
@@ -237,6 +240,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/login'
     | '/manual'
+    | '/relatorios'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
@@ -261,6 +265,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/login'
     | '/manual'
+    | '/relatorios'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
@@ -285,6 +290,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/login'
     | '/manual'
+    | '/relatorios'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
@@ -310,6 +316,7 @@ export interface RootRouteChildren {
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
   ManualRoute: typeof ManualRoute
+  RelatoriosRoute: typeof RelatoriosRoute
   WhatsappRoute: typeof WhatsappRoute
   WizardRoute: typeof WizardRoute
   WorkflowsRoute: typeof WorkflowsRouteWithChildren
@@ -512,6 +519,7 @@ const rootRouteChildren: RootRouteChildren = {
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
   ManualRoute: ManualRoute,
+  RelatoriosRoute: RelatoriosRoute,
   WhatsappRoute: WhatsappRoute,
   WizardRoute: WizardRoute,
   WorkflowsRoute: WorkflowsRouteWithChildren,
@@ -526,12 +534,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
