@@ -48,7 +48,8 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           const msg      = Array.isArray(data?.messages) ? data.messages[0] : data;
           const fromMe   = msg?.key?.fromMe;
           const remoteJid: string = msg?.key?.remoteJid || "";
-          const phone = remoteJid.split("@")[0].replace(/^\+/, "").trim();
+          const phone    = remoteJid.split("@")[0].replace(/^\+/, "").trim();
+          const pushName = msg?.pushName || msg?.key?.participant || null;
           if (!phone || fromMe) return Response.json({ ok: true });
 
           const msgContent = msg?.message ?? {};
@@ -88,9 +89,25 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
             : "Mídia recebida";
 
           if (!conv) {
+            // Buscar foto do contato via Evolution API
+            let photoUrl: string | null = null;
+            try {
+              const photoRes = await fetch(
+                `${inst.api_url?.replace(/\/$/, "")}/chat/fetchProfilePictureUrl/${inst.instance_name}`,
+                { method: "POST",
+                  headers: { "Content-Type": "application/json", apikey: inst.api_key ?? "" },
+                  body: JSON.stringify({ number: phone }) }
+              );
+              if (photoRes.ok) {
+                const photoData = await photoRes.json();
+                photoUrl = photoData?.profilePictureUrl ?? photoData?.picture ?? null;
+              }
+            } catch {}
+
             const { data: created } = await supabaseAdmin.from("conversations").insert({
               user_id: inst.user_id, phone, status: "open",
-              contact_name: null, instance_id: inst.id,
+              contact_name: pushName || null, instance_id: inst.id,
+              photo_url: photoUrl,
               last_message_at:      new Date().toISOString(),
               last_message_preview: preview,
             }).select().single();

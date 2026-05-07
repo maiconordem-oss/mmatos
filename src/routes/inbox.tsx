@@ -36,6 +36,7 @@ type Conversation = {
   assigned_to: string | null;
   tags: string[];
   instance_id: string | null;
+  photo_url: string | null;
 };
 
 type QuickReply = { id: string; shortcut: string; message: string };
@@ -58,6 +59,29 @@ type FunnelState = {
 };
 
 // ── Helpers ────────────────────────────────────────────────────
+function ContactAvatar({ conv, size = "md" }: { conv: Conversation; size?: "sm" | "md" | "lg" }) {
+  const av = avatar(conv.contact_name, conv.phone);
+  const sizes = { sm: "h-8 w-8 text-xs", md: "h-10 w-10 text-sm", lg: "h-12 w-12 text-base" };
+  if (conv.photo_url) {
+    return (
+      <img src={conv.photo_url} alt={conv.contact_name || conv.phone}
+        className={`${sizes[size]} rounded-full object-cover shrink-0`}
+        onError={e => {
+          // Se foto falhar, mostrar inicial
+          const el = e.target as HTMLImageElement;
+          el.style.display = "none";
+          el.nextElementSibling?.removeAttribute("style");
+        }} />
+    );
+  }
+  return (
+    <div className={`${sizes[size]} rounded-full flex items-center justify-center font-bold text-white shrink-0`}
+      style={{ background: av.color }}>
+      {av.label}
+    </div>
+  );
+}
+
 function avatar(name: string | null, phone: string) {
   const label = name ? name[0].toUpperCase() : phone[0];
   const colors = ["#25D366","#128C7E","#075E54","#34B7F1","#00BCD4","#8BC34A","#FF9800","#E91E63"];
@@ -690,9 +714,15 @@ function InboxPage() {
               <button key={c.id} onClick={() => { setActiveId(c.id); setShowLeadPanel(true); }}
                 className={cn("w-full flex items-center gap-3 px-4 py-3 border-b border-[#2a3942] hover:bg-[#2a3942] transition-colors text-left", isActive && "bg-[#2a3942]")}>
                 <div className="relative shrink-0">
-                  <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ background: av.color }}>
-                    {av.label}
-                  </div>
+                  {c.photo_url ? (
+                    <img src={c.photo_url} alt={c.contact_name || c.phone}
+                      className="h-12 w-12 rounded-full object-cover"
+                      onError={e => { (e.target as HTMLImageElement).src = ""; (e.target as HTMLImageElement).style.display = "none"; }} />
+                  ) : (
+                    <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ background: av.color }}>
+                      {av.label}
+                    </div>
+                  )}
                   {/* Indicador IA pausada */}
                   {c.ai_paused && (
                     <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 border-2 border-[#111b21] flex items-center justify-center">
@@ -764,9 +794,17 @@ function InboxPage() {
           <>
             {/* Header do chat */}
             <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "#202c33" }}>
-              <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold shrink-0"
-                style={{ background: avatar(active.contact_name, active.phone).color }}>
-                {avatar(active.contact_name, active.phone).label}
+              <div className="shrink-0">
+                {active.photo_url ? (
+                  <img src={active.photo_url} alt={active.contact_name || active.phone}
+                    className="h-10 w-10 rounded-full object-cover"
+                    onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                ) : (
+                  <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold"
+                    style={{ background: avatar(active.contact_name, active.phone).color }}>
+                    {avatar(active.contact_name, active.phone).label}
+                  </div>
+                )}
               </div>
               <button className="flex-1 text-left" onClick={() => setShowLeadPanel(!showLeadPanel)}>
                 <p className="text-white font-medium text-sm">{active.contact_name || active.phone}</p>
