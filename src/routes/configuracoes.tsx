@@ -70,12 +70,17 @@ function ConfigPage() {
 
   const addReply = async () => {
     if (!newShortcut.trim() || !newMessage.trim()) return;
+    if (!user?.id) { toast.error("Usuário não autenticado"); return; }
     const { error } = await supabase.from("quick_replies").insert({
-      user_id: user!.id,
-      shortcut: newShortcut.trim().toLowerCase().replace(/\s/g,"_"),
+      user_id: user.id,
+      shortcut: newShortcut.trim().toLowerCase().replace(/\s/g,"_").replace(/[^a-z0-9_]/g,""),
       message: newMessage.trim(),
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      console.error("addReply error:", error);
+      toast.error(`Erro: ${error.message}. Rode a migration no Supabase.`);
+      return;
+    }
     setNewShortcut(""); setNewMessage("");
     loadReplies(); toast.success("Resposta rápida adicionada!");
   };
@@ -87,10 +92,15 @@ function ConfigPage() {
 
   const addTag = async () => {
     if (!newTag.trim()) return;
+    if (!user?.id) { toast.error("Usuário não autenticado"); return; }
     const { error } = await supabase.from("conversation_tags").insert({
-      user_id: user!.id, name: newTag.trim(), color: newTagColor,
+      user_id: user.id, name: newTag.trim(), color: newTagColor,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      console.error("addTag error:", error);
+      toast.error(`Erro: ${error.message}. Rode a migration no Supabase.`);
+      return;
+    }
     setNewTag("");
     loadTags(); toast.success("Tag adicionada!");
   };
@@ -101,10 +111,15 @@ function ConfigPage() {
   };
 
   const saveBH = async () => {
+    if (!user?.id) { toast.error("Usuário não autenticado"); return; }
     const { error } = await supabase.from("business_hours").upsert({
-      ...bh, user_id: user!.id,
+      ...bh, user_id: user.id,
     }, { onConflict: "user_id" });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      console.error("saveBH error:", error);
+      toast.error(`Erro: ${error.message}. Rode a migration no Supabase.`);
+      return;
+    }
     toast.success("Horário salvo!");
   };
 
