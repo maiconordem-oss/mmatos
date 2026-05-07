@@ -160,6 +160,7 @@ type Message = {
   id: string; direction: "inbound" | "outbound";
   content: string | null; created_at: string; status?: string;
   media_type?: string | null; media_url?: string | null; media_mime?: string | null;
+  delivered_at?: string | null; read_at?: string | null;
 };
 
 const proxyUrl = (msg: Message) =>
@@ -394,7 +395,12 @@ function InboxPage() {
   const navigate = useNavigate();
   const { notify, requestPermission } = useNotification();
   const recorder = useAudioRecorder();
-  const [sendingAudio, setSendingAudio] = useState(false);
+  const [sendingAudio, setSendingAudio]   = useState(false);
+  const [searchMsg, setSearchMsg]         = useState("");
+  const [showSearchMsg, setShowSearchMsg] = useState(false);
+  const [sortUnread, setSortUnread]       = useState(false);
+  const [showHistory, setShowHistory]     = useState(false);
+  const [historyConvs, setHistoryConvs]   = useState<any[]>([]);
   const [instances, setInstances]         = useState<any[]>([]);
   const [activeInstance, setActiveInstance] = useState<string | "all">("all");
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -712,6 +718,60 @@ function InboxPage() {
     }
   };
 
+  // Bloquear/desbloquear contato
+  const toggleBlock = async (conv: Conversation) => {
+    const newBlocked = !conv.blocked;
+    await supabase.from("conversations").update({ blocked: newBlocked }).eq("id", conv.id);
+    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, blocked: newBlocked } : c));
+    toast.success(newBlocked ? "Contato bloqueado" : "Contato desbloqueado");
+  };
+
+  // Marcar como não lido manualmente
+  const markUnread = async (convId: string) => {
+    await supabase.from("conversations").update({ unread_count: 1 }).eq("id", convId);
+    setConversations(prev => prev.map(c => c.id === convId ? { ...c, unread_count: 1 } : c));
+    setActiveId(null);
+    toast.success("Marcado como não lido");
+  };
+
+  // Carregar histórico de conversas do contato
+  const loadHistory = async (phone: string) => {
+    const { data } = await supabase.from("conversations")
+      .select("id, contact_name, last_message_at, last_message_preview, ticket_status")
+      .eq("phone", phone).order("last_message_at", { ascending: false });
+    setHistoryConvs(data ?? []);
+    setShowHistory(true);
+  };
+
+  // Exportar conversa como texto
+  const exportConversation = async (conv: Conversation) => {
+    const { data: msgs } = await supabase.from("messages")
+      .select("direction, content, created_at, media_type")
+      .eq("conversation_id", conv.id)
+      .order("created_at", { ascending: true });
+
+    const lines = [
+      `Conversa com: ${conv.contact_name || conv.phone}`,
+      `Exportado em: ${new Date().toLocaleString("pt-BR")}`,
+      "─".repeat(50),
+      "",
+      ...(msgs ?? []).map(m => {
+        const time = new Date(m.created_at).toLocaleString("pt-BR");
+        const dir  = m.direction === "outbound" ? "Você" : conv.contact_name || conv.phone;
+        const txt  = m.media_type ? `[${m.media_type}]` : (m.content || "");
+        return `[${time}] ${dir}: ${txt}`;
+      }),
+    ];
+
+    const blob = new Blob([lines.join("
+")], { type: "text/plain;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `conversa_${conv.phone}_${Date.now()}.txt`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success("Conversa exportada!");
+  };
+
   const handleSend = async () => {
     if (!user || !activeId || !text.trim()) return;
     const content = text.trim();
@@ -777,10 +837,18 @@ function InboxPage() {
   };
 
   const active  = conversations.find(c => c.id === activeId);
-  const filtered = filteredConvs.filter(c =>
+  // Ordenar: não lidas primeiro se sortUnread ativo
+  const sortedConvs = sortUnread
+    ? [...filteredConvs].sort((a, b) => (b.unread_count || 0) - (a.unread_count || 0))
+    : filteredConvs;
+
+  const filtered = sortedConvs.filter(c =>
     (c.contact_name || c.phone).toLowerCase().includes(search.toLowerCase())
   );
-  const grouped = groupByDate(messages);
+  const displayMessages = searchMsg.trim()
+    ? messages.filter(m => m.content?.toLowerCase().includes(searchMsg.toLowerCase()))
+    : messages;
+  const grouped = groupByDate(displayMessages);
 
   return (
     <div className="flex flex-1 overflow-hidden" style={{ background: "#111b21" }}>
@@ -891,13 +959,19 @@ function InboxPage() {
           })}
         </div>
 
-        {/* Busca */}
-        <div className="px-3 py-2" style={{ background: "#111b21" }}>
-          <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "#202c33" }}>
+        {/* Busca + Ordenar */}
+        <div className="px-3 py-2 flex gap-2" style={{ background: "#111b21" }}>
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2 flex-1" style={{ background: "#202c33" }}>
             <Search className="h-4 w-4 text-[#8696a0] shrink-0" />
             <input className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none"
               placeholder="Pesquisar conversas..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
+          <button onClick={() => setSortUnread(!sortUnread)}
+            title="Ordenar por não lidas"
+            className={cn("px-2 rounded-lg text-xs font-medium transition-colors", sortUnread ? "bg-[#25d366] text-black" : "text-[#8696a0] hover:text-white")}
+            style={{ background: sortUnread ? "#25d366" : "#202c33" }}>
+            🔔
+          </button>
         </div>
 
         {/* Lista */}
@@ -921,6 +995,12 @@ function InboxPage() {
                   ) : (
                     <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ background: av.color }}>
                       {av.label}
+                    </div>
+                  )}
+                  {/* Indicador bloqueado */}
+                  {(c as any).blocked && (
+                    <div className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-600 border-2 border-[#111b21] flex items-center justify-center">
+                      <span className="text-[8px] text-white font-bold">🚫</span>
                     </div>
                   )}
                   {/* Indicador IA pausada */}
@@ -1086,8 +1166,27 @@ function InboxPage() {
                   className={cn("p-2 rounded-full transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "hover:bg-[#2a3942] text-[#aebac1]")}>
                   <Sparkles className="h-5 w-5" />
                 </button>
-                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><Search className="h-5 w-5" /></button>
-                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><MoreVertical className="h-5 w-5" /></button>
+                <button onClick={() => setShowSearchMsg(!showSearchMsg)}
+                  className={cn("p-2 rounded-full transition-colors", showSearchMsg ? "bg-[#2a3942] text-[#25d366]" : "hover:bg-[#2a3942] text-[#aebac1]")}>
+                  <Search className="h-5 w-5" />
+                </button>
+                {/* Menu de contexto */}
+                <div className="relative group">
+                  <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><MoreVertical className="h-5 w-5" /></button>
+                  <div className="absolute right-0 top-10 z-50 w-52 rounded-xl border border-[#2a3942] shadow-xl overflow-hidden hidden group-hover:block" style={{ background: "#202c33" }}>
+                    {[
+                      { label: "Ver histórico do contato", action: () => loadHistory(active.phone) },
+                      { label: "Marcar como não lido",     action: () => markUnread(active.id) },
+                      { label: "Exportar conversa",        action: () => exportConversation(active) },
+                      { label: (active as any).blocked ? "Desbloquear contato" : "Bloquear contato", action: () => toggleBlock(active), danger: true },
+                    ].map(item => (
+                      <button key={item.label} onClick={item.action}
+                        className={cn("w-full text-left px-4 py-2.5 text-sm hover:bg-[#2a3942] transition-colors", item.danger ? "text-red-400" : "text-white")}>
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1318,7 +1417,13 @@ function InboxPage() {
                         <div className="flex items-center gap-1 justify-end px-2 pb-1.5 -mt-1">
                           <span className="text-[10px] text-[#8696a0]">{formatMsgTime(m.created_at)}</span>
                           {m.direction === "outbound" && (
-                            <CheckCheck className={cn("h-3 w-3", m.status === "read" ? "text-[#53bdeb]" : "text-[#8696a0]")} />
+                            <span title={(m as any).read_at ? "Lido" : (m as any).delivered_at ? "Entregue" : "Enviado"}>
+                              {(m as any).read_at
+                                ? <CheckCheck className="h-3 w-3 text-[#53bdeb]" />
+                                : (m as any).delivered_at
+                                  ? <CheckCheck className="h-3 w-3 text-[#8696a0]" />
+                                  : <span className="text-[#8696a0] text-[10px]">✓</span>}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -1328,6 +1433,19 @@ function InboxPage() {
               ))}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* Busca dentro do chat */}
+            {showSearchMsg && (
+              <div className="px-4 py-2 flex items-center gap-2 border-b border-[#2a3942]" style={{ background: "#1a262e" }}>
+                <Search className="h-4 w-4 text-[#8696a0] shrink-0" />
+                <input autoFocus
+                  className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none"
+                  placeholder="Buscar nas mensagens..."
+                  value={searchMsg} onChange={e => setSearchMsg(e.target.value)} />
+                <button onClick={() => { setShowSearchMsg(false); setSearchMsg(""); }}
+                  className="text-[#8696a0] hover:text-white"><X className="h-4 w-4" /></button>
+              </div>
+            )}
 
             {/* Quick Replies */}
             {showQuickReplies && (
@@ -1455,6 +1573,43 @@ function InboxPage() {
       </div>
 
       {/* ── PAINEL LATERAL DO LEAD ── */}
+      {/* Modal histórico do contato */}
+      {showHistory && active && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowHistory(false)}>
+          <div className="w-96 max-h-[80vh] rounded-2xl border border-[#2a3942] overflow-hidden flex flex-col" style={{ background: "#202c33" }}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a3942]">
+              <p className="text-white font-medium">Histórico — {active.contact_name || active.phone}</p>
+              <button onClick={() => setShowHistory(false)} className="text-[#8696a0] hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {historyConvs.length === 0 && (
+                <p className="text-center text-[#8696a0] text-sm py-8">Nenhum histórico encontrado</p>
+              )}
+              {historyConvs.map(c => (
+                <button key={c.id} onClick={() => { setActiveId(c.id); setShowHistory(false); }}
+                  className="w-full flex items-start gap-3 px-4 py-3 border-b border-[#2a3942] hover:bg-[#2a3942] text-left transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-sm text-white font-medium">
+                        {new Date(c.last_message_at).toLocaleDateString("pt-BR")}
+                      </span>
+                      <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                        c.ticket_status === "resolved" ? "bg-slate-500/20 text-slate-400" :
+                        c.ticket_status === "open" ? "bg-green-500/20 text-green-400" :
+                        "bg-amber-500/20 text-amber-400")}>
+                        {c.ticket_status === "resolved" ? "Encerrado" : c.ticket_status === "open" ? "Aberto" : "Pendente"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#8696a0] truncate">{c.last_message_preview || "Sem mensagens"}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {active && showLeadPanel && (
         <LeadPanel conv={active} onClose={() => setShowLeadPanel(false)} />
       )}

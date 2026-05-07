@@ -816,10 +816,30 @@ async function handleFunnelMessageInner(
   userMessage: string,
   instanceFunnelId: string | null = null
 ) {
-  // ── Verificar se IA está pausada (atendimento humano) ────────
+  // ── Verificar se IA está pausada ──────────────────────────────
   const { data: convCheck } = await admin
-    .from("conversations").select("ai_paused").eq("id", convId).single();
-  if ((convCheck as any)?.ai_paused) return;
+    .from("conversations").select("ai_paused, ticket_status").eq("id", convId).single();
+  if ((convCheck as any)?.ai_paused) {
+    // Enviar mensagem de ausência se configurada e conversa ainda pendente
+    if ((convCheck as any)?.ticket_status === "pending") {
+      const { data: bh } = await admin.from("business_hours")
+        .select("*").eq("user_id", userId).maybeSingle();
+      if (bh?.enabled && bh?.away_message && bh?.away_timeout_min) {
+        // Verificar se última mensagem nossa foi há mais de X minutos
+        const { data: lastMsg } = await admin.from("messages")
+          .select("created_at").eq("conversation_id", convId).eq("direction", "outbound")
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        const lastOutbound = lastMsg?.created_at
+          ? new Date(lastMsg.created_at).getTime()
+          : 0;
+        const minsSinceReply = (Date.now() - lastOutbound) / 60000;
+        if (minsSinceReply >= (bh.away_timeout_min ?? 5)) {
+          await sendText(admin, userId, convId, bh.away_message, false);
+        }
+      }
+    }
+    return;
+  }
 
   // ── Cancelar follow-up pendente (cliente respondeu) ──────────
   await cancelFollowup(admin, convId);

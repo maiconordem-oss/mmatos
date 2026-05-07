@@ -33,6 +33,23 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           }).eq("id", inst.id);
         }
 
+        // ── Status de leitura ──────────────────────────────────
+        if (event === "MESSAGES_UPDATE" || event === "messages.update") {
+          const updates = Array.isArray(body.data) ? body.data : [body.data];
+          for (const upd of updates) {
+            const msgId  = upd?.key?.id;
+            const status = upd?.update?.status;
+            if (!msgId || !status) continue;
+            const updateData: any = {};
+            if (status === "DELIVERY_ACK" || status === "DELIVERED") updateData.delivered_at = new Date().toISOString();
+            if (status === "READ" || status === "PLAYED") { updateData.read_at = new Date().toISOString(); updateData.status = "read"; }
+            if (Object.keys(updateData).length) {
+              await supabaseAdmin.from("messages").update(updateData).eq("external_id", msgId);
+            }
+          }
+          return Response.json({ ok: true, event: "read_status" });
+        }
+
         // ── QR Code ────────────────────────────────────────────
         if (event === "qrcode.updated" || event === "QRCODE_UPDATED") {
           const qr = data?.qrcode?.base64 || data?.base64;
@@ -228,6 +245,11 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
                 : `[O cliente enviou um documento${documentMsg?.fileName ? ` (${documentMsg.fileName})` : ""}. Confirme o recebimento e continue o fluxo.]`;
 
           try {
+            // Não processar se contato bloqueado
+            if ((conv as any).blocked) {
+              return Response.json({ ok: true, blocked: true });
+            }
+
             await handleFunnelMessage(supabaseAdmin, inst.user_id, conv.id, messageForAI, inst.funnel_id ?? null);
           } catch (e) {
             console.error("funnel executor error:", e);
