@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Kanban, MessageSquare, Users, LogOut,
   FileSignature, Smartphone, Bot, BookOpen, Wand2, Settings,
-  Zap, ChevronLeft, ChevronRight, Bell,
+  Zap, ChevronLeft, ChevronRight, Bell, BarChart2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";

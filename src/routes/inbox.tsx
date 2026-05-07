@@ -17,6 +17,98 @@ import {
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { Badge } from "@/components/ui/badge";
 
+
+// ── Hook de notificação sonora + visual ────────────────────────
+function useNotification() {
+  const audioRef = useRef<AudioContext | null>(null);
+
+  const playSound = () => {
+    try {
+      if (!audioRef.current) audioRef.current = new AudioContext();
+      const ctx = audioRef.current;
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+      oscillator.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.3);
+    } catch {}
+  };
+
+  const notify = (title: string, body: string, onClick?: () => void) => {
+    playSound();
+    if ("Notification" in window && Notification.permission === "granted") {
+      const n = new Notification(title, {
+        body, icon: "/favicon.ico", badge: "/favicon.ico",
+        tag: "lex-crm-message",
+      });
+      if (onClick) n.onclick = () => { window.focus(); onClick(); };
+    }
+  };
+
+  const requestPermission = () => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  };
+
+  return { notify, requestPermission };
+}
+
+
+// ── Hook de gravação de áudio ──────────────────────────────────
+function useAudioRecorder() {
+  const [recording, setRecording]     = useState(false);
+  const [audioBlob, setAudioBlob]     = useState<Blob | null>(null);
+  const [duration, setDuration]       = useState(0);
+  const mediaRef  = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const start = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+      chunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/ogg; codecs=opus" });
+        setAudioBlob(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mr.start(100);
+      mediaRef.current = mr;
+      setRecording(true);
+      setDuration(0);
+      timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
+    } catch (e) {
+      toast.error("Microfone não autorizado. Permita o acesso nas configurações do navegador.");
+    }
+  };
+
+  const stop = () => {
+    mediaRef.current?.stop();
+    setRecording(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  const cancel = () => {
+    mediaRef.current?.stop();
+    setRecording(false);
+    setAudioBlob(null);
+    setDuration(0);
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  const reset = () => { setAudioBlob(null); setDuration(0); };
+
+  return { recording, audioBlob, duration, start, stop, cancel, reset };
+}
+
 export const Route = createFileRoute("/inbox")({
   head: () => ({ meta: [{ title: "Inbox WhatsApp — Lex CRM" }] }),
   component: () => (
@@ -413,6 +505,7 @@ function InboxPage() {
   });
 
   useEffect(() => {
+    requestPermission();
     loadInstances();
     loadQuickReplies();
     loadTags();
@@ -423,7 +516,18 @@ function InboxPage() {
   // Realtime conversas
   useEffect(() => {
     const ch = supabase.channel("convs-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, loadConvs)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversations" }, (payload) => {
+        loadConvs();
+        const conv = payload.new as any;
+        if (conv?.phone) {
+          notify(
+            "Novo lead! 🆕",
+            `${conv.contact_name || conv.phone} iniciou uma conversa`,
+            () => setActiveId(conv.id)
+          );
+        }
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations" }, loadConvs)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [loadConvs]);
@@ -510,6 +614,58 @@ function InboxPage() {
     setShowQuickReplies(false);
     setQuickSearch("");
     if (textareaRef.current) textareaRef.current.focus();
+  };
+
+  const sendRecordedAudio = async () => {
+    if (!recorder.audioBlob || !activeId || !user) return;
+    setSendingAudio(true);
+    try {
+      // Salvar no Supabase Storage
+      const fileName = `${user.id}/audio/${Date.now()}.ogg`;
+      const { data: uploaded, error: upErr } = await supabase.storage
+        .from("whatsapp-media")
+        .upload(fileName, recorder.audioBlob, { contentType: "audio/ogg; codecs=opus", upsert: true });
+
+      if (upErr) throw upErr;
+
+      const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(fileName);
+      const audioUrl = urlData?.publicUrl;
+
+      // Salvar mensagem no banco
+      await supabase.from("messages").insert({
+        user_id: user.id, conversation_id: activeId,
+        direction: "outbound", content: "[Áudio]",
+        media_type: "audio", media_url: audioUrl, status: "sent",
+      });
+
+      // Enviar via Evolution API
+      const { data: conv } = await supabase.from("conversations").select("phone, instance_id").eq("id", activeId).single();
+      let inst: any = null;
+      if (conv?.instance_id) {
+        const { data } = await supabase.from("whatsapp_instances").select("*").eq("id", conv.instance_id).maybeSingle();
+        inst = data;
+      }
+      if (!inst) {
+        const { data } = await supabase.from("whatsapp_instances").select("*")
+          .eq("user_id", user.id).eq("status", "connected").eq("is_office", false).limit(1).maybeSingle();
+        inst = data;
+      }
+
+      if (conv?.phone && inst?.api_url && audioUrl) {
+        fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendWhatsAppAudio/${inst.instance_name}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: inst.api_key },
+          body: JSON.stringify({ number: conv.phone.replace(/\D/g, ""), audio: audioUrl }),
+        }).catch(console.error);
+      }
+
+      recorder.reset();
+      toast.success("Áudio enviado!");
+    } catch (e: any) {
+      toast.error(`Erro ao enviar áudio: ${e.message}`);
+    } finally {
+      setSendingAudio(false);
+    }
   };
 
   const handleSend = async () => {
@@ -1220,11 +1376,35 @@ function InboxPage() {
                   </div>
                 )}
               </div>
-              <button onClick={text.trim() ? handleSend : undefined}
-                className="p-2.5 rounded-full flex items-center justify-center shrink-0"
-                style={{ background: "#25d366" }}>
-                {text.trim() ? <Send className="h-5 w-5 text-white" /> : <Mic className="h-5 w-5 text-white" />}
-              </button>
+
+              {/* Preview do áudio gravado */}
+              {recorder.audioBlob && !recorder.recording && (
+                <div className="px-4 py-2 flex items-center gap-3 border-t border-[#2a3942]" style={{ background: "#1a262e" }}>
+                  <audio controls src={URL.createObjectURL(recorder.audioBlob)} className="h-8 flex-1" style={{ filter: "invert(0.7)" }} />
+                  <button onClick={recorder.cancel} className="text-red-400 hover:text-red-300 p-1"><X className="h-4 w-4" /></button>
+                  <button onClick={sendRecordedAudio} disabled={sendingAudio}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-black"
+                    style={{ background: "#25d366" }}>
+                    {sendingAudio ? "Enviando..." : <><Send className="h-3.5 w-3.5" /> Enviar</>}
+                  </button>
+                </div>
+              )}
+
+              {/* Botão Send/Mic/Gravando */}
+              {recorder.recording ? (
+                <button onClick={recorder.stop}
+                  className="p-2.5 rounded-full flex items-center justify-center shrink-0 animate-pulse"
+                  style={{ background: "#ef4444" }}>
+                  <span className="text-white text-xs font-bold">{recorder.duration}s</span>
+                </button>
+              ) : (
+                <button
+                  onClick={text.trim() ? handleSend : recorder.start}
+                  className="p-2.5 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: "#25d366" }}>
+                  {text.trim() ? <Send className="h-5 w-5 text-white" /> : <Mic className="h-5 w-5 text-white" />}
+                </button>
+              )}
             </div>
           </>
         )}

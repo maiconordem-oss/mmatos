@@ -125,6 +125,8 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               last_message_preview: preview,
               unread_count: (conv.unread_count || 0) + 1,
               instance_id: conv.instance_id ?? inst.id,
+              // Atualizar nome se ainda não tem
+              ...(pushName && !conv.contact_name ? { contact_name: pushName } : {}),
             }).eq("id", conv.id);
           }
 
