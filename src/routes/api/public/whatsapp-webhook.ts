@@ -127,6 +127,12 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               instance_id: conv.instance_id ?? inst.id,
               // Atualizar nome se ainda não tem
               ...(pushName && !conv.contact_name ? { contact_name: pushName } : {}),
+              // Se conversa estava resolvida, volta para pendente
+              ...(conv.ticket_status === "resolved" ? {
+                ticket_status: "pending",
+                resolved_at:   null,
+                assigned_to:   null,
+              } : {}),
             }).eq("id", conv.id);
           }
 
