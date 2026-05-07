@@ -416,6 +416,95 @@ function ConstrutorPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving]     = useState(false);
+  const [descricaoLivre, setDescricaoLivre] = useState("");
+  const [gerandoFluxo, setGerandoFluxo]     = useState(false);
+
+  // Gerar fluxo completo a partir de descrição livre
+  const gerarFluxoComIA = async () => {
+    if (!descricaoLivre.trim()) {
+      toast.error("Descreva o caso antes de gerar");
+      return;
+    }
+    setGerandoFluxo(true);
+    try {
+      const res = await fetch("/api/generate-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemPrompt: `Você é especialista em funis de atendimento jurídico via WhatsApp.
+Com base na descrição do usuário, gere a configuração JSON do funil.
+Retorne APENAS um JSON válido, sem markdown, com esta estrutura exata:
+{
+  "nome": "string",
+  "descricao": "string",
+  "servicoGratuito": boolean,
+  "honorarios": "string ou vazio",
+  "fases": [
+    {
+      "id": "abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado",
+      "perguntas": ["pergunta 1", "pergunta 2"],
+      "exclusoes": [{"condicao": "...", "motivo": "..."}],
+      "midias": ["video_abertura"],
+      "textoAposMidia": "texto ou vazio",
+      "acao": "nenhuma|contrato|agendamento|handoff",
+      "camposColeta": ["nome","cpf","rg","endereco","nomeCrianca","idadeCrianca","municipio","protocolo","dataNascimento","temPrescricao","nomeMedico","email","estadoCivil","profissao"]
+    }
+  ]
+}
+
+REGRAS:
+- perguntas: feitas uma por vez, em ordem lógica para qualificar o lead
+- exclusoes: critérios que ENCERRAM o atendimento (lead não qualificado)
+- midias: use video_abertura na fase abertura, video_conexao na conexao, audio_fechamento no fechamento, video_documentos na assinatura
+- camposColeta: só na fase "coleta", escolha apenas os campos necessários para o contrato
+- acao "contrato" APENAS na fase "coleta"
+- Inclua TODAS as 7 fases mesmo que algumas não tenham configuração especial`,
+          userMsg: `Caso jurídico: ${descricaoLivre}
+
+Gere o fluxo completo com perguntas de triagem, critérios de exclusão, dados a coletar e ações corretas para cada fase.`,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Erro na API");
+      const { prompt: jsonStr } = await res.json();
+
+      // Limpar e parsear JSON
+      const clean = jsonStr.replace(/```json|```/g, "").trim();
+      const data = JSON.parse(clean);
+
+      // Aplicar configurações geradas
+      if (data.nome) setCfg(c => ({ ...c, nome: data.nome, descricao: data.descricao || c.descricao }));
+      if (data.servicoGratuito !== undefined) setCfg(c => ({ ...c, servicoGratuito: data.servicoGratuito }));
+      if (data.honorarios) setCfg(c => ({ ...c, honorarios: data.honorarios }));
+
+      // Aplicar fases
+      if (data.fases?.length) {
+        setCfg(c => ({
+          ...c,
+          fases: c.fases.map(fase => {
+            const faseGerada = data.fases.find((f: any) => f.id === fase.id);
+            if (!faseGerada) return fase;
+            return {
+              ...fase,
+              perguntas:      faseGerada.perguntas      ?? fase.perguntas,
+              exclusoes:      faseGerada.exclusoes       ?? fase.exclusoes,
+              midias:         faseGerada.midias          ?? fase.midias,
+              textoAposMidia: faseGerada.textoAposMidia  ?? fase.textoAposMidia,
+              acao:           faseGerada.acao             ?? fase.acao,
+              camposColeta:   faseGerada.camposColeta     ?? fase.camposColeta,
+            };
+          }),
+        }));
+      }
+
+      toast.success("Fluxo gerado! Revise cada fase e ajuste se necessário.");
+      setExpandedId("triagem"); // Abrir triagem para revisão
+    } catch (e: any) {
+      toast.error(`Erro ao gerar: ${e.message}`);
+    } finally {
+      setGerandoFluxo(false);
+    }
+  };
 
   const patchFase = (id: string, fields: Partial<Fase>) => {
     setCfg(c => ({
@@ -582,6 +671,36 @@ Retorne APENAS o texto do prompt, sem JSON externo nem markdown.`,
 
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto space-y-6">
+
+            {/* IA — Descreva o caso */}
+            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="font-semibold text-foreground">Deixe a IA montar o fluxo</h2>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Descreva o caso em linguagem normal — tipo de ação, critérios de qualificação,
+                documentos necessários e se o serviço é gratuito. A IA preenche todas as fases automaticamente.
+              </p>
+              <Textarea
+                value={descricaoLivre}
+                onChange={e => setDescricaoLivre(e.target.value)}
+                rows={4}
+                className="resize-none text-sm"
+                placeholder={`Ex: "Atendo famílias que tiveram vaga em creche negada pelo município de Porto Alegre. A criança precisa ter até 5 anos e 11 meses, os pais precisam ter feito o pedido formal na prefeitura. O serviço é gratuito. Preciso coletar: nome dos pais, CPF, RG, endereço, nome da criança, data de nascimento e número do protocolo do pedido."`}
+              />
+              <Button onClick={gerarFluxoComIA} disabled={gerandoFluxo || !descricaoLivre.trim()}
+                className="gap-2 w-full">
+                <Sparkles className="h-4 w-4" />
+                {gerandoFluxo ? "A IA está montando o fluxo..." : "Gerar fluxo com IA"}
+              </Button>
+              {gerandoFluxo && (
+                <div className="flex items-center gap-2 text-xs text-primary animate-pulse">
+                  <Bot className="h-4 w-4" />
+                  Analisando o caso e configurando cada fase...
+                </div>
+              )}
+            </div>
 
             {/* Configurações básicas */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
