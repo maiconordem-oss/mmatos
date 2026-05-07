@@ -79,7 +79,7 @@ function ClienteDrawer({ client, onClose }: { client: Client; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex" onClick={onClose}>
       <div className="flex-1" />
-      <div className="w-[420px] h-full border-l border-white/10 flex flex-col" className="bg-card"
+      <div className="w-[420px] h-full border-l border-white/10 flex flex-col bg-card"
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -288,8 +288,8 @@ function ClientesPage() {
       <div className="flex-1 overflow-y-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map(c => (
-            <div key={c.id} className="rounded-xl border border-white/8 p-4 cursor-pointer hover:border-white/20 transition-all group"
-              className="bg-card" onClick={() => setSelected(c)}>
+            <div key={c.id} className="rounded-xl border border-white/8 bg-card p-4 cursor-pointer hover:border-white/20 transition-all group"
+              onClick={() => setSelected(c)}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold text-white shrink-0"
