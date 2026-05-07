@@ -598,33 +598,43 @@ function InboxPage() {
 
   // Aceitar ticket (assume o atendimento)
   const acceptTicket = async (convId: string) => {
-    await supabase.from("conversations").update({
+    const { error } = await supabase.from("conversations").update({
       ticket_status: "open",
       accepted_at:   new Date().toISOString(),
       assigned_to:   user?.id ?? null,
     }).eq("id", convId);
-    loadConvs();
+    if (error) { toast.error(`Erro: ${error.message}. Rode a migration no Supabase.`); return; }
+    // Atualizar estado local imediatamente
+    setConversations(prev => prev.map(c =>
+      c.id === convId ? { ...c, ticket_status: "open" as const } : c
+    ));
     toast.success("Atendimento aceito!");
   };
 
   // Resolver ticket
   const resolveTicket = async (convId: string) => {
-    await supabase.from("conversations").update({
+    const { error } = await supabase.from("conversations").update({
       ticket_status: "resolved",
       resolved_at:   new Date().toISOString(),
     }).eq("id", convId);
+    if (error) { toast.error(`Erro: ${error.message}. Rode a migration no Supabase.`); return; }
+    setConversations(prev => prev.map(c =>
+      c.id === convId ? { ...c, ticket_status: "resolved" as const } : c
+    ));
     setActiveId(null);
-    loadConvs();
     toast.success("Ticket encerrado!");
   };
 
   // Reabrir ticket
   const reopenTicket = async (convId: string) => {
-    await supabase.from("conversations").update({
+    const { error } = await supabase.from("conversations").update({
       ticket_status: "open",
       resolved_at:   null,
     }).eq("id", convId);
-    loadConvs();
+    if (error) { toast.error(`Erro: ${error.message}`); return; }
+    setConversations(prev => prev.map(c =>
+      c.id === convId ? { ...c, ticket_status: "open" as const } : c
+    ));
   };
 
   // Adicionar/remover tag
