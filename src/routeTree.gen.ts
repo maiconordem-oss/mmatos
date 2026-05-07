@@ -25,9 +25,9 @@ import { Route as AgentesRouteImport } from './routes/agentes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiSimulateRouteImport } from './routes/api/simulate'
+import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
 import { Route as ApiGeneratePromptRouteImport } from './routes/api/generate-prompt'
 import { Route as ApiDebugWebhookRouteImport } from './routes/api/debug-webhook'
-import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
@@ -112,14 +112,14 @@ const ApiSimulateRoute = ApiSimulateRouteImport.update({
   path: '/api/simulate',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiGeneratePromptRoute = ApiGeneratePromptRouteImport.update({
-  id: '/api/generate-prompt',
-  path: '/api/generate-prompt',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiMediaProxyRoute = ApiMediaProxyRouteImport.update({
   id: '/api/media-proxy',
   path: '/api/media-proxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGeneratePromptRoute = ApiGeneratePromptRouteImport.update({
+  id: '/api/generate-prompt',
+  path: '/api/generate-prompt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDebugWebhookRoute = ApiDebugWebhookRouteImport.update({
@@ -161,8 +161,8 @@ export interface FileRoutesByFullPath {
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
-  '/api/simulate': typeof ApiSimulateRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
+  '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
@@ -185,8 +185,8 @@ export interface FileRoutesByTo {
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
-  '/api/simulate': typeof ApiSimulateRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
+  '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
@@ -210,8 +210,8 @@ export interface FileRoutesById {
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
-  '/api/simulate': typeof ApiSimulateRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
+  '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
@@ -236,8 +236,8 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/api/debug-webhook'
     | '/api/generate-prompt'
-    | '/api/simulate'
     | '/api/media-proxy'
+    | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
@@ -260,8 +260,8 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/api/debug-webhook'
     | '/api/generate-prompt'
-    | '/api/simulate'
     | '/api/media-proxy'
+    | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
@@ -284,8 +284,8 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/api/debug-webhook'
     | '/api/generate-prompt'
-    | '/api/simulate'
     | '/api/media-proxy'
+    | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
@@ -309,8 +309,8 @@ export interface RootRouteChildren {
   WorkflowsRoute: typeof WorkflowsRouteWithChildren
   ApiDebugWebhookRoute: typeof ApiDebugWebhookRoute
   ApiGeneratePromptRoute: typeof ApiGeneratePromptRoute
-  ApiSimulateRoute: typeof ApiSimulateRoute
   ApiMediaProxyRoute: typeof ApiMediaProxyRoute
+  ApiSimulateRoute: typeof ApiSimulateRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicWorkflowTickRoute: typeof ApiPublicWorkflowTickRoute
   ApiPublicZapsignWebhookRoute: typeof ApiPublicZapsignWebhookRoute
@@ -423,18 +423,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsIdRouteImport
       parentRoute: typeof WorkflowsRoute
     }
-    '/api/media-proxy': {
-      id: '/api/media-proxy'
-      path: '/api/media-proxy'
-      fullPath: '/api/media-proxy'
-      preLoaderRoute: typeof ApiMediaProxyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/simulate': {
       id: '/api/simulate'
       path: '/api/simulate'
       fullPath: '/api/simulate'
       preLoaderRoute: typeof ApiSimulateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/media-proxy': {
+      id: '/api/media-proxy'
+      path: '/api/media-proxy'
+      fullPath: '/api/media-proxy'
+      preLoaderRoute: typeof ApiMediaProxyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/generate-prompt': {
@@ -504,8 +504,8 @@ const rootRouteChildren: RootRouteChildren = {
   WorkflowsRoute: WorkflowsRouteWithChildren,
   ApiDebugWebhookRoute: ApiDebugWebhookRoute,
   ApiGeneratePromptRoute: ApiGeneratePromptRoute,
-  ApiSimulateRoute: ApiSimulateRoute,
   ApiMediaProxyRoute: ApiMediaProxyRoute,
+  ApiSimulateRoute: ApiSimulateRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicWorkflowTickRoute: ApiPublicWorkflowTickRoute,
   ApiPublicZapsignWebhookRoute: ApiPublicZapsignWebhookRoute,

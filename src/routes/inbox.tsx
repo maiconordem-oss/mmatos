@@ -510,13 +510,13 @@ function InboxPage() {
     }).eq("id", activeId);
 
     // Enviar via Evolution API — usar a instância vinculada à conversa
-    const { data: conv } = await supabase.from("conversations")
+    const { data: convRow } = await supabase.from("conversations")
       .select("phone, instance_id").eq("id", activeId).single();
 
     let inst: any = null;
-    if (conv?.instance_id) {
+    if (convRow?.instance_id) {
       const { data } = await supabase.from("whatsapp_instances")
-        .select("*").eq("id", conv.instance_id).maybeSingle();
+        .select("*").eq("id", convRow.instance_id).maybeSingle();
       inst = data;
     }
     if (!inst) {
