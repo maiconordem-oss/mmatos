@@ -445,6 +445,7 @@ export type Database = {
           ai_handled: boolean
           ai_paused: boolean
           assigned_to: string | null
+          blocked: boolean
           client_id: string | null
           contact_name: string | null
           created_at: string
@@ -467,6 +468,7 @@ export type Database = {
           ai_handled?: boolean
           ai_paused?: boolean
           assigned_to?: string | null
+          blocked?: boolean
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
@@ -489,6 +491,7 @@ export type Database = {
           ai_handled?: boolean
           ai_paused?: boolean
           assigned_to?: string | null
+          blocked?: boolean
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
