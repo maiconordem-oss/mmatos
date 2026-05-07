@@ -362,7 +362,7 @@ function WhatsappPage() {
                   )}
 
                   {/* Webhook URL */}
-                  <div className="border-t border-white/5 px-5 py-3" className="bg-muted/50">
+                  <div className="border-t border-white/5 bg-muted/50 px-5 py-3">
                     <p className="text-[10px] text-slate-600 uppercase tracking-wide mb-1">URL do Webhook (configure na Evolution API)</p>
                     <div className="flex items-center gap-2">
                       <code className="text-[11px] text-slate-500 flex-1 truncate">{webhookUrl}</code>
@@ -433,7 +433,7 @@ function WhatsappPage() {
             </div>
 
             {/* Evolution API */}
-            <div className="rounded-xl border border-white/8 p-4 space-y-4" className="bg-muted/50">
+            <div className="rounded-xl border border-white/8 bg-muted/50 p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-amber-400" />
                 <p className="text-sm font-medium text-foreground">Evolution API</p>
@@ -467,7 +467,7 @@ function WhatsappPage() {
 
             {/* Funil — só para números de funil */}
             {!form.is_office && (
-              <div className="rounded-xl border border-white/8 p-4 space-y-3" className="bg-muted/50">
+              <div className="rounded-xl border border-white/8 bg-muted/50 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <Bot className="h-4 w-4 text-emerald-400" />
                   <p className="text-sm font-medium text-foreground">Funil de atendimento *</p>
