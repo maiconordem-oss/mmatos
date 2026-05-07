@@ -44,7 +44,7 @@ const STAGE_LABELS: Record<string, string> = {
 function KpiCard({ label, value, sub, trend, icon: Icon, color }: any) {
   const up = trend >= 0;
   return (
-    <div className="rounded-xl border border-white/8 p-5 flex flex-col gap-3" className="bg-card">
+    <div className="rounded-xl border border-white/8 bg-card p-5 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-xs uppercase tracking-widest text-muted-foreground">{label}</span>
         <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
@@ -213,7 +213,7 @@ function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Gráfico de área */}
-        <div className="lg:col-span-2 rounded-xl border border-white/8 p-5" className="bg-card">
+        <div className="lg:col-span-2 rounded-xl border border-white/8 bg-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-semibold text-foreground">Leads por dia</p>
@@ -238,7 +238,7 @@ function DashboardPage() {
         </div>
 
         {/* Kanban mini */}
-        <div className="rounded-xl border border-white/8 p-5" className="bg-card">
+        <div className="rounded-xl border border-white/8 bg-card p-5">
           <p className="text-sm font-semibold text-white mb-4">Pipeline</p>
           <div className="space-y-3">
             {Object.entries(STAGE_LABELS).map(([stage, label]) => {
@@ -263,7 +263,7 @@ function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Funil de conversão */}
-        <div className="rounded-xl border border-white/8 p-5" className="bg-card">
+        <div className="rounded-xl border border-white/8 bg-card p-5">
           <p className="text-sm font-semibold text-white mb-4">Funil de conversão</p>
           <div className="space-y-2">
             {funil.map(({ fase, count }) => {
@@ -285,7 +285,7 @@ function DashboardPage() {
         </div>
 
         {/* Leads quentes */}
-        <div className="rounded-xl border border-white/8 p-5" className="bg-card">
+        <div className="rounded-xl border border-white/8 bg-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-400" />
@@ -323,7 +323,7 @@ function DashboardPage() {
       </div>
 
       {/* Atividade recente */}
-      <div className="rounded-xl border border-white/8 p-5" className="bg-card">
+      <div className="rounded-xl border border-white/8 bg-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <Zap className="h-4 w-4 text-emerald-400" />
           <p className="text-sm font-semibold text-foreground">Atividade recente</p>

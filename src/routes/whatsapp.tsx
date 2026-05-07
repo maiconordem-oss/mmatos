@@ -211,7 +211,7 @@ function WhatsappPage() {
   ] as const;
 
   return (
-    <div className="flex flex-col h-full" className="bg-background">
+    <div className="flex flex-col h-full bg-background">
       <Toaster />
 
       {/* Header */}
@@ -268,7 +268,7 @@ function WhatsappPage() {
                 : "";
 
               return (
-                <div key={inst.id} className="rounded-2xl border border-white/8 overflow-hidden" className="bg-card">
+                <div key={inst.id} className="rounded-2xl border border-white/8 bg-card overflow-hidden">
                   {/* Card header */}
                   <div className="flex items-center gap-4 p-5">
                     {/* Avatar */}
@@ -346,7 +346,7 @@ function WhatsappPage() {
 
                   {/* QR Code */}
                   {inst.qr_code && inst.status !== "connected" && (showQR === inst.id || inst.status === "qr") && (
-                    <div className="border-t border-white/8 p-5 flex flex-col items-center gap-4" className="bg-muted/50">
+                    <div className="border-t border-white/8 bg-muted/50 p-5 flex flex-col items-center gap-4">
                       <div className="flex items-center gap-2 text-amber-400 text-sm">
                         <QrCode className="h-4 w-4" />
                         <span>Escaneie com o WhatsApp</span>
@@ -362,7 +362,7 @@ function WhatsappPage() {
                   )}
 
                   {/* Webhook URL */}
-                  <div className="border-t border-white/5 px-5 py-3" className="bg-muted/50">
+                  <div className="border-t border-white/5 bg-muted/50 px-5 py-3">
                     <p className="text-[10px] text-slate-600 uppercase tracking-wide mb-1">URL do Webhook (configure na Evolution API)</p>
                     <div className="flex items-center gap-2">
                       <code className="text-[11px] text-slate-500 flex-1 truncate">{webhookUrl}</code>
@@ -433,7 +433,7 @@ function WhatsappPage() {
             </div>
 
             {/* Evolution API */}
-            <div className="rounded-xl border border-white/8 p-4 space-y-4" className="bg-muted/50">
+            <div className="rounded-xl border border-white/8 bg-muted/50 p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-amber-400" />
                 <p className="text-sm font-medium text-foreground">Evolution API</p>
@@ -467,7 +467,7 @@ function WhatsappPage() {
 
             {/* Funil — só para números de funil */}
             {!form.is_office && (
-              <div className="rounded-xl border border-white/8 p-4 space-y-3" className="bg-muted/50">
+              <div className="rounded-xl border border-white/8 bg-muted/50 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <Bot className="h-4 w-4 text-emerald-400" />
                   <p className="text-sm font-medium text-foreground">Funil de atendimento *</p>
@@ -508,7 +508,7 @@ function WhatsappPage() {
             </div>
 
             {!editingId && (
-              <div className="rounded-xl border border-white/8 p-4 space-y-3" className="bg-muted/50">
+              <div className="rounded-xl border border-white/8 bg-muted/50 p-4 space-y-3">
                 <p className="text-xs font-medium text-muted-foreground">📋 Próximos passos após adicionar:</p>
                 <div className="space-y-2">
                   {[
@@ -539,7 +539,7 @@ function WhatsappPage() {
             </div>
 
             {/* Evolution API global */}
-            <div className="rounded-xl border border-white/8 p-5 space-y-4" className="bg-card">
+            <div className="rounded-xl border border-white/8 bg-card p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-amber-400" />
                 <div>
@@ -568,7 +568,7 @@ function WhatsappPage() {
             </div>
 
             {/* Info sobre os números */}
-            <div className="rounded-xl border border-white/8 p-5 space-y-4" className="bg-card">
+            <div className="rounded-xl border border-white/8 bg-card p-5 space-y-4">
               <p className="font-medium text-white flex items-center gap-2">
                 <Smartphone className="h-4 w-4 text-muted-foreground" /> Resumo dos números
               </p>

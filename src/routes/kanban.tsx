@@ -340,7 +340,7 @@ function KanbanPage() {
       {selectedCard && (
         <div className="fixed inset-0 z-50 flex" onClick={() => setSelectedCard(null)}>
           <div className="flex-1" />
-          <div className="w-96 h-full border-l border-white/10 p-6 overflow-y-auto" className="bg-card"
+          <div className="w-96 h-full border-l border-white/10 bg-card p-6 overflow-y-auto"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-bold text-foreground">{selectedCard.client_name || "Lead"}</h2>

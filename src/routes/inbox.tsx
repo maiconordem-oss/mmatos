@@ -151,6 +151,7 @@ type Conversation = {
   tags: string[];
   instance_id: string | null;
   photo_url: string | null;
+  blocked: boolean;
 };
 
 type QuickReply = { id: string; shortcut: string; message: string };
@@ -763,8 +764,7 @@ function InboxPage() {
       }),
     ];
 
-    const blob = new Blob([lines.join("
-")], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href = url; a.download = `conversa_${conv.phone}_${Date.now()}.txt`;
@@ -998,7 +998,7 @@ function InboxPage() {
                     </div>
                   )}
                   {/* Indicador bloqueado */}
-                  {(c as any).blocked && (
+                  {c.blocked && (
                     <div className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-600 border-2 border-[#111b21] flex items-center justify-center">
                       <span className="text-[8px] text-white font-bold">🚫</span>
                     </div>
@@ -1178,7 +1178,7 @@ function InboxPage() {
                       { label: "Ver histórico do contato", action: () => loadHistory(active.phone) },
                       { label: "Marcar como não lido",     action: () => markUnread(active.id) },
                       { label: "Exportar conversa",        action: () => exportConversation(active) },
-                      { label: (active as any).blocked ? "Desbloquear contato" : "Bloquear contato", action: () => toggleBlock(active), danger: true },
+                      { label: active.blocked ? "Desbloquear contato" : "Bloquear contato", action: () => toggleBlock(active), danger: true },
                     ].map(item => (
                       <button key={item.label} onClick={item.action}
                         className={cn("w-full text-left px-4 py-2.5 text-sm hover:bg-[#2a3942] transition-colors", item.danger ? "text-red-400" : "text-white")}>

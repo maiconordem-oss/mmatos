@@ -117,6 +117,42 @@ export type Database = {
           },
         ]
       }
+      business_hours: {
+        Row: {
+          absent_message: string
+          away_message: string
+          away_timeout_min: number
+          enabled: boolean
+          end_hour: number
+          id: string
+          start_hour: number
+          user_id: string
+          work_days: number[]
+        }
+        Insert: {
+          absent_message?: string
+          away_message?: string
+          away_timeout_min?: number
+          enabled?: boolean
+          end_hour?: number
+          id?: string
+          start_hour?: number
+          user_id: string
+          work_days?: number[]
+        }
+        Update: {
+          absent_message?: string
+          away_message?: string
+          away_timeout_min?: number
+          enabled?: boolean
+          end_hour?: number
+          id?: string
+          start_hour?: number
+          user_id?: string
+          work_days?: number[]
+        }
+        Relationships: []
+      }
       case_notes: {
         Row: {
           case_id: string
@@ -382,10 +418,34 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_tags: {
+        Row: {
+          color: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
+          accepted_at: string | null
           ai_handled: boolean
           ai_paused: boolean
+          assigned_to: string | null
+          blocked: boolean
           client_id: string | null
           contact_name: string | null
           created_at: string
@@ -394,14 +454,21 @@ export type Database = {
           last_message_at: string | null
           last_message_preview: string | null
           phone: string
+          photo_url: string | null
+          resolved_at: string | null
           status: Database["public"]["Enums"]["conversation_status"]
+          tags: string[]
+          ticket_status: string
           unread_count: number
           updated_at: string
           user_id: string
         }
         Insert: {
+          accepted_at?: string | null
           ai_handled?: boolean
           ai_paused?: boolean
+          assigned_to?: string | null
+          blocked?: boolean
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
@@ -410,14 +477,21 @@ export type Database = {
           last_message_at?: string | null
           last_message_preview?: string | null
           phone: string
+          photo_url?: string | null
+          resolved_at?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
+          tags?: string[]
+          ticket_status?: string
           unread_count?: number
           updated_at?: string
           user_id: string
         }
         Update: {
+          accepted_at?: string | null
           ai_handled?: boolean
           ai_paused?: boolean
+          assigned_to?: string | null
+          blocked?: boolean
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
@@ -426,7 +500,11 @@ export type Database = {
           last_message_at?: string | null
           last_message_preview?: string | null
           phone?: string
+          photo_url?: string | null
+          resolved_at?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
+          tags?: string[]
+          ticket_status?: string
           unread_count?: number
           updated_at?: string
           user_id?: string
@@ -927,6 +1005,30 @@ export type Database = {
           updated_at?: string
           user_id?: string
           value?: number
+        }
+        Relationships: []
+      }
+      quick_replies: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          shortcut: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          shortcut: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          shortcut?: string
+          user_id?: string
         }
         Relationships: []
       }
