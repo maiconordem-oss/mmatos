@@ -263,7 +263,7 @@ function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Funil de conversão */}
-        <div className="rounded-xl border border-white/8 p-5" className="bg-card">
+        <div className="rounded-xl border border-white/8 bg-card p-5">
           <p className="text-sm font-semibold text-white mb-4">Funil de conversão</p>
           <div className="space-y-2">
             {funil.map(({ fase, count }) => {
@@ -285,7 +285,7 @@ function DashboardPage() {
         </div>
 
         {/* Leads quentes */}
-        <div className="rounded-xl border border-white/8 p-5" className="bg-card">
+        <div className="rounded-xl border border-white/8 bg-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-400" />
@@ -323,7 +323,7 @@ function DashboardPage() {
       </div>
 
       {/* Atividade recente */}
-      <div className="rounded-xl border border-white/8 p-5" className="bg-card">
+      <div className="rounded-xl border border-white/8 bg-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <Zap className="h-4 w-4 text-emerald-400" />
           <p className="text-sm font-semibold text-foreground">Atividade recente</p>
