@@ -508,7 +508,7 @@ function WhatsappPage() {
             </div>
 
             {!editingId && (
-              <div className="rounded-xl border border-white/8 p-4 space-y-3" className="bg-muted/50">
+              <div className="rounded-xl border border-white/8 bg-muted/50 p-4 space-y-3">
                 <p className="text-xs font-medium text-muted-foreground">📋 Próximos passos após adicionar:</p>
                 <div className="space-y-2">
                   {[
@@ -539,7 +539,7 @@ function WhatsappPage() {
             </div>
 
             {/* Evolution API global */}
-            <div className="rounded-xl border border-white/8 p-5 space-y-4" className="bg-card">
+            <div className="rounded-xl border border-white/8 bg-card p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-amber-400" />
                 <div>
@@ -568,7 +568,7 @@ function WhatsappPage() {
             </div>
 
             {/* Info sobre os números */}
-            <div className="rounded-xl border border-white/8 p-5 space-y-4" className="bg-card">
+            <div className="rounded-xl border border-white/8 bg-card p-5 space-y-4">
               <p className="font-medium text-white flex items-center gap-2">
                 <Smartphone className="h-4 w-4 text-muted-foreground" /> Resumo dos números
               </p>
