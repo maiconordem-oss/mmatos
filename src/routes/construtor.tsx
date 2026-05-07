@@ -46,6 +46,7 @@ type Fase = {
   exclusoes:   { condicao: string; motivo: string }[]; // critérios de exclusão
   midias:      MidiaKey[];       // mídias a enviar
   textoAposMidia: string;        // texto após mídias
+  scriptsMedia:   Record<string, { script: string; momento: string }>; // script por chave de mídia
   acao:        AcaoTipo;         // ação ao completar
   camposColeta: string[];        // campos a coletar (só fase coleta)
   ativo:       boolean;
@@ -83,26 +84,26 @@ const FASES_PADRAO: Fase[] = [
   {
     id: "abertura", label: "Abertura", emoji: "🟢", cor: "#64748b", corBg: "#f8fafc",
     descricao: "Primeira mensagem do lead. Apresente o Dr. e convide para contar o caso.",
-    perguntas: [], exclusoes: [], midias: [], textoAposMidia: "Me conta o que está acontecendo.",
-    acao: "nenhuma", camposColeta: [], ativo: true,
+    perguntas: [], exclusoes: [], midias: ["video_abertura"], textoAposMidia: "Me conta o que está acontecendo.",
+    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
   },
   {
     id: "triagem", label: "Triagem", emoji: "📋", cor: "#3b82f6", corBg: "#eff6ff",
     descricao: "Qualifique o lead com perguntas estratégicas. Uma por vez.",
     perguntas: [], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "nenhuma", camposColeta: [], ativo: true,
+    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
   },
   {
     id: "conexao", label: "Conexão", emoji: "🤝", cor: "#f97316", corBg: "#fff7ed",
     descricao: "Apresente o caso como solucionável. Envie vídeo emocional. Peça confirmação.",
     perguntas: ["Posso abrir o seu caso agora?"], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "nenhuma", camposColeta: [], ativo: true,
+    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
   },
   {
     id: "fechamento", label: "Fechamento", emoji: "🎯", cor: "#ec4899", corBg: "#fdf2f8",
     descricao: "Envie áudio de avaliação. Confirme interesse antes de coletar dados.",
     perguntas: ["O que eu falei faz sentido para você?"], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "nenhuma", camposColeta: [], ativo: true,
+    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
   },
   {
     id: "coleta", label: "Coleta de dados", emoji: "📝", cor: "#8b5cf6", corBg: "#f5f3ff",
@@ -114,13 +115,13 @@ const FASES_PADRAO: Fase[] = [
     id: "assinatura", label: "Assinatura", emoji: "✍️", cor: "#22c55e", corBg: "#f0fdf4",
     descricao: "Contrato gerado. Aguarde assinatura e instrua sobre documentos.",
     perguntas: [], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "nenhuma", camposColeta: [], ativo: true,
+    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
   },
   {
     id: "encerrado", label: "Encerrado", emoji: "✅", cor: "#10b981", corBg: "#ecfdf5",
     descricao: "Atendimento finalizado com sucesso.",
     perguntas: [], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "nenhuma", camposColeta: [], ativo: true,
+    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
   },
 ];
 
@@ -262,19 +263,56 @@ function FaseCard({
             {fase.midias.length === 0 && (
               <p className="text-xs text-muted-foreground italic">Nenhuma mídia. Clique em Adicionar.</p>
             )}
-            {fase.midias.map((m, i) => (
-              <div key={i} className="flex items-center gap-2 mb-2">
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {m.startsWith("audio_") ? <Mic className="h-3.5 w-3.5 text-violet-500" /> : <Video className="h-3.5 w-3.5 text-blue-500" />}
+            {fase.midias.map((m, i) => {
+              const isAudio = m.startsWith("audio_");
+              const script = fase.scriptsMedia?.[m] ?? { script: "", momento: "" };
+              const setScript = (field: "script"|"momento", val: string) => {
+                patch({ scriptsMedia: { ...fase.scriptsMedia, [m]: { ...script, [field]: val } } });
+              };
+              return (
+                <div key={i} className="mb-3 rounded-lg border border-border overflow-hidden">
+                  {/* Linha da chave */}
+                  <div className="flex items-center gap-2 p-2 bg-muted/30">
+                    {isAudio ? <Mic className="h-3.5 w-3.5 text-violet-500 shrink-0" /> : <Video className="h-3.5 w-3.5 text-blue-500 shrink-0" />}
+                    <Input value={m} onChange={e => setMidia(i, e.target.value)}
+                      placeholder="chave da mídia (ex: video_abertura, audio_fechamento)"
+                      className="flex-1 text-xs h-7 font-mono bg-transparent border-0 shadow-none focus-visible:ring-0" />
+                    <button onClick={() => removeMidia(i)} className="text-muted-foreground hover:text-destructive shrink-0">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  {/* Script sugerido */}
+                  {m && (
+                    <div className="p-2.5 space-y-2 bg-card">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground mb-1 font-medium uppercase tracking-wide">
+                          {isAudio ? "🎤 O que falar no áudio:" : "🎬 O que mostrar/falar no vídeo:"}
+                        </p>
+                        <Textarea value={script.script}
+                          onChange={e => setScript("script", e.target.value)}
+                          rows={3} className="text-xs resize-none"
+                          placeholder={isAudio
+                            ? "Ex: 'Olá! Sou o Dr. Maicon. Eu já analisei o seu caso e acredito que você tem direito...'"
+                            : "Ex: Apareça de frente para a câmera, sorria, se apresente. Diga: 'Você fez bem em entrar em contato...'"}
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground mb-1 font-medium uppercase tracking-wide">
+                          ⏱️ Momento exato de enviar:
+                        </p>
+                        <Input value={script.momento}
+                          onChange={e => setScript("momento", e.target.value)}
+                          className="text-xs h-7"
+                          placeholder={isAudio
+                            ? "Ex: Após o lead confirmar interesse (fase fechamento)"
+                            : "Ex: Primeira mensagem do lead — antes de qualquer pergunta"}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <Input value={m} onChange={e => setMidia(i, e.target.value)}
-                  placeholder="chave da mídia (ex: video_abertura, audio_fechamento)"
-                  className="flex-1 text-xs h-8 font-mono" />
-                <button onClick={() => removeMidia(i)} className="text-muted-foreground hover:text-destructive shrink-0">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
             <p className="text-[10px] text-muted-foreground mt-1">
               Chave começando com <code className="bg-muted px-1 rounded">audio_</code> → áudio · resto → vídeo
             </p>
@@ -418,6 +456,7 @@ function ConstrutorPage() {
   const [saving, setSaving]     = useState(false);
   const [descricaoLivre, setDescricaoLivre] = useState("");
   const [gerandoFluxo, setGerandoFluxo]     = useState(false);
+  const [gerandoScripts, setGerandoScripts] = useState(false);
 
   // Gerar fluxo completo a partir de descrição livre
   const gerarFluxoComIA = async () => {
@@ -503,6 +542,86 @@ Gere o fluxo completo com perguntas de triagem, critérios de exclusão, dados a
       toast.error(`Erro ao gerar: ${e.message}`);
     } finally {
       setGerandoFluxo(false);
+    }
+  };
+
+  // Gerar scripts de vídeo e áudio com IA
+  const gerarScripts = async () => {
+    const todasMidias: { faseId: string; faseLabel: string; chave: string; tipo: string }[] = [];
+    cfg.fases.forEach(f => {
+      f.midias.forEach(m => {
+        if (m.trim()) todasMidias.push({
+          faseId: f.id, faseLabel: f.label, chave: m,
+          tipo: m.startsWith("audio_") ? "áudio" : "vídeo",
+        });
+      });
+    });
+    if (todasMidias.length === 0) { toast.error("Adicione mídias nas fases primeiro"); return; }
+
+    setGerandoScripts(true);
+    try {
+      const listaMidias = todasMidias.map(m =>
+        `- ${m.tipo.toUpperCase()} "${m.chave}" (fase ${m.faseLabel})`
+      ).join("
+");
+
+      const res = await fetch("/api/generate-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemPrompt: `Você é especialista em criação de scripts para vídeos e áudios de advocacia via WhatsApp.
+Gere scripts persuasivos e humanizados para cada mídia listada.
+Retorne APENAS JSON válido com esta estrutura:
+{
+  "scripts": {
+    "chave_da_midia": {
+      "script": "texto exato do que falar no vídeo/áudio",
+      "momento": "momento exato de envio na conversa"
+    }
+  }
+}
+Sem markdown, sem explicações, apenas o JSON.`,
+          userMsg: `Funil: ${cfg.nome || "atendimento jurídico"}
+Advogado: ${cfg.nomeDr}
+Tom: ${cfg.tomVoz === "proximo" ? "próximo, humano, sem juridiquês" : "técnico e formal"}
+Descrição: ${descricaoLivre || cfg.descricao || "atendimento jurídico via WhatsApp"}
+
+Mídias a criar script:
+${listaMidias}
+
+Para cada mídia, crie:
+1. Script completo do que falar (vídeo: o que aparecer/dizer na frente da câmera; áudio: o que gravar)
+2. Momento exato de envio (ex: "Primeira mensagem do lead, antes de qualquer pergunta")
+
+Lembre: vídeo de abertura → primeira mensagem sempre. Áudio de fechamento → após lead confirmar interesse.`,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Erro na API");
+      const { prompt: jsonStr } = await res.json();
+      const clean = jsonStr.replace(/\`\`\`json|\`\`\`/g, "").trim();
+      const data = JSON.parse(clean);
+
+      if (data.scripts) {
+        // Aplicar scripts nas fases corretas
+        setCfg(c => ({
+          ...c,
+          fases: c.fases.map(fase => {
+            const novosScripts = { ...fase.scriptsMedia };
+            fase.midias.forEach(m => {
+              if (data.scripts[m]) {
+                novosScripts[m] = data.scripts[m];
+              }
+            });
+            return { ...fase, scriptsMedia: novosScripts };
+          }),
+        }));
+        toast.success(`Scripts gerados para ${Object.keys(data.scripts).length} mídias!`);
+      }
+    } catch (e: any) {
+      toast.error(`Erro ao gerar scripts: ${e.message}`);
+    } finally {
+      setGerandoScripts(false);
     }
   };
 
@@ -690,11 +809,18 @@ Retorne APENAS o texto do prompt, sem JSON externo nem markdown.`,
                 className="resize-none text-sm"
                 placeholder={`Ex: "Atendo famílias que tiveram vaga em creche negada pelo município de Porto Alegre. A criança precisa ter até 5 anos e 11 meses, os pais precisam ter feito o pedido formal na prefeitura. O serviço é gratuito. Preciso coletar: nome dos pais, CPF, RG, endereço, nome da criança, data de nascimento e número do protocolo do pedido."`}
               />
-              <Button onClick={gerarFluxoComIA} disabled={gerandoFluxo || !descricaoLivre.trim()}
-                className="gap-2 w-full">
-                <Sparkles className="h-4 w-4" />
-                {gerandoFluxo ? "A IA está montando o fluxo..." : "Gerar fluxo com IA"}
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={gerarFluxoComIA} disabled={gerandoFluxo || !descricaoLivre.trim()}
+                  className="gap-2 flex-1">
+                  <Sparkles className="h-4 w-4" />
+                  {gerandoFluxo ? "Gerando fluxo..." : "Gerar fluxo completo"}
+                </Button>
+                <Button variant="outline" onClick={gerarScripts} disabled={gerandoScripts || cfg.fases.every(f => f.midias.length === 0)}
+                  className="gap-2 flex-1">
+                  <Mic className="h-4 w-4" />
+                  {gerandoScripts ? "Gerando scripts..." : "Sugerir scripts de vídeo/áudio"}
+                </Button>
+              </div>
               {gerandoFluxo && (
                 <div className="flex items-center gap-2 text-xs text-primary animate-pulse">
                   <Bot className="h-4 w-4" />

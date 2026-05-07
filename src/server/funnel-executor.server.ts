@@ -989,22 +989,38 @@ async function handleFunnelMessageInner(
     return;
   }
 
-  // 5. Texto inicial com typing indicator
-  if (reply.texto?.trim()) {
-    await sendText(admin, userId, convId, reply.texto);
-  }
-
-  // 5. Mídias com delay entre elas
+  // 5. Ordem de envio: abertura → mídia primeiro, texto depois
+  //    outras fases → texto primeiro, mídia depois
+  const isAbertura = state.fase === "abertura";
   const novasMidias: string[] = [];
-  for (const key of reply.midias) {
-    if (!state.midias_enviadas.includes(key)) {
-      await new Promise(r => setTimeout(r, 1000));
-      await sendMedia(admin, userId, convId, key, funnel);
-      novasMidias.push(key);
+
+  if (isAbertura) {
+    // Fase abertura: vídeo ANTES do texto de boas-vindas
+    for (const key of reply.midias) {
+      if (!state.midias_enviadas.includes(key)) {
+        await sendMedia(admin, userId, convId, key, funnel);
+        novasMidias.push(key);
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+    if (reply.texto?.trim()) {
+      await sendText(admin, userId, convId, reply.texto);
+    }
+  } else {
+    // Outras fases: texto ANTES das mídias
+    if (reply.texto?.trim()) {
+      await sendText(admin, userId, convId, reply.texto);
+    }
+    for (const key of reply.midias) {
+      if (!state.midias_enviadas.includes(key)) {
+        await new Promise(r => setTimeout(r, 1000));
+        await sendMedia(admin, userId, convId, key, funnel);
+        novasMidias.push(key);
+      }
     }
   }
 
-  // 6. texto_pos_midia com delay
+  // 6. texto_pos_midia com delay (após todas as mídias)
   if (reply.texto_pos_midia?.trim() && novasMidias.length > 0) {
     await new Promise(r => setTimeout(r, 2000));
     await sendText(admin, userId, convId, reply.texto_pos_midia);
