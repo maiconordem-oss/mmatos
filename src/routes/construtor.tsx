@@ -608,6 +608,7 @@ REGRAS OBRIGATÓRIAS:
           systemPrompt: `Você é especialista em criar prompts para agentes de IA de advocacia via WhatsApp. 
 Gere um prompt completo que instrui a IA a responder SEMPRE com JSON válido no formato especificado.
 O prompt deve ser profissional, humanizado e seguir exatamente o fluxo de fases configurado.
+CRÍTICO: O prompt gerado DEVE incluir a regra de que o campo "texto" sempre termina com uma pergunta ou call-to-action, nunca deixando o lead sem próxima ação.
 Retorne APENAS o texto do prompt, sem JSON externo nem markdown.`,
           userMsg,
         }),

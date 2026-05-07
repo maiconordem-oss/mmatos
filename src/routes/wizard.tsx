@@ -235,6 +235,12 @@ function WizardPage() {
 
 Sua missão: gerar o PROMPT OPERACIONAL de um agente de IA que atende clientes via WhatsApp em nome de um advogado real. O prompt precisa ser realista, humano, com timing impecável e quebrar objeções escondidas — não pode parecer um bot script.
 
+REGRA CRÍTICA A INCLUIR NO PROMPT GERADO:
+O campo "texto" deve SEMPRE terminar com uma pergunta ou call-to-action claro.
+NUNCA terminar com: "Entendido.", "Ok.", "Certo.", "Ótimo." sem continuar.
+SEMPRE terminar com: "E qual o nome completo do seu filho?", "Posso abrir o caso agora?", "Você tem o protocolo em mãos?", etc.
+O lead nunca pode ficar sem saber o que fazer a seguir.
+
 ═══════════════════════════════════════════════════════════
 FORMATO DE SAÍDA OBRIGATÓRIO DO AGENTE (NÃO do seu output — do agente que você está criando):
 A IA atendente deve responder SEMPRE com JSON válido:

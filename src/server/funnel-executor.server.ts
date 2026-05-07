@@ -442,7 +442,19 @@ fase: ${state.fase}
 dados coletados: ${JSON.stringify(state.dados)}
 mídias já enviadas: ${state.midias_enviadas.join(", ") || "nenhuma"}
 ATENÇÃO: Nunca envie mídia que já está em "mídias já enviadas".
-Responda APENAS com JSON válido no formato especificado. Nenhum texto fora do JSON.`;
+
+═══════════════════════════
+REGRAS CRÍTICAS ANTI-TRAVAMENTO
+═══════════════════════════
+1. NUNCA deixe o lead sem uma próxima ação clara.
+2. O campo "texto" DEVE sempre terminar com uma pergunta ou call-to-action.
+   ERRADO: "Entendido, pode ser isso."
+   CERTO:  "Entendido! E qual o nome completo do seu filho ou filha?"
+3. Se você acabou de enviar mídias (midias: [...]), use "texto_pos_midia" para fazer a próxima pergunta — ela será enviada após as mídias.
+4. Colete UM dado por vez. Nunca peça dois campos na mesma mensagem.
+5. Se o lead não respondeu o que você precisava, reformule a pergunta de outro jeito.
+6. Se o lead fizer uma pergunta fora do fluxo, responda brevemente e VOLTE para a próxima pergunta do fluxo.
+7. Responda APENAS com JSON válido no formato especificado. Nenhum texto fora do JSON.`;
 
   const messages = [
     { role: "system", content: personaPrompt + "\n\n" + contextBlock },
