@@ -1,5 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { createClient } from "@supabase/supabase-js";
+function getAdmin() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
 
 export const Route = createFileRoute("/api/debug-webhook")({
   server: {
@@ -13,7 +18,7 @@ export const Route = createFileRoute("/api/debug-webhook")({
           return Response.json({ error: "Passe ?id=ID_DA_INSTANCIA" }, { status: 400 });
         }
 
-        const { data: inst } = await supabaseAdmin
+        const { data: inst } = await getAdmin()
           .from("whatsapp_instances").select("*").eq("id", id).single();
 
         if (!inst) return Response.json({ error: "Instância não encontrada" }, { status: 404 });

@@ -1,5 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { createClient } from "@supabase/supabase-js";
+
+function getAdmin() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
 
 export const Route = createFileRoute("/api/media-proxy")({
   server: {
@@ -10,7 +16,8 @@ export const Route = createFileRoute("/api/media-proxy")({
 
         if (!msgId) return new Response("Missing msg param", { status: 400 });
 
-        const { data: msg } = await supabaseAdmin
+        const admin = getAdmin();
+        const { data: msg } = await admin
           .from("messages")
           .select("media_url, media_mime, external_id, conversation_id")
           .eq("id", msgId)
@@ -24,12 +31,12 @@ export const Route = createFileRoute("/api/media-proxy")({
         }
 
         // Buscar instância
-        const { data: conv } = await supabaseAdmin
+        const { data: conv } = await admin
           .from("conversations").select("instance_id").eq("id", msg.conversation_id).single();
 
         let apiKey = "", apiUrl = "", instanceName = "";
         if (conv?.instance_id) {
-          const { data: inst } = await supabaseAdmin
+          const { data: inst } = await admin
             .from("whatsapp_instances").select("api_key, api_url, instance_name").eq("id", conv.instance_id).single();
           apiKey = inst?.api_key ?? "";
           apiUrl = inst?.api_url?.replace(/\/$/, "") ?? "";
@@ -81,7 +88,8 @@ export const Route = createFileRoute("/api/media-proxy")({
         if (!msgId) return new Response("Missing msg param", { status: 400 });
 
         // Buscar mensagem + instância
-        const { data: msg } = await supabaseAdmin
+        const admin = getAdmin();
+        const { data: msg } = await admin
           .from("messages")
           .select("media_url, media_mime, external_id, conversation_id")
           .eq("id", msgId)
@@ -89,7 +97,7 @@ export const Route = createFileRoute("/api/media-proxy")({
 
         if (!msg?.media_url) return new Response("Media not found", { status: 404 });
 
-        const { data: conv } = await supabaseAdmin
+        const { data: conv } = await admin
           .from("conversations")
           .select("instance_id")
           .eq("id", msg.conversation_id)
@@ -100,7 +108,7 @@ export const Route = createFileRoute("/api/media-proxy")({
         let instanceName = "";
 
         if (conv?.instance_id) {
-          const { data: inst } = await supabaseAdmin
+          const { data: inst } = await admin
             .from("whatsapp_instances")
             .select("api_key, api_url, instance_name")
             .eq("id", conv.instance_id)
