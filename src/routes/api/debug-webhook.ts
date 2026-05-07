@@ -124,7 +124,55 @@ export const Route = createFileRoute("/api/debug-webhook")({
           }
         }
 
-        return Response.json({ actions: ["status", "set-webhook", "get-webhook", "send-test"] });
+        // ── 5. Buscar fotos de todos os contatos ─────────────
+        if (action === "fetch-photos") {
+          const admin = getAdmin();
+          const { data: convs } = await admin
+            .from("conversations")
+            .select("id, phone, instance_id")
+            .is("photo_url", null)
+            .not("phone", "like", "SIM_%")
+            .limit(50);
+
+          let updated = 0;
+          for (const conv of convs ?? []) {
+            if (!conv.instance_id) continue;
+            const { data: inst } = await admin
+              .from("whatsapp_instances")
+              .select("api_url, api_key, instance_name")
+              .eq("id", conv.instance_id).single();
+            if (!inst?.api_url) continue;
+
+            let photoUrl: string | null = null;
+            const base = inst.api_url.replace(/\/$/, "");
+            const headers = { "Content-Type": "application/json", apikey: inst.api_key ?? "" };
+
+            for (const endpoint of [
+              `${base}/chat/fetchProfilePictureUrl/${inst.instance_name}`,
+              `${base}/misc/profilePicture/${inst.instance_name}`,
+            ]) {
+              try {
+                const res = await fetch(endpoint, {
+                  method: "POST", headers,
+                  body: JSON.stringify({ number: conv.phone }),
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  photoUrl = data?.profilePictureUrl ?? data?.picture ?? data?.url ?? null;
+                  if (photoUrl) break;
+                }
+              } catch {}
+            }
+
+            if (photoUrl) {
+              await admin.from("conversations").update({ photo_url: photoUrl }).eq("id", conv.id);
+              updated++;
+            }
+          }
+          return Response.json({ ok: true, updated, total: convs?.length ?? 0 });
+        }
+
+        return Response.json({ actions: ["status", "set-webhook", "get-webhook", "send-test", "fetch-photos"] });
       },
 
       // Aceitar qualquer POST (para testar se o webhook chega)

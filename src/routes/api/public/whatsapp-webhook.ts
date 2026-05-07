@@ -92,17 +92,24 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
             // Buscar foto do contato via Evolution API
             let photoUrl: string | null = null;
             try {
-              const photoRes = await fetch(
-                `${inst.api_url?.replace(/\/$/, "")}/chat/fetchProfilePictureUrl/${inst.instance_name}`,
-                { method: "POST",
-                  headers: { "Content-Type": "application/json", apikey: inst.api_key ?? "" },
-                  body: JSON.stringify({ number: phone }) }
-              );
-              if (photoRes.ok) {
-                const photoData = await photoRes.json();
-                photoUrl = photoData?.profilePictureUrl ?? photoData?.picture ?? null;
+              const base = inst.api_url?.replace(/\/$/, "") ?? "";
+              const headers = { "Content-Type": "application/json", apikey: inst.api_key ?? "" };
+              // Evolution v2 — tentar dois endpoints
+              for (const endpoint of [
+                `${base}/chat/fetchProfilePictureUrl/${inst.instance_name}`,
+                `${base}/misc/profilePicture/${inst.instance_name}`,
+              ]) {
+                const photoRes = await fetch(endpoint, {
+                  method: "POST", headers,
+                  body: JSON.stringify({ number: phone }),
+                });
+                if (photoRes.ok) {
+                  const photoData = await photoRes.json();
+                  photoUrl = photoData?.profilePictureUrl ?? photoData?.picture ?? photoData?.url ?? null;
+                  if (photoUrl) break;
+                }
               }
-            } catch {}
+            } catch (e) { console.log("fetchPhoto error:", e); }
 
             const { data: created } = await supabaseAdmin.from("conversations").insert({
               user_id: inst.user_id, phone, status: "open",
