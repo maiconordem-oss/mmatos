@@ -14,6 +14,7 @@ import { Route as WizardRouteImport } from './routes/wizard'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ManualRouteImport } from './routes/manual'
+import { Route as ConstrutorRouteImport } from './routes/construtor'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
 import { Route as InboxRouteImport } from './routes/inbox'
@@ -51,6 +52,11 @@ const WhatsappRoute = WhatsappRouteImport.update({
 const RelatoriosRoute = RelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConstrutorRoute = ConstrutorRouteImport.update({
+  id: '/construtor',
+  path: '/construtor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManualRoute = ManualRouteImport.update({
@@ -316,6 +322,7 @@ export interface RootRouteChildren {
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
   ManualRoute: typeof ManualRoute
+  ConstrutorRoute: typeof ConstrutorRoute
   RelatoriosRoute: typeof RelatoriosRoute
   WhatsappRoute: typeof WhatsappRoute
   WizardRoute: typeof WizardRoute
@@ -357,6 +364,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/relatorios'
       preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/construtor': {
+      id: '/construtor'
+      path: '/construtor'
+      fullPath: '/construtor'
+      preLoaderRoute: typeof ConstrutorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manual': {
