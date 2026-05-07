@@ -370,6 +370,9 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
 function InboxPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { notify, requestPermission } = useNotification();
+  const recorder = useAudioRecorder();
+  const [sendingAudio, setSendingAudio] = useState(false);
   const [instances, setInstances]         = useState<any[]>([]);
   const [activeInstance, setActiveInstance] = useState<string | "all">("all");
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -506,6 +509,9 @@ function InboxPage() {
 
   useEffect(() => {
     requestPermission();
+  }, []); // eslint-disable-line
+
+  useEffect(() => {
     loadInstances();
     loadQuickReplies();
     loadTags();
