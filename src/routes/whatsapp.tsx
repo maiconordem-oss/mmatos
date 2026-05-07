@@ -211,7 +211,7 @@ function WhatsappPage() {
   ] as const;
 
   return (
-    <div className="flex flex-col h-full" className="bg-background">
+    <div className="flex flex-col h-full bg-background">
       <Toaster />
 
       {/* Header */}
@@ -268,7 +268,7 @@ function WhatsappPage() {
                 : "";
 
               return (
-                <div key={inst.id} className="rounded-2xl border border-white/8 overflow-hidden" className="bg-card">
+                <div key={inst.id} className="rounded-2xl border border-white/8 bg-card overflow-hidden">
                   {/* Card header */}
                   <div className="flex items-center gap-4 p-5">
                     {/* Avatar */}
@@ -346,7 +346,7 @@ function WhatsappPage() {
 
                   {/* QR Code */}
                   {inst.qr_code && inst.status !== "connected" && (showQR === inst.id || inst.status === "qr") && (
-                    <div className="border-t border-white/8 p-5 flex flex-col items-center gap-4" className="bg-muted/50">
+                    <div className="border-t border-white/8 bg-muted/50 p-5 flex flex-col items-center gap-4">
                       <div className="flex items-center gap-2 text-amber-400 text-sm">
                         <QrCode className="h-4 w-4" />
                         <span>Escaneie com o WhatsApp</span>
