@@ -70,13 +70,13 @@ export const transcribeAudioMessage = createServerFn({ method: "POST" })
 
     const { data: msg, error: e1 } = await supabase
       .from("messages")
-      .select("id, media_url, media_mime, transcript")
+      .select("id, media_url, media_mime, transcription")
       .eq("id", data.messageId)
       .single();
     if (e1 || !msg?.media_url) throw new Error("Mensagem de áudio não encontrada.");
 
-    if (msg.transcript && msg.transcript.length > 0) {
-      return { transcript: msg.transcript, cached: true };
+    if (msg.transcription && msg.transcription.length > 0) {
+      return { transcript: msg.transcription, cached: true };
     }
 
     // Baixa o áudio
@@ -102,12 +102,12 @@ export const transcribeAudioMessage = createServerFn({ method: "POST" })
       throw new Error(`ElevenLabs [${res.status}]: ${err}`);
     }
     const json: any = await res.json();
-    const transcript = (json?.text ?? "").trim();
+    const transcription = (json?.text ?? "").trim();
 
     // Persiste
-    await supabase.from("messages").update({ transcript }).eq("id", data.messageId);
+    await supabase.from("messages").update({ transcription }).eq("id", data.messageId);
 
-    return { transcript, cached: false };
+    return { transcription, cached: false };
   });
 
 /** Gera áudio TTS a partir de texto. Retorna base64 (mp3). */
