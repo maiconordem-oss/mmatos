@@ -274,7 +274,7 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
   useEffect(() => {
     if (!conv.phone) return;
     supabase.from("clients")
-      .select("id, name, email, cpf")
+      .select("id, full_name, email, document")
       .eq("phone", conv.phone.replace(/\D/g, ""))
       .maybeSingle()
       .then(({ data }) => setClienteExiste(data));
@@ -292,9 +292,9 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
         const d = data.dados as any;
         setForm(prev => ({
           ...prev,
-          name:  d.nome  || prev.name,
+          name:  d.nome  || d.full_name || prev.name,
           email: d.email || prev.email,
-          cpf:   d.cpf   || prev.cpf,
+          cpf:   d.cpf   || d.document  || prev.cpf,
         }));
       });
   }, [conv.id]);
@@ -306,12 +306,13 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
       const phone = form.phone.replace(/\D/g, "");
       // Upsert pelo telefone
       const { data, error } = await supabase.from("clients").upsert({
-        user_id: user.id,
-        name:    form.name.trim(),
-        phone:   phone,
-        email:   form.email.trim() || null,
-        cpf:     form.cpf.trim()   || null,
-        notes:   form.notes.trim() || null,
+        user_id:   user.id,
+        full_name: form.name.trim(),
+        phone:     phone,
+        whatsapp:  phone,
+        email:     form.email.trim()  || null,
+        document:  form.cpf.trim()    || null,
+        notes:     form.notes.trim()  || null,
       }, { onConflict: "phone" }).select().single();
       if (error) throw error;
       setClienteExiste(data);
@@ -375,8 +376,8 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
               <div className="h-2 w-2 rounded-full bg-[#25d366] shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Cliente cadastrado</p>
-                <p className="text-white text-xs font-medium truncate">{clienteExiste.name}</p>
-                {clienteExiste.cpf && <p className="text-[#8696a0] text-[10px]">CPF: {clienteExiste.cpf}</p>}
+                <p className="text-white text-xs font-medium truncate">{clienteExiste.full_name}</p>
+                {clienteExiste.document && <p className="text-[#8696a0] text-[10px]">CPF: {clienteExiste.document}</p>}
               </div>
               <button onClick={() => setShowForm(!showForm)}
                 className="text-[10px] text-[#25d366] hover:underline shrink-0">editar</button>
