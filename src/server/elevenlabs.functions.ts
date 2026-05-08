@@ -107,7 +107,7 @@ export const transcribeAudioMessage = createServerFn({ method: "POST" })
     // Persiste
     await supabase.from("messages").update({ transcription }).eq("id", data.messageId);
 
-    return { transcription, cached: false };
+    return { transcript: transcription, cached: false };
   });
 
 /** Gera áudio TTS a partir de texto. Retorna base64 (mp3). */
