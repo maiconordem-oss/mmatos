@@ -33,7 +33,20 @@ const TAG_COLORS = ["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6","#ef4444",
 
 function ConfigPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<"quick"|"tags"|"horario">("quick");
+  const [tab, setTab] = useState<"quick"|"tags"|"horario"|"integracoes">("quick");
+
+  // ElevenLabs token
+  const checkElevenFn  = useAuthServerFn(checkElevenlabsToken);
+  const saveElevenFn   = useAuthServerFn(saveElevenlabsToken);
+  const deleteElevenFn = useAuthServerFn(deleteElevenlabsToken);
+  const [elevenInfo, setElevenInfo] = useState<{ configured: boolean; source: string | null; masked: string | null } | null>(null);
+  const [elevenOpen, setElevenOpen] = useState(false);
+  const [elevenInput, setElevenInput] = useState("");
+  const [savingEleven, setSavingEleven] = useState(false);
+  const loadElevenInfo = useCallback(async () => {
+    try { setElevenInfo(await checkElevenFn({ data: {} } as any)); } catch {}
+  }, [checkElevenFn]);
+  useEffect(() => { loadElevenInfo(); }, [loadElevenInfo]);
 
   // Quick Replies
   const [replies, setReplies]   = useState<any[]>([]);
