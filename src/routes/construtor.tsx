@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -13,397 +13,475 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
-  ChevronRight, ChevronDown, Play, Plus, Trash2,
-  Video, Mic, FileText, MessageSquare, Calendar,
-  CheckCheck, X, Zap, Sparkles, Eye, Save,
-  ArrowRight, Bot, User, AlertCircle,
+  ChevronRight, Plus, Trash2, Video, Mic, FileText,
+  MessageSquare, Calendar, CheckCheck, X, Sparkles,
+  Save, Bot, User, AlertCircle, Zap, Play, RefreshCw,
+  Users, FileSignature, ArrowRight, Settings, Eye,
 } from "lucide-react";
 
 export const Route = createFileRoute("/construtor")({
-  head: () => ({ meta: [{ title: "Construtor de Funil — Lex CRM" }] }),
+  head: () => ({ meta: [{ title: "Construtor — Lex CRM" }] }),
   component: () => (
-    <AuthGate>
-      <AppShell>
-        <ConstrutorPage />
-      </AppShell>
-    </AuthGate>
+    <AuthGate><AppShell noPadding><ConstrutorPage /></AppShell></AuthGate>
   ),
 });
 
 // ── Tipos ──────────────────────────────────────────────────────
-type MidiaKey = string;
-type AcaoTipo = "contrato" | "agendamento" | "handoff" | "nenhuma";
-
+type AcaoTipo = "contrato" | "agendamento" | "handoff" | "criar_grupo" | "nenhuma";
 type Fase = {
-  id: string;
-  label: string;
-  emoji: string;
-  cor: string;
-  corBg: string;
-  descricao: string;
-  // Config do usuário
-  perguntas:   string[];         // perguntas desta fase
-  exclusoes:   { condicao: string; motivo: string }[]; // critérios de exclusão
-  midias:      MidiaKey[];       // mídias a enviar
-  textoAposMidia: string;        // texto após mídias
-  scriptsMedia:   Record<string, { script: string; momento: string }>; // script por chave de mídia
-  acao:        AcaoTipo;         // ação ao completar
-  camposColeta: string[];        // campos a coletar (só fase coleta)
-  ativo:       boolean;
+  id: string; label: string; emoji: string; cor: string;
+  perguntas: string[];
+  exclusoes: { condicao: string; motivo: string }[];
+  midias: { chave: string; script: string; momento: string }[];
+  textoAposMidia: string;
+  acao: AcaoTipo;
+  camposColeta: string[];
 };
 
-type FunilConfig = {
-  nome:         string;
-  descricao:    string;
-  nomeDr:       string;
-  tomVoz:       "proximo" | "formal";
-  servicoGratuito: boolean;
-  honorarios:   string;
-  fases:        Fase[];
-};
-
-const CAMPOS_DISPONIVEIS = [
-  { key: "nome",              label: "Nome completo" },
-  { key: "cpf",               label: "CPF" },
-  { key: "rg",                label: "RG" },
-  { key: "estadoCivil",       label: "Estado civil" },
-  { key: "profissao",         label: "Profissão" },
-  { key: "endereco",          label: "Endereço completo" },
-  { key: "dataNascimento",    label: "Data de nascimento" },
-  { key: "nomeCrianca",       label: "Nome da criança" },
-  { key: "idadeCrianca",      label: "Idade da criança" },
-  { key: "municipio",         label: "Município" },
-  { key: "creche",            label: "Creche solicitada" },
-  { key: "protocolo",         label: "Protocolo do pedido" },
-  { key: "temPrescricao",     label: "Tem prescrição médica?" },
-  { key: "nomeMedico",        label: "Nome do médico" },
-  { key: "email",             label: "E-mail" },
-];
+type SimMsg = { de: "ia" | "lead"; texto: string; tipo?: string; delay?: number };
 
 const FASES_PADRAO: Fase[] = [
-  {
-    id: "abertura", label: "Abertura", emoji: "🟢", cor: "#64748b", corBg: "#f8fafc",
-    descricao: "Primeira mensagem do lead. Apresente o Dr. e convide para contar o caso.",
-    perguntas: [], exclusoes: [], midias: ["video_abertura"], textoAposMidia: "Me conta o que está acontecendo.",
-    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
-  },
-  {
-    id: "triagem", label: "Triagem", emoji: "📋", cor: "#3b82f6", corBg: "#eff6ff",
-    descricao: "Qualifique o lead com perguntas estratégicas. Uma por vez.",
-    perguntas: [], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
-  },
-  {
-    id: "conexao", label: "Conexão", emoji: "🤝", cor: "#f97316", corBg: "#fff7ed",
-    descricao: "Apresente o caso como solucionável. Envie vídeo emocional. Peça confirmação.",
-    perguntas: ["Posso abrir o seu caso agora?"], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
-  },
-  {
-    id: "fechamento", label: "Fechamento", emoji: "🎯", cor: "#ec4899", corBg: "#fdf2f8",
-    descricao: "Envie áudio de avaliação. Confirme interesse antes de coletar dados.",
-    perguntas: ["O que eu falei faz sentido para você?"], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
-  },
-  {
-    id: "coleta", label: "Coleta de dados", emoji: "📝", cor: "#8b5cf6", corBg: "#f5f3ff",
-    descricao: "Colete os dados necessários para o contrato. Um campo por mensagem.",
-    perguntas: [], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "contrato", camposColeta: ["nome", "cpf", "rg", "endereco"], scriptsMedia: {}, ativo: true,
-  },
-  {
-    id: "assinatura", label: "Assinatura", emoji: "✍️", cor: "#22c55e", corBg: "#f0fdf4",
-    descricao: "Contrato gerado. Aguarde assinatura e instrua sobre documentos.",
-    perguntas: [], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
-  },
-  {
-    id: "encerrado", label: "Encerrado", emoji: "✅", cor: "#10b981", corBg: "#ecfdf5",
-    descricao: "Atendimento finalizado com sucesso.",
-    perguntas: [], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "nenhuma", camposColeta: [], scriptsMedia: {}, ativo: true,
-  },
+  { id: "abertura",  label: "Abertura",       emoji: "🟢", cor: "#0d9488",
+    perguntas: [], exclusoes: [], midias: [{ chave: "video_abertura", script: "", momento: "Primeira mensagem" }],
+    textoAposMidia: "Me conta o que está acontecendo.", acao: "nenhuma", camposColeta: [] },
+  { id: "triagem",   label: "Triagem",         emoji: "📋", cor: "#2563eb",
+    perguntas: [], exclusoes: [], midias: [], textoAposMidia: "", acao: "nenhuma", camposColeta: [] },
+  { id: "conexao",   label: "Conexão",         emoji: "🤝", cor: "#d97706",
+    perguntas: ["Posso abrir o seu caso agora?"], exclusoes: [], midias: [{ chave: "video_conexao", script: "", momento: "Após triagem" }],
+    textoAposMidia: "", acao: "nenhuma", camposColeta: [] },
+  { id: "fechamento",label: "Fechamento",      emoji: "🎯", cor: "#db2777",
+    perguntas: ["O que eu falei faz sentido para você?"], exclusoes: [], midias: [{ chave: "audio_fechamento", script: "", momento: "Após conexão" }],
+    textoAposMidia: "", acao: "nenhuma", camposColeta: [] },
+  { id: "coleta",    label: "Coleta de dados", emoji: "📝", cor: "#7c3aed",
+    perguntas: [], exclusoes: [], midias: [], textoAposMidia: "", acao: "contrato",
+    camposColeta: ["nome", "cpf", "rg", "endereco"] },
+  { id: "assinatura",label: "Assinatura",      emoji: "✍️", cor: "#059669",
+    perguntas: [], exclusoes: [], midias: [{ chave: "video_documentos", script: "", momento: "Após contrato" }],
+    textoAposMidia: "", acao: "criar_grupo", camposColeta: [] },
+  { id: "encerrado", label: "Encerrado",       emoji: "✅", cor: "#64748b",
+    perguntas: [], exclusoes: [], midias: [], textoAposMidia: "", acao: "nenhuma", camposColeta: [] },
 ];
 
-const CONFIG_INICIAL: FunilConfig = {
-  nome: "", descricao: "", nomeDr: "Dr. Maicon Matos",
-  tomVoz: "proximo", servicoGratuito: true, honorarios: "",
-  fases: FASES_PADRAO.map(f => ({ ...f })),
-};
+const CAMPOS = [
+  { key: "nome", label: "Nome completo" }, { key: "cpf", label: "CPF" },
+  { key: "rg", label: "RG" }, { key: "endereco", label: "Endereço" },
+  { key: "dataNascimento", label: "Data de nascimento" }, { key: "municipio", label: "Município" },
+  { key: "nomeCrianca", label: "Nome da criança" }, { key: "idadeCrianca", label: "Idade da criança" },
+  { key: "protocolo", label: "Protocolo" }, { key: "email", label: "E-mail" },
+  { key: "temPrescricao", label: "Tem prescrição?" }, { key: "nomeMedico", label: "Nome do médico" },
+];
 
-// ── Preview de conversa ────────────────────────────────────────
-type PreviewMsg = { de: "ia" | "lead"; texto: string; tipo?: string };
+const ACOES = [
+  { val: "nenhuma",    label: "Avançar fase",      icon: ArrowRight,     desc: "Só passa para a próxima" },
+  { val: "contrato",   label: "Gerar contrato",     icon: FileSignature,  desc: "ZapSign automático" },
+  { val: "agendamento",label: "Agendar consulta",   icon: Calendar,       desc: "Google Calendar" },
+  { val: "criar_grupo",label: "Criar grupo",        icon: Users,          desc: "Grupo WhatsApp" },
+  { val: "handoff",    label: "Chamar humano",      icon: User,           desc: "Pausa a IA" },
+] as const;
 
-function PreviewConversa({ msgs }: { msgs: PreviewMsg[] }) {
+// ── Simulador de conversa ──────────────────────────────────────
+function Simulador({ fases, nomeDr, onClose }: { fases: Fase[]; nomeDr: string; onClose: () => void }) {
+  const [msgs, setMsgs] = useState<SimMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [faseIdx, setFaseIdx] = useState(0);
+  const [perguntaIdx, setPerguntaIdx] = useState(0);
+  const [campoIdx, setCampoIdx] = useState(0);
+  const [etapa, setEtapa] = useState<"midia"|"pergunta"|"coleta"|"acao"|"fim">("midia");
+  const [typing, setTyping] = useState(false);
+  const [dados, setDados] = useState<Record<string,string>>({});
+  const [log, setLog] = useState<string[]>([]);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  const fase = fases[faseIdx];
+
+  const addLog = (msg: string) => setLog(prev => [...prev, msg]);
+
+  const iaFala = useCallback((texto: string, tipo?: string) => {
+    setTyping(true);
+    setTimeout(() => {
+      setTyping(false);
+      setMsgs(prev => [...prev, { de: "ia", texto, tipo }]);
+    }, 900);
+  }, []);
+
+  const avancarFase = useCallback((idx: number) => {
+    const proxFase = fases[idx];
+    if (!proxFase) { setEtapa("fim"); return; }
+    setFaseIdx(idx);
+    setPerguntaIdx(0);
+    setCampoIdx(0);
+    addLog(`→ Fase: ${proxFase.label}`);
+
+    if (proxFase.midias.length > 0) {
+      setEtapa("midia");
+      setTimeout(() => {
+        proxFase.midias.forEach((m, i) => {
+          setTimeout(() => {
+            const tipo = m.chave.startsWith("audio_") ? "audio" : "video";
+            setMsgs(prev => [...prev, { de: "ia", texto: `[${tipo.toUpperCase()}: ${m.chave}]`, tipo }]);
+          }, i * 1200);
+        });
+        setTimeout(() => {
+          if (proxFase.textoAposMidia) iaFala(proxFase.textoAposMidia);
+          setTimeout(() => {
+            if (proxFase.perguntas.length > 0) { setEtapa("pergunta"); iaFala(proxFase.perguntas[0]); }
+            else if (proxFase.camposColeta.length > 0) { setEtapa("coleta"); const c = CAMPOS.find(x => x.key === proxFase.camposColeta[0]); iaFala(`Para continuar, preciso do seu ${c?.label ?? proxFase.camposColeta[0]}.`); }
+            else { setEtapa("acao"); processarAcao(proxFase, idx); }
+          }, 1200);
+        }, proxFase.midias.length * 1200 + 400);
+      }, 400);
+    } else if (proxFase.perguntas.length > 0) {
+      setEtapa("pergunta");
+      setTimeout(() => iaFala(proxFase.perguntas[0]), 400);
+    } else if (proxFase.camposColeta.length > 0) {
+      setEtapa("coleta");
+      const c = CAMPOS.find(x => x.key === proxFase.camposColeta[0]);
+      setTimeout(() => iaFala(`Para continuar, preciso do seu ${c?.label ?? proxFase.camposColeta[0]}.`), 400);
+    } else {
+      setEtapa("acao");
+      setTimeout(() => processarAcao(proxFase, idx), 400);
+    }
+  }, [fases, iaFala]);
+
+  const processarAcao = useCallback((f: Fase, idx: number) => {
+    if (f.acao === "contrato") {
+      addLog("⚡ Ação: Gerando contrato ZapSign...");
+      iaFala("Perfeito! Estou gerando o contrato agora... 📄");
+      setTimeout(() => {
+        setMsgs(prev => [...prev, { de: "ia", texto: "✅ Contrato gerado! Você receberá o link de assinatura por e-mail.", tipo: "contrato" }]);
+        addLog("✅ Contrato gerado com sucesso");
+        setTimeout(() => avancarFase(idx + 1), 1500);
+      }, 2000);
+    } else if (f.acao === "agendamento") {
+      addLog("📅 Ação: Buscando horários no Google Calendar...");
+      iaFala("Vou verificar minha agenda... 📅");
+      setTimeout(() => {
+        setMsgs(prev => [...prev, { de: "ia", texto: "Tenho os seguintes horários disponíveis:\n\n• Amanhã às 14h\n• Quinta às 10h\n• Sexta às 16h\n\nQual prefere?" }]);
+        addLog("📅 3 horários oferecidos");
+        setEtapa("pergunta");
+      }, 1500);
+    } else if (f.acao === "criar_grupo") {
+      addLog("👥 Ação: Criando grupo WhatsApp...");
+      iaFala("Criando um grupo para acompanharmos juntos o seu caso... 👥");
+      setTimeout(() => {
+        setMsgs(prev => [...prev, { de: "ia", texto: "✅ Grupo criado! Você já recebeu o convite. Lá vamos enviar todas as atualizações do processo.", tipo: "grupo" }]);
+        addLog("✅ Grupo WhatsApp criado");
+        setTimeout(() => avancarFase(idx + 1), 1500);
+      }, 2000);
+    } else if (f.acao === "handoff") {
+      addLog("👤 Ação: Transferindo para humano...");
+      setMsgs(prev => [...prev, { de: "ia", texto: "Vou acionar minha equipe agora. Em breve alguém vai falar diretamente com você! 👤", tipo: "handoff" }]);
+      setEtapa("fim");
+      addLog("🔚 IA pausada — atendimento humano");
+    } else {
+      avancarFase(idx + 1);
+    }
+  }, [iaFala, avancarFase]);
+
+  // Iniciar simulação
+  useEffect(() => {
+    setMsgs([{ de: "ia", texto: `Olá! Aqui é o ${nomeDr || "Dr. Maicon"}. Como posso ajudar?` }]);
+    addLog("🟢 Simulação iniciada");
+    setTimeout(() => avancarFase(0), 600);
+  }, []);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, typing]);
+
+  const responder = () => {
+    if (!input.trim() || typing) return;
+    const resp = input.trim();
+    setInput("");
+    setMsgs(prev => [...prev, { de: "lead", texto: resp }]);
+
+    // Verificar exclusões
+    const exclusoesAtivas = fase.exclusoes;
+    const excluido = exclusoesAtivas.find(e => e.condicao && resp.toLowerCase().includes(e.condicao.toLowerCase().split(" ")[0]));
+    if (excluido) {
+      addLog(`❌ Exclusão: ${excluido.condicao}`);
+      setTimeout(() => {
+        iaFala(`Entendo. Infelizmente, ${excluido.motivo}. Obrigado pelo contato!`);
+        setEtapa("fim");
+      }, 600);
+      return;
+    }
+
+    if (etapa === "pergunta") {
+      const proximo = perguntaIdx + 1;
+      if (proximo < fase.perguntas.length) {
+        setPerguntaIdx(proximo);
+        setTimeout(() => iaFala(fase.perguntas[proximo]), 600);
+      } else if (fase.camposColeta.length > 0) {
+        setEtapa("coleta");
+        const c = CAMPOS.find(x => x.key === fase.camposColeta[0]);
+        setTimeout(() => iaFala(`Precisarei de alguns dados para abrir o caso. Qual é o seu ${c?.label ?? fase.camposColeta[0]}?`), 600);
+      } else {
+        setEtapa("acao");
+        setTimeout(() => processarAcao(fase, faseIdx), 600);
+      }
+    } else if (etapa === "coleta") {
+      const campo = fase.camposColeta[campoIdx];
+      setDados(prev => ({ ...prev, [campo]: resp }));
+      addLog(`📝 ${campo}: ${resp}`);
+      const proximo = campoIdx + 1;
+      if (proximo < fase.camposColeta.length) {
+        setCampoIdx(proximo);
+        const c = CAMPOS.find(x => x.key === fase.camposColeta[proximo]);
+        setTimeout(() => iaFala(`Obrigado! E o seu ${c?.label ?? fase.camposColeta[proximo]}?`), 600);
+      } else {
+        setEtapa("acao");
+        setTimeout(() => processarAcao(fase, faseIdx), 600);
+      }
+    }
+  };
+
   return (
-    <div className="space-y-2 p-3 max-h-80 overflow-y-auto">
-      {msgs.length === 0 && (
-        <p className="text-xs text-muted-foreground text-center py-4">
-          Configure as fases para ver o preview
-        </p>
-      )}
-      {msgs.map((m, i) => (
-        <div key={i} className={cn("flex gap-2", m.de === "ia" ? "justify-start" : "justify-end")}>
-          {m.de === "ia" && (
-            <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-              <Bot className="h-3 w-3 text-primary" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-5xl h-[85vh] flex gap-4 overflow-hidden">
+
+        {/* Chat */}
+        <div className="flex-1 flex flex-col rounded-2xl overflow-hidden border border-border shadow-2xl" style={{ background: "#111b21" }}>
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "#202c33" }}>
+            <div className="h-9 w-9 rounded-full bg-[#25d366]/20 flex items-center justify-center">
+              <Bot className="h-4 w-4 text-[#25d366]" />
             </div>
-          )}
-          <div className={cn("max-w-[80%] px-3 py-2 rounded-xl text-xs leading-relaxed",
-            m.de === "ia"
-              ? "bg-card border border-border text-foreground rounded-tl-none"
-              : "bg-primary text-primary-foreground rounded-tr-none"
-          )}>
-            {m.tipo === "video" && <span className="flex items-center gap-1 mb-1 opacity-70"><Video className="h-3 w-3" /> vídeo</span>}
-            {m.tipo === "audio" && <span className="flex items-center gap-1 mb-1 opacity-70"><Mic className="h-3 w-3" /> áudio</span>}
-            {m.texto}
+            <div className="flex-1">
+              <p className="text-white text-sm font-medium">{nomeDr || "Dr. Maicon"}</p>
+              <p className="text-[#8696a0] text-xs flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#25d366] inline-block" />
+                Simulação em andamento
+              </p>
+            </div>
+            <button onClick={onClose} className="text-[#8696a0] hover:text-white p-1">
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          {m.de === "lead" && (
-            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5">
-              <User className="h-3 w-3 text-muted-foreground" />
+
+          {/* Mensagens */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+            {msgs.map((m, i) => (
+              <div key={i} className={cn("flex", m.de === "ia" ? "justify-start" : "justify-end")}>
+                {m.de === "ia" && (
+                  <div className="h-7 w-7 rounded-full shrink-0 mr-2 mt-1 flex items-center justify-center" style={{ background: "#2a3942" }}>
+                    <Bot className="h-3.5 w-3.5 text-[#25d366]" />
+                  </div>
+                )}
+                <div className={cn("max-w-[70%] px-3 py-2 rounded-xl text-sm leading-relaxed",
+                  m.de === "ia" ? "rounded-tl-none" : "rounded-tr-none")}
+                  style={{ background: m.de === "ia" ? "#202c33" : "#005c4b" }}>
+                  {m.tipo === "video" && <div className="flex items-center gap-1.5 mb-1 text-blue-400 text-xs"><Video className="h-3.5 w-3.5" /> Vídeo enviado</div>}
+                  {m.tipo === "audio" && <div className="flex items-center gap-1.5 mb-1 text-violet-400 text-xs"><Mic className="h-3.5 w-3.5" /> Áudio enviado</div>}
+                  {m.tipo === "contrato" && <div className="flex items-center gap-1.5 mb-1 text-emerald-400 text-xs"><FileSignature className="h-3.5 w-3.5" /> Contrato gerado</div>}
+                  {m.tipo === "grupo" && <div className="flex items-center gap-1.5 mb-1 text-cyan-400 text-xs"><Users className="h-3.5 w-3.5" /> Grupo criado</div>}
+                  <p className="text-white whitespace-pre-line">{m.texto}</p>
+                </div>
+              </div>
+            ))}
+            {typing && (
+              <div className="flex justify-start">
+                <div className="h-7 w-7 rounded-full shrink-0 mr-2 flex items-center justify-center" style={{ background: "#2a3942" }}>
+                  <Bot className="h-3.5 w-3.5 text-[#25d366]" />
+                </div>
+                <div className="px-4 py-3 rounded-xl rounded-tl-none" style={{ background: "#202c33" }}>
+                  <div className="flex gap-1">
+                    {[0,1,2].map(i => <div key={i} className="h-2 w-2 rounded-full bg-[#8696a0] animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={endRef} />
+          </div>
+
+          {/* Input */}
+          <div className="px-4 py-3 shrink-0" style={{ background: "#202c33" }}>
+            {etapa === "fim" ? (
+              <div className="text-center text-[#8696a0] text-sm py-2">Simulação encerrada ✅</div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  value={input} onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && responder()}
+                  placeholder="Digite a resposta do lead..."
+                  className="flex-1 bg-[#2a3942] rounded-lg px-3 py-2 text-white text-sm placeholder-[#8696a0] outline-none"
+                  disabled={typing}
+                />
+                <button onClick={responder} disabled={typing || !input.trim()}
+                  className="h-9 w-9 rounded-full flex items-center justify-center disabled:opacity-40"
+                  style={{ background: "#25d366" }}>
+                  <ArrowRight className="h-4 w-4 text-black" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Log lateral */}
+        <div className="w-64 shrink-0 flex flex-col rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <p className="font-semibold text-sm text-foreground flex items-center gap-2">
+              <Settings className="h-4 w-4 text-primary" /> Log de ações
+            </p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+            {log.map((l, i) => (
+              <p key={i} className="text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/30 pl-2">{l}</p>
+            ))}
+            {log.length === 0 && <p className="text-xs text-muted-foreground italic">Aguardando...</p>}
+          </div>
+          {/* Dados coletados */}
+          {Object.keys(dados).length > 0 && (
+            <div className="border-t border-border p-3">
+              <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1">
+                <FileText className="h-3.5 w-3.5" /> Dados coletados
+              </p>
+              {Object.entries(dados).map(([k, v]) => (
+                <div key={k} className="flex justify-between text-xs mb-1">
+                  <span className="text-muted-foreground capitalize">{k}:</span>
+                  <span className="text-foreground font-medium truncate ml-2 max-w-[100px]">{v}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
 
 // ── Card de fase ───────────────────────────────────────────────
-function FaseCard({
-  fase, index, expanded, onToggle, onChange, totalFases,
-}: {
-  fase: Fase; index: number; expanded: boolean;
-  onToggle: () => void; onChange: (f: Fase) => void; totalFases: number;
+function FaseCard({ fase, active, onClick, onChange, hasConfig }: {
+  fase: Fase; active: boolean; onClick: () => void;
+  onChange: (f: Fase) => void; hasConfig: boolean;
 }) {
   const patch = (fields: Partial<Fase>) => onChange({ ...fase, ...fields });
-
   const addPergunta = () => patch({ perguntas: [...fase.perguntas, ""] });
-  const setPergunta = (i: number, v: string) => {
-    const arr = [...fase.perguntas]; arr[i] = v; patch({ perguntas: arr });
-  };
-  const removePergunta = (i: number) => patch({ perguntas: fase.perguntas.filter((_, j) => j !== i) });
-
-  const addExclusao = () => patch({ exclusoes: [...fase.exclusoes, { condicao: "", motivo: "" }] });
-  const setExclusao = (i: number, field: "condicao" | "motivo", v: string) => {
-    const arr = [...fase.exclusoes]; arr[i] = { ...arr[i], [field]: v }; patch({ exclusoes: arr });
-  };
-  const removeExclusao = (i: number) => patch({ exclusoes: fase.exclusoes.filter((_, j) => j !== i) });
-
-  const addMidia = () => patch({ midias: [...fase.midias, ""] });
-  const setMidia = (i: number, v: string) => {
-    const arr = [...fase.midias]; arr[i] = v; patch({ midias: arr });
-  };
-  const removeMidia = (i: number) => patch({ midias: fase.midias.filter((_, j) => j !== i) });
-
-  const toggleCampo = (key: string) => {
-    const campos = fase.camposColeta.includes(key)
-      ? fase.camposColeta.filter(k => k !== key)
-      : [...fase.camposColeta, key];
-    patch({ camposColeta: campos });
-  };
-
-  const hasCfg = fase.perguntas.length > 0 || fase.midias.length > 0 ||
-    fase.exclusoes.length > 0 || fase.camposColeta.length > 0 ||
-    fase.acao !== "nenhuma";
+  const setPerg = (i: number, v: string) => { const a = [...fase.perguntas]; a[i] = v; patch({ perguntas: a }); };
+  const rmPerg = (i: number) => patch({ perguntas: fase.perguntas.filter((_,j) => j !== i) });
+  const addExcl = () => patch({ exclusoes: [...fase.exclusoes, { condicao: "", motivo: "" }] });
+  const setExcl = (i: number, f: "condicao"|"motivo", v: string) => { const a = [...fase.exclusoes]; a[i] = { ...a[i], [f]: v }; patch({ exclusoes: a }); };
+  const rmExcl = (i: number) => patch({ exclusoes: fase.exclusoes.filter((_,j) => j !== i) });
+  const addMidia = () => patch({ midias: [...fase.midias, { chave: "", script: "", momento: "" }] });
+  const setMidia = (i: number, f: "chave"|"script"|"momento", v: string) => { const a = [...fase.midias]; a[i] = { ...a[i], [f]: v }; patch({ midias: a }); };
+  const rmMidia = (i: number) => patch({ midias: fase.midias.filter((_,j) => j !== i) });
+  const toggleCampo = (key: string) => patch({ camposColeta: fase.camposColeta.includes(key) ? fase.camposColeta.filter(k => k !== key) : [...fase.camposColeta, key] });
 
   return (
-    <div className={cn("rounded-xl border transition-all", expanded ? "border-primary/40 shadow-sm" : "border-border hover:border-primary/20")}>
-      {/* Header da fase */}
-      <button onClick={onToggle} className="w-full flex items-center gap-3 p-4 text-left">
-        {/* Linha de conexão */}
-        <div className="flex flex-col items-center shrink-0">
-          <div className="h-8 w-8 rounded-full flex items-center justify-center text-base font-bold border-2"
-            style={{ borderColor: fase.cor, background: fase.corBg }}>
-            {fase.emoji}
-          </div>
-          {index < totalFases - 1 && (
-            <div className="w-0.5 h-3 mt-1" style={{ background: fase.cor + "40" }} />
-          )}
+    <div className={cn("rounded-xl border transition-all duration-200", active ? "border-primary/50 shadow-md" : "border-border hover:border-primary/30")}>
+      {/* Header clicável */}
+      <button onClick={onClick} className="w-full flex items-center gap-3 p-3.5 text-left">
+        <div className="h-9 w-9 rounded-lg flex items-center justify-center text-lg shrink-0 border"
+          style={{ borderColor: fase.cor + "40", background: fase.cor + "15" }}>
+          {fase.emoji}
         </div>
-
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm text-foreground">{fase.label}</span>
-            {hasCfg && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                configurado
-              </span>
-            )}
+            {hasConfig && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: fase.cor + "20", color: fase.cor }}>configurado</span>}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">{fase.descricao}</p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Resumo rápido */}
-          <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            {fase.perguntas.length > 0 && <span className="flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />{fase.perguntas.length}</span>}
-            {fase.midias.length > 0 && <span className="flex items-center gap-0.5"><Video className="h-3 w-3" />{fase.midias.length}</span>}
-            {fase.camposColeta.length > 0 && <span className="flex items-center gap-0.5"><FileText className="h-3 w-3" />{fase.camposColeta.length}</span>}
-            {fase.acao !== "nenhuma" && <span className="flex items-center gap-0.5 text-primary"><Zap className="h-3 w-3" />{fase.acao}</span>}
+          <div className="flex items-center gap-3 mt-0.5">
+            {fase.midias.length > 0 && <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Video className="h-2.5 w-2.5" />{fase.midias.length}</span>}
+            {fase.perguntas.length > 0 && <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MessageSquare className="h-2.5 w-2.5" />{fase.perguntas.length}</span>}
+            {fase.camposColeta.length > 0 && <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><FileText className="h-2.5 w-2.5" />{fase.camposColeta.length} campos</span>}
+            {fase.acao !== "nenhuma" && <span className="text-[10px] flex items-center gap-0.5" style={{ color: fase.cor }}><Zap className="h-2.5 w-2.5" />{ACOES.find(a => a.val === fase.acao)?.label}</span>}
           </div>
-          {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
         </div>
+        <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform shrink-0", active && "rotate-90")} />
       </button>
 
-      {/* Corpo expandido */}
-      {expanded && (
+      {/* Config expandida */}
+      {active && (
         <div className="px-4 pb-4 space-y-5 border-t border-border pt-4">
 
-          {/* Mídias */}
+          {/* MÍDIAS */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs font-medium flex items-center gap-1.5">
-                <Video className="h-3.5 w-3.5 text-blue-500" /> Mídias a enviar nesta fase
-              </Label>
-              <button onClick={addMidia} className="text-xs text-primary hover:underline flex items-center gap-0.5">
-                <Plus className="h-3 w-3" /> Adicionar
-              </button>
+            <div className="flex items-center justify-between mb-2.5">
+              <Label className="text-xs font-medium flex items-center gap-1.5"><Video className="h-3.5 w-3.5 text-blue-500" />Mídias</Label>
+              <button onClick={addMidia} className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="h-3 w-3" />Adicionar</button>
             </div>
-            {fase.midias.length === 0 && (
-              <p className="text-xs text-muted-foreground italic">Nenhuma mídia. Clique em Adicionar.</p>
-            )}
-            {fase.midias.map((m, i) => {
-              const isAudio = m.startsWith("audio_");
-              const script = fase.scriptsMedia?.[m] ?? { script: "", momento: "" };
-              const setScript = (field: "script"|"momento", val: string) => {
-                patch({ scriptsMedia: { ...fase.scriptsMedia, [m]: { ...script, [field]: val } } });
-              };
-              return (
-                <div key={i} className="mb-3 rounded-lg border border-border overflow-hidden">
-                  {/* Linha da chave */}
-                  <div className="flex items-center gap-2 p-2 bg-muted/30">
-                    {isAudio ? <Mic className="h-3.5 w-3.5 text-violet-500 shrink-0" /> : <Video className="h-3.5 w-3.5 text-blue-500 shrink-0" />}
-                    <Input value={m} onChange={e => setMidia(i, e.target.value)}
-                      placeholder="chave da mídia (ex: video_abertura, audio_fechamento)"
-                      className="flex-1 text-xs h-7 font-mono bg-transparent border-0 shadow-none focus-visible:ring-0" />
-                    <button onClick={() => removeMidia(i)} className="text-muted-foreground hover:text-destructive shrink-0">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  {/* Script sugerido */}
-                  {m && (
-                    <div className="p-2.5 space-y-2 bg-card">
-                      <div>
-                        <p className="text-[10px] text-muted-foreground mb-1 font-medium uppercase tracking-wide">
-                          {isAudio ? "🎤 O que falar no áudio:" : "🎬 O que mostrar/falar no vídeo:"}
-                        </p>
-                        <Textarea value={script.script}
-                          onChange={e => setScript("script", e.target.value)}
-                          rows={3} className="text-xs resize-none"
-                          placeholder={isAudio
-                            ? "Ex: 'Olá! Sou o Dr. Maicon. Eu já analisei o seu caso e acredito que você tem direito...'"
-                            : "Ex: Apareça de frente para a câmera, sorria, se apresente. Diga: 'Você fez bem em entrar em contato...'"}
-                        />
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-muted-foreground mb-1 font-medium uppercase tracking-wide">
-                          ⏱️ Momento exato de enviar:
-                        </p>
-                        <Input value={script.momento}
-                          onChange={e => setScript("momento", e.target.value)}
-                          className="text-xs h-7"
-                          placeholder={isAudio
-                            ? "Ex: Após o lead confirmar interesse (fase fechamento)"
-                            : "Ex: Primeira mensagem do lead — antes de qualquer pergunta"}
-                        />
-                      </div>
-                    </div>
-                  )}
+            {fase.midias.length === 0 && <p className="text-xs text-muted-foreground italic">Nenhuma mídia nesta fase.</p>}
+            {fase.midias.map((m, i) => (
+              <div key={i} className="mb-3 rounded-lg border border-border overflow-hidden">
+                <div className="flex items-center gap-2 p-2 bg-muted/30">
+                  {m.chave.startsWith("audio_") ? <Mic className="h-3.5 w-3.5 text-violet-500 shrink-0" /> : <Video className="h-3.5 w-3.5 text-blue-500 shrink-0" />}
+                  <Input value={m.chave} onChange={e => setMidia(i, "chave", e.target.value)}
+                    placeholder="video_abertura ou audio_fechamento"
+                    className="flex-1 text-xs h-7 font-mono bg-transparent border-0 shadow-none focus-visible:ring-0" />
+                  <button onClick={() => rmMidia(i)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
-              );
-            })}
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Chave começando com <code className="bg-muted px-1 rounded">audio_</code> → áudio · resto → vídeo
-            </p>
+                {m.chave && (
+                  <div className="p-2.5 space-y-2">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wide font-medium">
+                        {m.chave.startsWith("audio_") ? "🎤 Script do áudio" : "🎬 Script do vídeo"}
+                      </p>
+                      <Textarea value={m.script} onChange={e => setMidia(i, "script", e.target.value)} rows={2}
+                        className="text-xs resize-none" placeholder="O que você vai falar..." />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wide font-medium">⏱ Momento de envio</p>
+                      <Input value={m.momento} onChange={e => setMidia(i, "momento", e.target.value)}
+                        className="text-xs h-7" placeholder="Ex: Primeira mensagem do lead" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            {fase.midias.length > 0 && (
+              <div>
+                <Label className="text-xs">Mensagem após as mídias</Label>
+                <Input value={fase.textoAposMidia} onChange={e => patch({ textoAposMidia: e.target.value })}
+                  className="mt-1 text-xs" placeholder='Ex: "Me conta o que está acontecendo."' />
+              </div>
+            )}
           </div>
 
-          {/* Texto após mídias */}
-          {fase.midias.length > 0 && (
-            <div>
-              <Label className="text-xs font-medium">Mensagem enviada automaticamente após as mídias</Label>
-              <Input value={fase.textoAposMidia} onChange={e => patch({ textoAposMidia: e.target.value })}
-                className="mt-1 text-xs" placeholder='Ex: "Posso abrir o seu caso agora?"' />
-            </div>
-          )}
-
-          {/* Perguntas */}
+          {/* PERGUNTAS */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs font-medium flex items-center gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5 text-emerald-500" /> Perguntas desta fase
-              </Label>
-              <button onClick={addPergunta} className="text-xs text-primary hover:underline flex items-center gap-0.5">
-                <Plus className="h-3 w-3" /> Adicionar
-              </button>
+            <div className="flex items-center justify-between mb-2.5">
+              <Label className="text-xs font-medium flex items-center gap-1.5"><MessageSquare className="h-3.5 w-3.5 text-emerald-500" />Perguntas</Label>
+              <button onClick={addPergunta} className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="h-3 w-3" />Adicionar</button>
             </div>
-            {fase.perguntas.length === 0 && (
-              <p className="text-xs text-muted-foreground italic">Nenhuma pergunta. Clique em Adicionar.</p>
-            )}
+            {fase.perguntas.length === 0 && <p className="text-xs text-muted-foreground italic">Nenhuma pergunta.</p>}
             {fase.perguntas.map((p, i) => (
               <div key={i} className="flex items-center gap-2 mb-2">
-                <span className="text-xs text-muted-foreground shrink-0 font-mono">{i + 1}.</span>
-                <Input value={p} onChange={e => setPergunta(i, e.target.value)}
-                  placeholder='Ex: "Qual o nome da criança?"'
-                  className="flex-1 text-xs h-8" />
-                <button onClick={() => removePergunta(i)} className="text-muted-foreground hover:text-destructive shrink-0">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <span className="text-xs text-muted-foreground w-4 shrink-0 font-mono">{i+1}.</span>
+                <Input value={p} onChange={e => setPerg(i, e.target.value)} className="flex-1 text-xs h-8" placeholder="Ex: Qual o nome da criança?" />
+                <button onClick={() => rmPerg(i)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
             ))}
           </div>
 
-          {/* Exclusões */}
+          {/* EXCLUSÕES */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs font-medium flex items-center gap-1.5">
-                <AlertCircle className="h-3.5 w-3.5 text-red-500" /> Critérios de exclusão
-              </Label>
-              <button onClick={addExclusao} className="text-xs text-primary hover:underline flex items-center gap-0.5">
-                <Plus className="h-3 w-3" /> Adicionar
-              </button>
+            <div className="flex items-center justify-between mb-2.5">
+              <Label className="text-xs font-medium flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5 text-red-500" />Exclusões</Label>
+              <button onClick={addExcl} className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="h-3 w-3" />Adicionar</button>
             </div>
-            <p className="text-[10px] text-muted-foreground mb-2">
-              Quando uma condição for verdadeira, o funil encerra automaticamente.
-            </p>
             {fase.exclusoes.map((ex, i) => (
-              <div key={i} className="grid grid-cols-2 gap-2 mb-2 p-2 rounded-lg bg-red-50 border border-red-200">
-                <div>
-                  <p className="text-[10px] text-red-600 mb-1">Se o lead disser / tiver:</p>
-                  <Input value={ex.condicao} onChange={e => setExclusao(i, "condicao", e.target.value)}
-                    placeholder="Ex: criança com mais de 6 anos"
-                    className="text-xs h-7 bg-white" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-red-600 mb-1">Explicação ao encerrar:</p>
-                  <div className="flex gap-1">
-                    <Input value={ex.motivo} onChange={e => setExclusao(i, "motivo", e.target.value)}
-                      placeholder="Ex: só atendemos até 5 anos"
-                      className="text-xs h-7 bg-white flex-1" />
-                    <button onClick={() => removeExclusao(i)} className="text-red-400 hover:text-red-600">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+              <div key={i} className="mb-2 p-2.5 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950/20 dark:border-red-900/40 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 space-y-1.5">
+                    <Input value={ex.condicao} onChange={e => setExcl(i, "condicao", e.target.value)} className="text-xs h-7" placeholder="Se o lead tiver / disser... (ex: mais de 6 anos)" />
+                    <Input value={ex.motivo} onChange={e => setExcl(i, "motivo", e.target.value)} className="text-xs h-7" placeholder="Motivo do encerramento (ex: só atendemos até 5 anos)" />
                   </div>
+                  <button onClick={() => rmExcl(i)} className="text-red-400 hover:text-red-600 shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Coleta de dados — só na fase coleta */}
+          {/* COLETA */}
           {fase.id === "coleta" && (
             <div>
-              <Label className="text-xs font-medium flex items-center gap-1.5 mb-2">
-                <FileText className="h-3.5 w-3.5 text-purple-500" /> Dados a coletar para o contrato
-              </Label>
+              <Label className="text-xs font-medium flex items-center gap-1.5 mb-2.5"><FileText className="h-3.5 w-3.5 text-purple-500" />Dados para o contrato</Label>
               <div className="grid grid-cols-2 gap-1.5">
-                {CAMPOS_DISPONIVEIS.map(({ key, label }) => {
+                {CAMPOS.map(({ key, label }) => {
                   const sel = fase.camposColeta.includes(key);
                   return (
                     <button key={key} onClick={() => toggleCampo(key)}
-                      className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs text-left transition-colors",
-                        sel ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-muted/50 text-muted-foreground")}>
-                      <div className={cn("h-3.5 w-3.5 rounded border flex items-center justify-center shrink-0",
-                        sel ? "bg-primary border-primary" : "border-muted-foreground")}>
+                      className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs text-left transition-all",
+                        sel ? "border-primary/50 bg-primary/5 text-primary" : "border-border hover:bg-muted/50 text-muted-foreground")}>
+                      <div className={cn("h-3.5 w-3.5 rounded border flex items-center justify-center shrink-0 transition-colors", sel ? "bg-primary border-primary" : "border-muted-foreground")}>
                         {sel && <CheckCheck className="h-2.5 w-2.5 text-white" />}
                       </div>
                       {label}
@@ -414,20 +492,13 @@ function FaseCard({
             </div>
           )}
 
-          {/* Ação ao completar */}
+          {/* AÇÃO */}
           <div>
-            <Label className="text-xs font-medium flex items-center gap-1.5 mb-2">
-              <Zap className="h-3.5 w-3.5 text-amber-500" /> Ação ao completar esta fase
-            </Label>
-            <div className="grid grid-cols-2 gap-2">
-              {([
-                { val: "nenhuma",    label: "Nenhuma",         icon: ArrowRight,  desc: "Apenas avança" },
-                { val: "contrato",   label: "Gerar contrato",  icon: FileText,    desc: "ZapSign automático" },
-                { val: "agendamento",label: "Oferecer horários",icon: Calendar,   desc: "Google Calendar" },
-                { val: "handoff",    label: "Chamar humano",   icon: User,        desc: "Pausa a IA" },
-              ] as const).map(({ val, label, icon: Icon, desc }) => (
-                <button key={val} onClick={() => patch({ acao: val })}
-                  className={cn("p-2.5 rounded-lg border text-left transition-colors",
+            <Label className="text-xs font-medium flex items-center gap-1.5 mb-2.5"><Zap className="h-3.5 w-3.5 text-amber-500" />Ação ao completar</Label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {ACOES.map(({ val, label, icon: Icon, desc }) => (
+                <button key={val} onClick={() => patch({ acao: val as AcaoTipo })}
+                  className={cn("p-2.5 rounded-lg border text-left transition-all",
                     fase.acao === val ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50")}>
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <Icon className={cn("h-3.5 w-3.5", fase.acao === val ? "text-primary" : "text-muted-foreground")} />
@@ -447,486 +518,256 @@ function FaseCard({
 // ── Página principal ───────────────────────────────────────────
 function ConstrutorPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [cfg, setCfg]           = useState<FunilConfig>({ ...CONFIG_INICIAL });
-  const [expandedId, setExpanded] = useState<string | null>("abertura");
-  const [preview, setPreview]   = useState<PreviewMsg[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [saving, setSaving]     = useState(false);
-  const [descricaoLivre, setDescricaoLivre] = useState("");
-  const [gerandoFluxo, setGerandoFluxo]     = useState(false);
+  const navigate  = useNavigate();
+  const [fases, setFases]           = useState<Fase[]>(FASES_PADRAO.map(f => ({ ...f })));
+  const [activeId, setActiveId]     = useState<string | null>("abertura");
+  const [nomeFunil, setNomeFunil]   = useState("");
+  const [nomeDr, setNomeDr]         = useState("Dr. Maicon Matos");
+  const [descricao, setDescricao]   = useState("");
+  const [descLivre, setDescLivre]   = useState("");
+  const [simOpen, setSimOpen]       = useState(false);
+  const [gerandoFluxo, setGerandoFluxo] = useState(false);
   const [gerandoScripts, setGerandoScripts] = useState(false);
+  const [salvando, setSalvando]     = useState(false);
 
-  // Gerar fluxo completo a partir de descrição livre
-  const gerarFluxoComIA = async () => {
-    if (!descricaoLivre.trim()) {
-      toast.error("Descreva o caso antes de gerar");
-      return;
-    }
+  const patchFase = (id: string, f: Fase) => setFases(prev => prev.map(x => x.id === id ? f : x));
+
+  const totalConfig = fases.reduce((a, f) =>
+    a + f.perguntas.length + f.midias.length + f.exclusoes.length + f.camposColeta.length +
+    (f.acao !== "nenhuma" ? 1 : 0), 0);
+
+  const gerarFluxo = async () => {
+    if (!descLivre.trim()) { toast.error("Descreva o caso primeiro"); return; }
     setGerandoFluxo(true);
     try {
       const res = await fetch("/api/generate-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           systemPrompt: `Você é especialista em funis de atendimento jurídico via WhatsApp.
-Com base na descrição do usuário, gere a configuração JSON do funil.
-Retorne APENAS um JSON válido, sem markdown, com esta estrutura exata:
+Com base na descrição, gere configuração JSON. Retorne APENAS JSON válido:
 {
   "nome": "string",
-  "descricao": "string",
-  "servicoGratuito": boolean,
-  "honorarios": "string ou vazio",
   "fases": [
-    {
-      "id": "abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado",
-      "perguntas": ["pergunta 1", "pergunta 2"],
-      "exclusoes": [{"condicao": "...", "motivo": "..."}],
-      "midias": ["video_abertura"],
-      "textoAposMidia": "texto ou vazio",
-      "acao": "nenhuma|contrato|agendamento|handoff",
-      "camposColeta": ["nome","cpf","rg","endereco","nomeCrianca","idadeCrianca","municipio","protocolo","dataNascimento","temPrescricao","nomeMedico","email","estadoCivil","profissao"]
-    }
+    { "id": "abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado",
+      "perguntas": ["..."],
+      "exclusoes": [{"condicao":"...","motivo":"..."}],
+      "midias": [{"chave":"video_abertura","script":"...","momento":"..."}],
+      "textoAposMidia": "...",
+      "acao": "nenhuma|contrato|agendamento|criar_grupo|handoff",
+      "camposColeta": ["nome","cpf","rg","endereco","municipio","nomeCrianca","idadeCrianca","protocolo","dataNascimento","temPrescricao","nomeMedico","email"] }
   ]
 }
-
-REGRAS:
-- perguntas: feitas uma por vez, em ordem lógica para qualificar o lead
-- exclusoes: critérios que ENCERRAM o atendimento (lead não qualificado)
-- midias: use video_abertura na fase abertura, video_conexao na conexao, audio_fechamento no fechamento, video_documentos na assinatura
-- camposColeta: só na fase "coleta", escolha apenas os campos necessários para o contrato
-- acao "contrato" APENAS na fase "coleta"
-- Inclua TODAS as 7 fases mesmo que algumas não tenham configuração especial`,
-          userMsg: `Caso jurídico: ${descricaoLivre}
-
-Gere o fluxo completo com perguntas de triagem, critérios de exclusão, dados a coletar e ações corretas para cada fase.`,
+REGRAS: video_abertura na abertura, video_conexao na conexão, audio_fechamento no fechamento, video_documentos na assinatura. acao "contrato" só na coleta. acao "criar_grupo" só na assinatura. Inclua todas as 7 fases.`,
+          userMsg: descLivre,
         }),
       });
-
-      if (!res.ok) throw new Error("Erro na API");
-      const { prompt: jsonStr } = await res.json();
-
-      // Limpar e parsear JSON
-      const clean = jsonStr.replace(/```json|```/g, "").trim();
-      const data = JSON.parse(clean);
-
-      // Aplicar configurações geradas
-      if (data.nome) setCfg(c => ({ ...c, nome: data.nome, descricao: data.descricao || c.descricao }));
-      if (data.servicoGratuito !== undefined) setCfg(c => ({ ...c, servicoGratuito: data.servicoGratuito }));
-      if (data.honorarios) setCfg(c => ({ ...c, honorarios: data.honorarios }));
-
-      // Aplicar fases
-      if (data.fases?.length) {
-        setCfg(c => ({
-          ...c,
-          fases: c.fases.map(fase => {
-            const faseGerada = data.fases.find((f: any) => f.id === fase.id);
-            if (!faseGerada) return fase;
-            return {
-              ...fase,
-              perguntas:      faseGerada.perguntas      ?? fase.perguntas,
-              exclusoes:      faseGerada.exclusoes       ?? fase.exclusoes,
-              midias:         faseGerada.midias          ?? fase.midias,
-              textoAposMidia: faseGerada.textoAposMidia  ?? fase.textoAposMidia,
-              acao:           faseGerada.acao             ?? fase.acao,
-              camposColeta:   faseGerada.camposColeta     ?? fase.camposColeta,
-            };
-          }),
+      const { prompt: json } = await res.json();
+      const data = JSON.parse(json.replace(/```json|```/g, "").trim());
+      if (data.nome) setNomeFunil(data.nome);
+      if (data.fases) {
+        setFases(prev => prev.map(fase => {
+          const g = data.fases.find((f: any) => f.id === fase.id);
+          if (!g) return fase;
+          return { ...fase, perguntas: g.perguntas ?? [], exclusoes: g.exclusoes ?? [],
+            midias: g.midias ?? [], textoAposMidia: g.textoAposMidia ?? "",
+            acao: g.acao ?? "nenhuma", camposColeta: g.camposColeta ?? [] };
         }));
       }
-
-      toast.success("Fluxo gerado! Revise cada fase e ajuste se necessário.");
-      setExpanded("triagem"); // Abrir triagem para revisão
-    } catch (e: any) {
-      toast.error(`Erro ao gerar: ${e.message}`);
-    } finally {
-      setGerandoFluxo(false);
-    }
+      toast.success("Fluxo gerado! Revise e ajuste cada fase.");
+      setActiveId("triagem");
+    } catch (e: any) { toast.error("Erro: " + e.message); }
+    finally { setGerandoFluxo(false); }
   };
 
-  // Gerar scripts de vídeo e áudio com IA
   const gerarScripts = async () => {
-    const todasMidias: { faseId: string; faseLabel: string; chave: string; tipo: string }[] = [];
-    cfg.fases.forEach(f => {
-      f.midias.forEach(m => {
-        if (m.trim()) todasMidias.push({
-          faseId: f.id, faseLabel: f.label, chave: m,
-          tipo: m.startsWith("audio_") ? "áudio" : "vídeo",
-        });
-      });
-    });
-    if (todasMidias.length === 0) { toast.error("Adicione mídias nas fases primeiro"); return; }
-
+    const todas = fases.flatMap(f => f.midias.filter(m => m.chave && !m.script));
+    if (todas.length === 0) { toast.info("Todas as mídias já têm script."); return; }
     setGerandoScripts(true);
     try {
-      const listaMidias = todasMidias.map(m =>
-        `- ${m.tipo.toUpperCase()} "${m.chave}" (fase ${m.faseLabel})`
-      ).join("\n");
-
+      const lista = fases.flatMap(f => f.midias.map(m => `${f.label}: ${m.chave.startsWith("audio_") ? "áudio" : "vídeo"} "${m.chave}"`)).join("\n");
       const res = await fetch("/api/generate-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemPrompt: `Você é especialista em criação de scripts para vídeos e áudios de advocacia via WhatsApp.
-Gere scripts persuasivos e humanizados para cada mídia listada.
-Retorne APENAS JSON válido com esta estrutura:
-{
-  "scripts": {
-    "chave_da_midia": {
-      "script": "texto exato do que falar no vídeo/áudio",
-      "momento": "momento exato de envio na conversa"
-    }
-  }
-}
-Sem markdown, sem explicações, apenas o JSON.`,
-          userMsg: `Funil: ${cfg.nome || "atendimento jurídico"}
-Advogado: ${cfg.nomeDr}
-Tom: ${cfg.tomVoz === "proximo" ? "próximo, humano, sem juridiquês" : "técnico e formal"}
-Descrição: ${descricaoLivre || cfg.descricao || "atendimento jurídico via WhatsApp"}
-
-Mídias a criar script:
-${listaMidias}
-
-Para cada mídia, crie:
-1. Script completo do que falar (vídeo: o que aparecer/dizer na frente da câmera; áudio: o que gravar)
-2. Momento exato de envio (ex: "Primeira mensagem do lead, antes de qualquer pergunta")
-
-Lembre: vídeo de abertura → primeira mensagem sempre. Áudio de fechamento → após lead confirmar interesse.`,
+          systemPrompt: `Gere scripts para mídias de advocacia WhatsApp. JSON apenas: {"scripts":{"chave":{"script":"...","momento":"..."}}}`,
+          userMsg: `Funil: ${nomeFunil || descLivre}\nAdvogado: ${nomeDr}\nMídias:\n${lista}`,
         }),
       });
-
-      if (!res.ok) throw new Error("Erro na API");
-      const { prompt: jsonStr } = await res.json();
-      const clean = jsonStr.replace(/\`\`\`json|\`\`\`/g, "").trim();
-      const data = JSON.parse(clean);
-
+      const { prompt: json } = await res.json();
+      const data = JSON.parse(json.replace(/```json|```/g, "").trim());
       if (data.scripts) {
-        // Aplicar scripts nas fases corretas
-        setCfg(c => ({
-          ...c,
-          fases: c.fases.map(fase => {
-            const novosScripts = { ...fase.scriptsMedia };
-            fase.midias.forEach(m => {
-              if (data.scripts[m]) {
-                novosScripts[m] = data.scripts[m];
-              }
-            });
-            return { ...fase, scriptsMedia: novosScripts };
-          }),
-        }));
-        toast.success(`Scripts gerados para ${Object.keys(data.scripts).length} mídias!`);
+        setFases(prev => prev.map(f => ({
+          ...f, midias: f.midias.map(m => data.scripts[m.chave]
+            ? { ...m, script: data.scripts[m.chave].script || m.script, momento: data.scripts[m.chave].momento || m.momento }
+            : m)
+        })));
+        toast.success("Scripts gerados para " + Object.keys(data.scripts).length + " mídias!");
       }
-    } catch (e: any) {
-      toast.error(`Erro ao gerar scripts: ${e.message}`);
-    } finally {
-      setGerandoScripts(false);
-    }
+    } catch (e: any) { toast.error("Erro: " + e.message); }
+    finally { setGerandoScripts(false); }
   };
 
-  const patchFase = (id: string, fields: Partial<Fase>) => {
-    setCfg(c => ({
-      ...c,
-      fases: c.fases.map(f => f.id === id ? { ...f, ...fields } : f),
-    }));
-  };
-
-  // Gerar preview da conversa
-  const gerarPreview = useCallback(() => {
-    const msgs: PreviewMsg[] = [];
-    const nomeDr = cfg.nomeDr || "Dr. Maicon";
-
-    cfg.fases.forEach(fase => {
-      if (!fase.ativo) return;
-
-      // Mídias
-      fase.midias.forEach(m => {
-        const tipo = m.startsWith("audio_") ? "audio" : "video";
-        msgs.push({ de: "ia", texto: `[${tipo}: ${m}]`, tipo });
-      });
-
-      // Texto após mídia
-      if (fase.textoAposMidia) {
-        msgs.push({ de: "ia", texto: fase.textoAposMidia });
-      }
-
-      // Perguntas
-      fase.perguntas.forEach(p => {
-        msgs.push({ de: "ia", texto: p });
-        msgs.push({ de: "lead", texto: "..." });
-      });
-
-      // Exclusões (exemplo)
-      if (fase.exclusoes.length > 0) {
-        msgs.push({ de: "ia", texto: `[Se critério de exclusão: ${fase.exclusoes[0].motivo || "encerrar"}]` });
-      }
-
-      // Campos de coleta
-      fase.camposColeta.forEach(campo => {
-        const label = CAMPOS_DISPONIVEIS.find(c => c.key === campo)?.label || campo;
-        msgs.push({ de: "ia", texto: `Preciso do seu ${label}.` });
-        msgs.push({ de: "lead", texto: "..." });
-      });
-
-      // Ação
-      if (fase.acao === "contrato") {
-        msgs.push({ de: "ia", texto: "Perfeito! Gerando o contrato agora... 📄" });
-      } else if (fase.acao === "agendamento") {
-        msgs.push({ de: "ia", texto: "Vou verificar minha agenda para amanhã... 📅" });
-      } else if (fase.acao === "handoff") {
-        msgs.push({ de: "ia", texto: "Vou acionar minha equipe para falar diretamente com você. 👤" });
-      }
-    });
-
-    setPreview(msgs);
-    setShowPreview(true);
-  }, [cfg]);
-
-  // Gerar prompt e salvar funil
-  const gerarESalvar = async () => {
-    if (!cfg.nome.trim()) { toast.error("Defina o nome do funil"); return; }
+  const salvar = async () => {
+    if (!nomeFunil.trim()) { toast.error("Defina o nome do funil"); return; }
     if (!user) return;
-    setGenerating(true);
-
+    setSalvando(true);
     try {
-      // Montar descrição do funil para a IA
-      const fasesDesc = cfg.fases.map(fase => {
+      const fasesDesc = fases.map(f => {
         const partes = [];
-        if (fase.midias.length > 0) partes.push(`Enviar mídias: ${fase.midias.join(", ")}`);
-        if (fase.textoAposMidia) partes.push(`Após mídias perguntar: "${fase.textoAposMidia}"`);
-        if (fase.perguntas.length > 0) partes.push(`Perguntar: ${fase.perguntas.map(p => `"${p}"`).join(" | ")}`);
-        if (fase.exclusoes.length > 0) partes.push(`Excluir se: ${fase.exclusoes.map(e => `${e.condicao} → ${e.motivo}`).join("; ")}`);
-        if (fase.id === "coleta" && fase.camposColeta.length > 0) partes.push(`Coletar: ${fase.camposColeta.join(", ")}`);
-        if (fase.acao !== "nenhuma") partes.push(`Ação: ${fase.acao}`);
-        return `${fase.emoji} ${fase.label}: ${partes.length > 0 ? partes.join(" | ") : "Transicionar para próxima fase"}`;
+        f.midias.forEach(m => partes.push(`Enviar ${m.chave.startsWith("audio_") ? "áudio" : "vídeo"} ${m.chave}`));
+        if (f.textoAposMidia) partes.push(`Após mídias: "${f.textoAposMidia}"`);
+        f.perguntas.forEach(p => partes.push(`Perguntar: "${p}"`));
+        f.exclusoes.forEach(e => partes.push(`Excluir se: ${e.condicao} → ${e.motivo}`));
+        if (f.camposColeta.length) partes.push(`Coletar: ${f.camposColeta.join(", ")}`);
+        if (f.acao !== "nenhuma") partes.push(`Ação: ${f.acao}`);
+        return `${f.emoji} ${f.label}: ${partes.join(" | ") || "Avançar fase"}`;
       }).join("\n");
 
-      const userMsg = `Crie um prompt de atendimento WhatsApp para advogado com estas configurações:
-
-ADVOGADO: ${cfg.nomeDr}
-TOM: ${cfg.tomVoz === "proximo" ? "próximo e humano, sem juridiquês" : "técnico e formal"}
-SERVIÇO: ${cfg.nome} — ${cfg.descricao || "atendimento jurídico"}
-HONORÁRIOS: ${cfg.servicoGratuito ? "GRATUITO (pago pelo réu em caso de êxito)" : `R$ ${cfg.honorarios}`}
-
-FLUXO DE FASES (seguir EXATAMENTE esta ordem):
-${fasesDesc}
-
-REGRAS OBRIGATÓRIAS:
-- Responder SEMPRE em JSON: {"texto":"...","midias":[],"texto_pos_midia":null,"nova_fase":null,"acao":null,"dados_extraidos":{}}
-- Uma pergunta por mensagem
-- Nunca dizer que é IA ou robô
-- Nunca prometer resultado garantido
-- Se cliente pedir humano: acao "transferir_humano"
-- Mídias disponíveis: ${cfg.fases.flatMap(f => f.midias).filter(Boolean).join(", ") || "video_abertura, video_conexao, audio_fechamento"}`;
-
-      const res = await fetch("/api/generate-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const promptRes = await fetch("/api/generate-prompt", {
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemPrompt: `Você é especialista em criar prompts para agentes de IA de advocacia via WhatsApp. 
-Gere um prompt completo que instrui a IA a responder SEMPRE com JSON válido no formato especificado.
-O prompt deve ser profissional, humanizado e seguir exatamente o fluxo de fases configurado.
-CRÍTICO: O prompt gerado DEVE incluir a regra de que o campo "texto" sempre termina com uma pergunta ou call-to-action, nunca deixando o lead sem próxima ação.
-Retorne APENAS o texto do prompt, sem JSON externo nem markdown.`,
-          userMsg,
+          systemPrompt: `Crie um prompt operacional para agente de IA de advocacia WhatsApp.
+CRÍTICO: campo "texto" SEMPRE termina com pergunta ou call-to-action. Nunca responda só "Entendido." sem continuar.
+Retorne APENAS o texto do prompt, sem markdown.`,
+          userMsg: `Advogado: ${nomeDr}\nFunil: ${nomeFunil}\n${descricao}\n\nFluxo:\n${fasesDesc}`,
         }),
       });
-
-      if (!res.ok) throw new Error("Erro ao gerar prompt");
-      const { prompt } = await res.json();
-      if (!prompt) throw new Error("IA não retornou prompt");
-
-      // Salvar funil
-      setSaving(true);
+      const { prompt } = await promptRes.json();
       const { error } = await supabase.from("funnels").insert({
-        user_id:        user.id,
-        name:           cfg.nome,
-        description:    cfg.descricao,
-        persona_prompt: prompt,
-        proposal_is_free: cfg.servicoGratuito,
-        proposal_value: cfg.servicoGratuito ? null : (cfg.honorarios ? Number(cfg.honorarios) : null),
-        is_active:      true,
-        medias:         {},
+        user_id: user.id, name: nomeFunil, description: descricao,
+        persona_prompt: prompt, is_active: true, medias: {},
       });
-
       if (error) throw error;
-      toast.success("Funil criado com sucesso!");
+      toast.success("Funil salvo com sucesso!");
       setTimeout(() => navigate({ to: "/funis" }), 1200);
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setGenerating(false);
-      setSaving(false);
-    }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSalvando(false); }
   };
 
-  const faseAtual = cfg.fases.find(f => f.id === expandedId);
-
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden bg-background">
       <Toaster />
+      {simOpen && <Simulador fases={fases} nomeDr={nomeDr} onClose={() => setSimOpen(false)} />}
 
-      {/* ── Painel esquerdo — construtor ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-          <div>
-            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-500" /> Construtor de Funil
-            </h1>
-            <p className="text-muted-foreground text-sm mt-0.5">Configure fase por fase o que a IA vai fazer</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={gerarPreview} className="gap-2">
-              <Eye className="h-4 w-4" /> Preview
-            </Button>
-            <Button onClick={gerarESalvar} disabled={generating || saving}
-              className="gap-2 bg-primary text-primary-foreground">
-              <Sparkles className="h-4 w-4" />
-              {generating ? "Gerando..." : saving ? "Salvando..." : "Gerar e Salvar"}
-            </Button>
-          </div>
+      {/* ── Coluna esquerda: timeline de fases ── */}
+      <div className="w-72 shrink-0 flex flex-col border-r border-border bg-muted/20">
+        <div className="px-4 py-4 border-b border-border">
+          <h2 className="font-bold text-foreground flex items-center gap-2">
+            <Zap className="h-4 w-4 text-amber-500" /> Fases do funil
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{totalConfig} itens configurados</p>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+          {fases.map((fase, idx) => {
+            const hasConfig = fase.perguntas.length > 0 || fase.midias.length > 0 || fase.exclusoes.length > 0 || fase.camposColeta.length > 0 || fase.acao !== "nenhuma";
+            return (
+              <div key={fase.id} className="relative">
+                {idx < fases.length - 1 && (
+                  <div className="absolute left-5 top-11 bottom-0 w-0.5 -mb-1.5" style={{ background: fase.cor + "30" }} />
+                )}
+                <button onClick={() => setActiveId(activeId === fase.id ? null : fase.id)}
+                  className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all",
+                    activeId === fase.id ? "shadow-sm border" : "hover:bg-muted/50 border border-transparent")}
+                  style={activeId === fase.id ? { borderColor: fase.cor + "40", background: fase.cor + "08" } : {}}>
+                  <div className="h-7 w-7 rounded-lg flex items-center justify-center text-base shrink-0"
+                    style={{ background: fase.cor + "20" }}>
+                    {fase.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{fase.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{hasConfig ? `${[fase.midias.length > 0 && `${fase.midias.length} míd`, fase.perguntas.length > 0 && `${fase.perguntas.length} perg`, fase.acao !== "nenhuma" && fase.acao].filter(Boolean).join(" · ")}` : "não configurado"}</p>
+                  </div>
+                  {hasConfig && <div className="h-2 w-2 rounded-full shrink-0" style={{ background: fase.cor }} />}
+                </button>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-2xl mx-auto space-y-6">
-
-            {/* IA — Descreva o caso */}
-            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-foreground">Deixe a IA montar o fluxo</h2>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Descreva o caso em linguagem normal — tipo de ação, critérios de qualificação,
-                documentos necessários e se o serviço é gratuito. A IA preenche todas as fases automaticamente.
-              </p>
-              <Textarea
-                value={descricaoLivre}
-                onChange={e => setDescricaoLivre(e.target.value)}
-                rows={4}
-                className="resize-none text-sm"
-                placeholder={`Ex: "Atendo famílias que tiveram vaga em creche negada pelo município de Porto Alegre. A criança precisa ter até 5 anos e 11 meses, os pais precisam ter feito o pedido formal na prefeitura. O serviço é gratuito. Preciso coletar: nome dos pais, CPF, RG, endereço, nome da criança, data de nascimento e número do protocolo do pedido."`}
-              />
-              <div className="flex gap-2">
-                <Button onClick={gerarFluxoComIA} disabled={gerandoFluxo || !descricaoLivre.trim()}
-                  className="gap-2 flex-1">
-                  <Sparkles className="h-4 w-4" />
-                  {gerandoFluxo ? "Gerando fluxo..." : "Gerar fluxo completo"}
-                </Button>
-                <Button variant="outline" onClick={gerarScripts} disabled={gerandoScripts || cfg.fases.every(f => f.midias.length === 0)}
-                  className="gap-2 flex-1">
-                  <Mic className="h-4 w-4" />
-                  {gerandoScripts ? "Gerando scripts..." : "Sugerir scripts de vídeo/áudio"}
-                </Button>
-              </div>
-              {gerandoFluxo && (
-                <div className="flex items-center gap-2 text-xs text-primary animate-pulse">
-                  <Bot className="h-4 w-4" />
-                  Analisando o caso e configurando cada fase...
-                </div>
-              )}
-            </div>
-
-            {/* Configurações básicas */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-              <h2 className="font-semibold text-sm text-foreground">Configurações gerais</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label className="text-xs">Nome do funil *</Label>
-                  <Input className="mt-1" value={cfg.nome}
-                    onChange={e => setCfg(c => ({ ...c, nome: e.target.value }))}
-                    placeholder="Ex: Vaga em Creche — Porto Alegre" />
-                </div>
-                <div>
-                  <Label className="text-xs">Nome do advogado</Label>
-                  <Input className="mt-1" value={cfg.nomeDr}
-                    onChange={e => setCfg(c => ({ ...c, nomeDr: e.target.value }))} />
-                </div>
-                <div>
-                  <Label className="text-xs">Tom de voz</Label>
-                  <div className="flex gap-2 mt-1">
-                    {[
-                      { val: "proximo", label: "Próximo" },
-                      { val: "formal",  label: "Formal" },
-                    ].map(t => (
-                      <button key={t.val} onClick={() => setCfg(c => ({ ...c, tomVoz: t.val as any }))}
-                        className={cn("flex-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors",
-                          cfg.tomVoz === t.val ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:bg-muted/50")}>
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch checked={cfg.servicoGratuito}
-                    onCheckedChange={v => setCfg(c => ({ ...c, servicoGratuito: v }))} />
-                  <Label className="text-xs">Serviço gratuito (honorários pagos pelo réu)</Label>
-                </div>
-                {!cfg.servicoGratuito && (
-                  <div>
-                    <Label className="text-xs">Valor dos honorários (R$)</Label>
-                    <Input type="number" className="mt-1" value={cfg.honorarios}
-                      onChange={e => setCfg(c => ({ ...c, honorarios: e.target.value }))}
-                      placeholder="1500" />
-                  </div>
-                )}
-                <div className="col-span-2">
-                  <Label className="text-xs">Descrição do serviço</Label>
-                  <Input className="mt-1" value={cfg.descricao}
-                    onChange={e => setCfg(c => ({ ...c, descricao: e.target.value }))}
-                    placeholder="Ex: Ação para garantir vaga em creche pública para crianças até 5 anos" />
-                </div>
-              </div>
-            </div>
-
-            {/* Fases */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-sm text-foreground">Fases do funil</h2>
-                <p className="text-xs text-muted-foreground">Clique em cada fase para configurar</p>
-              </div>
-              <div className="space-y-2">
-                {cfg.fases.map((fase, idx) => (
-                  <FaseCard
-                    key={fase.id}
-                    fase={fase}
-                    index={idx}
-                    expanded={expandedId === fase.id}
-                    onToggle={() => setExpanded(expandedId === fase.id ? null : fase.id)}
-                    onChange={f => patchFase(fase.id, f)}
-                    totalFases={cfg.fases.length}
-                  />
-                ))}
-              </div>
-            </div>
-
-          </div>
+        {/* Botões de ação */}
+        <div className="p-3 border-t border-border space-y-2">
+          <Button onClick={() => setSimOpen(true)} variant="outline" className="w-full gap-2 text-sm">
+            <Play className="h-3.5 w-3.5 text-green-500" /> Simular conversa
+          </Button>
+          <Button onClick={salvar} disabled={salvando || !nomeFunil.trim()} className="w-full gap-2 text-sm">
+            <Save className="h-3.5 w-3.5" />
+            {salvando ? "Salvando..." : "Gerar e salvar funil"}
+          </Button>
         </div>
       </div>
 
-      {/* ── Painel direito — preview ── */}
-      {showPreview && (
-        <div className="w-80 shrink-0 border-l border-border flex flex-col bg-card">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <p className="font-semibold text-sm text-foreground flex items-center gap-2">
-              <Eye className="h-4 w-4" /> Preview da conversa
-            </p>
-            <button onClick={() => setShowPreview(false)} className="text-muted-foreground hover:text-foreground">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto" style={{ background: "#f0f2f5" }}>
-            <PreviewConversa msgs={preview} />
-          </div>
-          <div className="p-3 border-t border-border">
-            <p className="text-[10px] text-muted-foreground text-center">
-              Preview simplificado — teste completo em Funis → Simular
-            </p>
+      {/* ── Coluna direita: config ── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-border shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 max-w-lg">
+              <input value={nomeFunil} onChange={e => setNomeFunil(e.target.value)}
+                placeholder="Nome do funil (ex: Vaga em Creche — Porto Alegre)"
+                className="w-full text-lg font-bold bg-transparent border-0 outline-none text-foreground placeholder-muted-foreground" />
+              <input value={nomeDr} onChange={e => setNomeDr(e.target.value)}
+                placeholder="Nome do advogado"
+                className="w-full text-sm bg-transparent border-0 outline-none text-muted-foreground placeholder-muted-foreground/50" />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={gerarScripts} disabled={gerandoScripts} className="gap-1.5 text-xs">
+                <Mic className="h-3.5 w-3.5" />
+                {gerandoScripts ? "Gerando..." : "Scripts com IA"}
+              </Button>
+            </div>
           </div>
         </div>
-      )}
+
+        <div className="flex-1 overflow-y-auto">
+          {!activeId ? (
+            /* Tela inicial — descreva para IA gerar */
+            <div className="max-w-2xl mx-auto p-6 space-y-6">
+              <div className="rounded-2xl border-2 border-dashed border-primary/30 p-6 space-y-4 bg-primary/5">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground">Deixe a IA montar o fluxo</h3>
+                    <p className="text-xs text-muted-foreground">Descreva o caso e ela configura todas as fases</p>
+                  </div>
+                </div>
+                <Textarea value={descLivre} onChange={e => setDescLivre(e.target.value)} rows={5}
+                  className="resize-none text-sm"
+                  placeholder={`Ex: "Atendo famílias com vaga em creche negada em Porto Alegre. A criança tem que ter até 5a11m e os pais precisam ter feito o pedido formal na prefeitura com protocolo. Serviço gratuito. Preciso coletar: nome, CPF, RG, endereço, nome da criança, data de nascimento e protocolo."`} />
+                <Button onClick={gerarFluxo} disabled={gerandoFluxo || !descLivre.trim()} className="w-full gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  {gerandoFluxo ? "Analisando e configurando cada fase..." : "Gerar fluxo completo com IA"}
+                </Button>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">ou clique em uma fase na esquerda para configurar manualmente</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { icon: "🎬", title: "Vídeo automático", desc: "Enviado na primeira mensagem" },
+                  { icon: "🤖", title: "IA qualifica", desc: "Pergunta a pergunta, sem travar" },
+                  { icon: "📄", title: "Contrato + grupo", desc: "Gerados automaticamente" },
+                ].map(card => (
+                  <div key={card.title} className="rounded-xl border border-border p-4 text-center">
+                    <div className="text-2xl mb-2">{card.icon}</div>
+                    <p className="text-sm font-medium text-foreground">{card.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{card.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Config da fase ativa */
+            <div className="max-w-2xl mx-auto p-6">
+              {fases.filter(f => f.id === activeId).map(fase => (
+                <FaseCard key={fase.id} fase={fase} active={true}
+                  onClick={() => {}} hasConfig={fase.perguntas.length > 0 || fase.midias.length > 0 || fase.exclusoes.length > 0 || fase.camposColeta.length > 0 || fase.acao !== "nenhuma"}
+                  onChange={f => patchFase(fase.id, f)} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
-
 }
