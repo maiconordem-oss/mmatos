@@ -1198,19 +1198,19 @@ function InboxPage() {
                   )}
                   {/* Indicador bloqueado */}
                   {c.blocked && (
-                    <div className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-600 border-2 border-[#111b21] flex items-center justify-center">
-                      <span className="text-[8px] text-white font-bold">🚫</span>
+                    <div className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-gradient-to-br from-red-600 to-red-700 border-2 border-[#111b21] flex items-center justify-center shadow-lg hover:scale-110 transition-transform" title="Contato bloqueado">
+                      <span className="text-[9px] text-white font-bold">🚫</span>
                     </div>
                   )}
                   {/* Indicador IA pausada */}
                   {c.ai_paused && (
-                    <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 border-2 border-[#111b21] flex items-center justify-center">
-                      <span className="text-[8px] text-white font-bold">P</span>
+                    <div className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-gradient-to-br from-red-500 to-pink-600 border-2 border-[#111b21] flex items-center justify-center shadow-lg" title="IA pausada">
+                      <span className="text-[9px] text-white font-bold">⏸</span>
                     </div>
                   )}
                   {!c.ai_paused && c.ai_handled && (
-                    <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-[#25d366] border-2 border-[#111b21] flex items-center justify-center">
-                      <Bot className="h-2.5 w-2.5 text-black" />
+                    <div className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-gradient-to-br from-[#25d366] to-emerald-500 border-2 border-[#111b21] flex items-center justify-center shadow-lg" title="IA respondeu">
+                      <Bot className="h-3 w-3 text-black font-bold" />
                     </div>
                   )}
                 </div>
@@ -1220,10 +1220,13 @@ function InboxPage() {
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       {/* Badge de status */}
                       {(c.ticket_status ?? "pending") === "pending" && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold">NOVO</span>
+                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-orange-500/30 to-yellow-500/30 text-orange-300 font-bold border border-orange-400/40 flex items-center gap-1">🆕 NOVO</span>
+                      )}
+                      {(c.ticket_status ?? "pending") === "open" && (
+                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-500/30 to-cyan-500/30 text-blue-300 font-bold border border-blue-400/40 flex items-center gap-1">📂 ABERTO</span>
                       )}
                       {(c.ticket_status ?? "pending") === "resolved" && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-500/20 text-slate-400 font-bold">✓</span>
+                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-green-500/30 to-emerald-500/30 text-green-300 font-bold border border-green-400/40 flex items-center gap-1">✅ RESOLVIDO</span>
                       )}
                       <span className={cn("text-xs", c.unread_count > 0 ? "text-[#25d366]" : "text-[#8696a0]")}>
                         {c.last_message_at ? formatTime(c.last_message_at) : ""}
@@ -1240,13 +1243,12 @@ function InboxPage() {
                   </div>
                   {/* Tags */}
                   {c.tags?.length > 0 && (
-                    <div className="flex gap-1 mt-1 flex-wrap">
+                    <div className="flex gap-1 mt-1.5 flex-wrap">
                       {c.tags.slice(0,3).map(tag => {
                         const t = tags.find(x => x.name === tag);
                         return (
-                          <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
-                            style={{ background: (t?.color ?? "#6366f1") + "30", color: t?.color ?? "#6366f1" }}>
-                            {tag}
+                          <span key={tag} className="text-[9px] px-2 py-1 rounded-full font-medium border transition-all hover:scale-105" style={{ background: (t?.color ?? "#6366f1") + "25", color: t?.color ?? "#6366f1", borderColor: (t?.color ?? "#6366f1") + "50" }}>
+                            <span className="mr-1">🏷️</span>{tag}
                           </span>
                         );
                       })}
@@ -1301,34 +1303,34 @@ function InboxPage() {
                 {/* Pausar/retomar IA */}
                 <button
                   onClick={() => toggleAiPause(active)}
-                  className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                     active.ai_paused
-                      ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                      : "bg-[#25d366]/20 text-[#25d366] hover:bg-[#25d366]/30"
+                      ? "bg-gradient-to-r from-red-500/30 to-pink-500/30 text-red-300 hover:from-red-500/40 hover:to-pink-500/40 border border-red-400/50"
+                      : "bg-gradient-to-r from-[#25d366]/30 to-emerald-500/30 text-[#25d366] hover:from-[#25d366]/40 hover:to-emerald-500/40 border border-[#25d366]/50"
                   )}
                   title={active.ai_paused ? "Reativar IA" : "Pausar IA"}
                 >
                   <Bot className="h-3.5 w-3.5" />
-                  {active.ai_paused ? "IA pausada" : "IA ativa"}
+                  {active.ai_paused ? "⏸ IA pausada" : "🤖 IA ativa"}
                 </button>
 
                 {/* Aceitar ticket */}
                 {(active.ticket_status ?? "pending") === "pending" && (
                   <button onClick={() => acceptTicket(active.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors">
-                    <CheckCheck className="h-3.5 w-3.5" /> Aceitar
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-500/30 to-green-500/30 text-emerald-300 hover:from-emerald-500/40 hover:to-green-500/40 transition-all border border-emerald-400/50">
+                    <CheckCheck className="h-3.5 w-3.5" /> ✅ Aceitar
                   </button>
                 )}
                 {/* Resolver ticket */}
                 {(active.ticket_status ?? "pending") !== "resolved" && (
                   <button onClick={() => resolveTicket(active.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-slate-500/20 text-slate-400 hover:bg-slate-500/30 transition-colors">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-blue-500/30 to-cyan-500/30 text-blue-300 hover:from-blue-500/40 hover:to-cyan-500/40 transition-all border border-blue-400/50">
                     ✓ Resolver
                   </button>
                 )}
                 {(active.ticket_status ?? "pending") === "resolved" && (
                   <button onClick={() => reopenTicket(active.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-500/30 to-amber-500/30 text-orange-300 hover:from-orange-500/40 hover:to-amber-500/40 transition-all border border-orange-400/50">
                     ↩ Reabrir
                   </button>
                 )}
@@ -1336,7 +1338,7 @@ function InboxPage() {
                 {/* Tags */}
                 <div className="relative">
                   <button onClick={() => setShowTagMenu(!showTagMenu)}
-                    className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-[#aebac1] hover:bg-[#3b4a54] transition-colors">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-300 hover:from-purple-500/40 hover:to-pink-500/40 transition-all border border-purple-400/50">
                     🏷️ Tags
                   </button>
                   {showTagMenu && (
@@ -1362,16 +1364,16 @@ function InboxPage() {
                 </div>
 
                 <button onClick={() => setShowAiPanel(!showAiPanel)}
-                  className={cn("p-2 rounded-full transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "hover:bg-[#2a3942] text-[#aebac1]")}>
+                  className={cn("p-2.5 rounded-full transition-all border", showAiPanel ? "bg-gradient-to-r from-[#f0c040] to-yellow-500 text-black border-[#f0c040]" : "hover:bg-[#2a3942] text-[#aebac1] border-transparent")}>
                   <Sparkles className="h-5 w-5" />
                 </button>
                 <button onClick={() => setShowSearchMsg(!showSearchMsg)}
-                  className={cn("p-2 rounded-full transition-colors", showSearchMsg ? "bg-[#2a3942] text-[#25d366]" : "hover:bg-[#2a3942] text-[#aebac1]")}>
+                  className={cn("p-2.5 rounded-full transition-all border", showSearchMsg ? "bg-gradient-to-r from-[#25d366] to-emerald-500 text-black border-[#25d366]" : "hover:bg-[#2a3942] text-[#aebac1] border-transparent")}>
                   <Search className="h-5 w-5" />
                 </button>
                 {/* Menu de contexto */}
                 <div className="relative group">
-                  <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><MoreVertical className="h-5 w-5" /></button>
+                  <button className="p-2.5 rounded-full hover:bg-[#2a3942] text-[#aebac1] transition-all border border-transparent hover:border-[#3b4a54]"><MoreVertical className="h-5 w-5" /></button>
                   <div className="absolute right-0 top-10 z-50 w-52 rounded-xl border border-[#2a3942] shadow-xl overflow-hidden hidden group-hover:block" style={{ background: "#202c33" }}>
                     {[
                       { label: "Ver histórico do contato", action: () => loadHistory(active.phone) },
@@ -1396,28 +1398,28 @@ function InboxPage() {
                 <div className="flex items-center gap-2 px-4 py-2 flex-wrap border-b border-[#2a3942]/60">
                   <span className="text-[#8696a0] text-xs font-medium mr-1">Ferramentas IA:</span>
                   <button disabled={aiBusy !== null} onClick={() => doSummary()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
-                    {aiBusy === "summary" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ScrollText className="h-3 w-3 text-[#53bdeb]" />}
-                    Resumir
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-[#53bdeb]/30 to-blue-500/30 text-[#53bdeb] hover:from-[#53bdeb]/40 hover:to-blue-500/40 disabled:opacity-50 border border-[#53bdeb]/50 transition-all">
+                    {aiBusy === "summary" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ScrollText className="h-3 w-3" />}
+                    📝 Resumir
                   </button>
                   <button disabled={aiBusy !== null} onClick={() => doTasks()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
-                    {aiBusy === "tasks" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ListChecks className="h-3 w-3 text-[#f0c040]" />}
-                    Extrair tarefas
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-[#f0c040]/30 to-yellow-500/30 text-[#f0c040] hover:from-[#f0c040]/40 hover:to-yellow-500/40 disabled:opacity-50 border border-[#f0c040]/50 transition-all">
+                    {aiBusy === "tasks" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ListChecks className="h-3 w-3" />}
+                    ✅ Tarefas
                   </button>
                   <button disabled={aiBusy !== null} onClick={() => doSentiment()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
-                    {aiBusy === "sentiment" ? <Loader2 className="h-3 w-3 animate-spin" /> : <SmileIcon className="h-3 w-3 text-[#25d366]" />}
-                    Sentimento
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-[#25d366]/30 to-emerald-500/30 text-[#25d366] hover:from-[#25d366]/40 hover:to-emerald-500/40 disabled:opacity-50 border border-[#25d366]/50 transition-all">
+                    {aiBusy === "sentiment" ? <Loader2 className="h-3 w-3 animate-spin" /> : <SmileIcon className="h-3 w-3" />}
+                    😊 Sentimento
                   </button>
                   <button disabled={aiBusy !== null} onClick={async () => {
                     setAiBusy("reply");
                     try { await qualifierReplyFn({ data: { conversationId: active.id } }); toast.success("IA respondeu!"); }
                     catch (e: any) { toast.error(e.message); } finally { setAiBusy(null); }
                   }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
-                    <Bot className="h-3 w-3 text-[#25d366]" />
-                    {aiBusy === "reply" ? "Respondendo..." : "Auto-responder"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-[#25d366]/30 to-emerald-500/30 text-[#25d366] hover:from-[#25d366]/40 hover:to-emerald-500/40 disabled:opacity-50 border border-[#25d366]/50 transition-all">
+                    <Bot className="h-3 w-3" />
+                    🤖 {aiBusy === "reply" ? "Respondendo..." : "Responder"}
                   </button>
                   <button disabled={aiBusy !== null} onClick={async () => {
                     setAiBusy("qual");
@@ -1430,9 +1432,9 @@ function InboxPage() {
                       }
                     } catch (e: any) { toast.error(e.message); } finally { setAiBusy(null); }
                   }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
-                    <Sparkles className="h-3 w-3 text-[#f0c040]" />
-                    {aiBusy === "qual" ? "Qualificando..." : "Qualificar + Proposta"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-[#f0c040]/30 to-yellow-500/30 text-[#f0c040] hover:from-[#f0c040]/40 hover:to-yellow-500/40 disabled:opacity-50 border border-[#f0c040]/50 transition-all">
+                    <Sparkles className="h-3 w-3" />
+                    ✨ {aiBusy === "qual" ? "Qualificando..." : "Qualificar"}
                   </button>
                   <button onClick={() => setShowAiPanel(false)} className="ml-auto p-1 text-[#8696a0] hover:text-white"><X className="h-3.5 w-3.5" /></button>
                 </div>
@@ -1541,24 +1543,27 @@ function InboxPage() {
                         {/* IMAGEM */}
                         {m.media_type === "image" && m.media_url && (
                           <a href={proxyUrl(m) ?? "#"} target="_blank" rel="noreferrer">
-                            <img src={proxyUrl(m) ?? ""} alt="imagem" className="max-w-full block" style={{ maxHeight: 280, minWidth: 160 }}
+                            <img src={proxyUrl(m) ?? ""} alt="imagem" className="max-w-full block rounded-lg" style={{ maxHeight: 280, minWidth: 160 }}
                               onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                           </a>
                         )}
                         {m.media_type === "image" && !m.media_url && (
-                          <div className="flex items-center gap-2 px-3 py-2">
-                            <Image className="h-5 w-5 text-white/50" />
-                            <span className="text-white/60 text-xs">Imagem</span>
+                          <div className="flex items-center gap-3 px-4 py-3 rounded-lg" style={{ background: m.direction === "outbound" ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.1)" }}>
+                            <span className="text-2xl">🖼️</span>
+                            <span className="text-white/80 text-xs font-medium">Imagem</span>
                           </div>
                         )}
 
                         {/* ÁUDIO — player nativo */}
                         {m.media_type === "audio" && m.media_url && (
                           <div className="px-2 py-2 space-y-1">
-                            <audio controls src={proxyUrl(m) ?? ""} className="h-8 w-48" style={{ filter: "invert(0.8)" }} />
+                            <div className="flex items-center gap-2 px-2 py-1 rounded-lg" style={{ background: m.direction === "outbound" ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.1)" }}>
+                              <span className="text-lg">🎵</span>
+                              <audio controls src={proxyUrl(m) ?? ""} className="h-6 flex-1" style={{ filter: m.direction === "outbound" ? "invert(0)" : "invert(0.8)" }} />
+                            </div>
                             {m.transcription ? (
                               <p className="text-white/90 text-[12px] leading-snug bg-black/20 rounded p-2 whitespace-pre-wrap">
-                                <span className="text-white/40 text-[10px] block mb-0.5">Transcrição</span>
+                                <span className="text-white/40 text-[10px] block mb-0.5">✍️ Transcrição</span>
                                 {m.transcription}
                               </p>
                             ) : (
@@ -1572,25 +1577,25 @@ function InboxPage() {
                                   } catch (e: any) { toast.error(e.message); }
                                   finally { setTranscribingId(null); }
                                 }}
-                                className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-white/80 flex items-center gap-1">
+                                className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-white/80 flex items-center gap-1 transition-all">
                                 {transcribingId === m.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <ScrollText className="h-2.5 w-2.5" />}
-                                {transcribingId === m.id ? "Transcrevendo..." : "Transcrever"}
+                                {transcribingId === m.id ? "Transcrevendo..." : "📝 Transcrever"}
                               </button>
                             )}
                           </div>
                         )}
                         {m.media_type === "audio" && !m.media_url && (
                           <div className="flex items-center gap-3 px-3 py-2.5">
-                            <div className="h-9 w-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.15)" }}>
-                              <Mic className="h-4 w-4 text-white" />
+                            <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br from-orange-500/30 to-yellow-500/30 border border-orange-400/50">
+                              <span className="text-lg">🎤</span>
                             </div>
                             <div>
-                              <div className="flex gap-0.5 items-end h-5">
+                              <div className="flex gap-1 items-center h-5">
                                 {[3,5,4,6,3,5,4,3,5,6,4,3].map((h,i) => (
-                                  <div key={i} className="w-0.5 rounded-full bg-white/40" style={{ height: h*3 }} />
+                                  <div key={i} className="w-0.5 rounded-full bg-white/60" style={{ height: h*3 }} />
                                 ))}
                               </div>
-                              <p className="text-[10px] text-white/50 mt-0.5">Áudio</p>
+                              <p className="text-[10px] text-white/70 mt-0.5 font-medium">🎵 Áudio</p>
                             </div>
                           </div>
                         )}
