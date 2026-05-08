@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Kanban, MessageSquare, Users, LogOut,
   FileSignature, Smartphone, Bot, BookOpen, Wand2, Settings,
-  Zap, ChevronLeft, ChevronRight, Bell, BarChart2,
+  Zap, ChevronLeft, ChevronRight, Bell, BarChart2, BarChart2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -67,7 +67,9 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     { to: "/clientes",  label: "Clientes",           icon: Users,           badge: 0 },
     { to: "/contratos", label: "Contratos",          icon: FileSignature,   badge: 0 },
     { to: "/manual",    label: "Manual de Prompts",  icon: BookOpen,        badge: 0 },
-    { to: "/wizard",    label: "Criar Funil com IA", icon: Wand2,           badge: 0 },
+    { to: "/construtor", label: "Construtor de Funil",  icon: Zap,      badge: 0 },
+    { to: "/wizard",     label: "Wizard (avançado)",    icon: Wand2,    badge: 0 },
+    { to: "/relatorios", label: "Relatórios",           icon: BarChart2,badge: 0 },
   ] as const;
 
   const navBottom = [
