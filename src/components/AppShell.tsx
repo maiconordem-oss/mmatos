@@ -69,6 +69,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     { to: "/manual",    label: "Manual de Prompts",  icon: BookOpen,        badge: 0 },
     { to: "/construtor", label: "Construtor de Funil",  icon: Zap,      badge: 0 },
     { to: "/wizard",     label: "Wizard (avançado)",    icon: Wand2,    badge: 0 },
+    { to: "/diagnostico", label: "Diagnóstico", icon: Settings, badge: 0 },
     { to: "/relatorios", label: "Relatórios",           icon: BarChart2,badge: 0 },
   ] as const;
 

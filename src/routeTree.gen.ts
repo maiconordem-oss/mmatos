@@ -21,6 +21,8 @@ import { Route as FunisRouteImport } from './routes/funis'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ConstrutorRouteImport } from './routes/construtor'
+import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
+import { Route as ApiDiagnosticoRouteImport } from './routes/api/diagnostico'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AgentesRouteImport } from './routes/agentes'
@@ -88,6 +90,12 @@ const ContratosRoute = ContratosRouteImport.update({
   id: '/contratos',
   path: '/contratos',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DiagnosticoRoute = DiagnosticoRouteImport.update({
+  id: '/diagnostico', path: '/diagnostico', getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDiagnosticoRoute = ApiDiagnosticoRouteImport.update({
+  id: '/api/diagnostico', path: '/api/diagnostico', getParentRoute: () => rootRouteImport,
 } as any)
 const ConstrutorRoute = ConstrutorRouteImport.update({
   id: '/construtor',
@@ -419,6 +427,20 @@ declare module '@tanstack/react-router' {
       path: '/contratos'
       fullPath: '/contratos'
       preLoaderRoute: typeof ContratosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diagnostico': {
+      id: '/diagnostico'
+      path: '/diagnostico'
+      fullPath: '/diagnostico'
+      preLoaderRoute: typeof DiagnosticoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/diagnostico': {
+      id: '/api/diagnostico'
+      path: '/api/diagnostico'
+      fullPath: '/api/diagnostico'
+      preLoaderRoute: typeof ApiDiagnosticoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/construtor': {
