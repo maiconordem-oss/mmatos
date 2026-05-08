@@ -562,8 +562,7 @@ Gere o fluxo completo com perguntas de triagem, critérios de exclusão, dados a
     try {
       const listaMidias = todasMidias.map(m =>
         `- ${m.tipo.toUpperCase()} "${m.chave}" (fase ${m.faseLabel})`
-      ).join("
-");
+      ).join("\n");
 
       const res = await fetch("/api/generate-prompt", {
         method: "POST",
