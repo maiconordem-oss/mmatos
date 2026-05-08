@@ -1611,6 +1611,12 @@ function InboxPage() {
               )}
 
               {/* Botão Send/Mic/Gravando */}
+              <button
+                title="Gerar áudio com IA (ElevenLabs)"
+                onClick={() => { setTtsText(text); setTtsBlob(null); setTtsOpen(true); }}
+                className="p-2.5 rounded-full flex items-center justify-center shrink-0 hover:bg-[#2a3942] text-violet-400">
+                <Sparkles className="h-5 w-5" />
+              </button>
               {recorder.recording ? (
                 <button onClick={recorder.stop}
                   className="p-2.5 rounded-full flex items-center justify-center shrink-0 animate-pulse"
