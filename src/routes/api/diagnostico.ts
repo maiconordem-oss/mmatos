@@ -54,20 +54,39 @@ export const Route = createFileRoute("/api/diagnostico")({
             .select("*").eq("id", instanceId).single();
           if (!inst?.api_url) return Response.json({ ok: false, erro: "Instância sem api_url" });
 
-          const participants = (numeros as string[]).map(n => n.replace(/\D/g, "") + "@s.whatsapp.net").filter(Boolean);
-          if (participants.length === 0) return Response.json({ ok: false, erro: "Informe ao menos um número" });
+          // Evolution v2: participantes só com número limpo (sem @s.whatsapp.net)
+          const participants = (numeros as string[])
+            .map(n => n.replace(/\D/g, ""))
+            .filter(n => n.length >= 10);
 
-          const res = await fetch(
-            `${inst.api_url.replace(/\/$/, "")}/group/create/${inst.instance_name}`,
-            { method: "POST", headers: { "Content-Type": "application/json", apikey: inst.api_key },
+          if (participants.length === 0) return Response.json({ ok: false, erro: "Informe ao menos um número válido (mín. 10 dígitos)" });
+
+          const base = inst.api_url.replace(/\/$/, "");
+          const headers = { "Content-Type": "application/json", apikey: inst.api_key };
+
+          // Tentar criar o grupo
+          const res = await fetch(`${base}/group/create/${inst.instance_name}`,
+            { method: "POST", headers,
               body: JSON.stringify({ subject: nomeGrupo || "Teste — Lex CRM", participants }) }
           ).catch(() => null);
           const data = res ? await res.json().catch(() => ({})) : null;
-          const groupId = data?.id || data?.gid || null;
+          const groupId = data?.id || data?.gid || data?.groupId || null;
 
           const etapas = [
-            `${res?.ok ? "✅" : "❌"} Criar grupo: ${res?.status} — ${groupId ? `ID: ${groupId}` : data?.message || "sem ID"}`,
+            `${res?.ok ? "✅" : "❌"} Criar grupo (${res?.status}): ${groupId ? `ID ${groupId}` : JSON.stringify(data).slice(0, 120)}`,
+            `📋 Participantes enviados: ${participants.join(", ")}`,
           ];
+
+          // Se criou o grupo, verificar participantes
+          if (groupId) {
+            await new Promise(r => setTimeout(r, 2000));
+            const membersRes = await fetch(`${base}/group/findParticipants/${inst.instance_name}?groupJid=${encodeURIComponent(groupId)}`,
+              { headers }
+            ).catch(() => null);
+            const membersData = membersRes ? await membersRes.json().catch(() => null) : null;
+            const members = membersData?.participants ?? membersData ?? [];
+            etapas.push(`👥 Participantes no grupo: ${Array.isArray(members) ? members.length : "?"} ${Array.isArray(members) ? members.map((m: any) => m.id || m.jid || JSON.stringify(m)).join(", ") : JSON.stringify(members).slice(0, 80)}`);
+          }
 
           // Enviar mensagem de boas-vindas
           if (groupId) {

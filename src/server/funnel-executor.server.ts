@@ -645,8 +645,8 @@ async function createWhatsAppGroup(
 
     // Montar lista de participantes: cliente + equipe
     const allParticipants = [
-      `${clientPhone}@s.whatsapp.net`,
-      ...participants.map((p: string) => `${p.replace(/\D/g, "")}@s.whatsapp.net`),
+      clientPhone.replace(/\D/g, ""),
+      ...participants.map((p: string) => p.replace(/\D/g, "")).filter(p => p.length >= 10),
     ];
 
     const base    = inst.api_url.replace(/\/$/, "");
