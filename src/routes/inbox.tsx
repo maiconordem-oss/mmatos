@@ -1364,8 +1364,29 @@ function InboxPage() {
 
                         {/* ÁUDIO — player nativo */}
                         {m.media_type === "audio" && m.media_url && (
-                          <div className="px-2 py-2">
+                          <div className="px-2 py-2 space-y-1">
                             <audio controls src={proxyUrl(m) ?? ""} className="h-8 w-48" style={{ filter: "invert(0.8)" }} />
+                            {m.transcription ? (
+                              <p className="text-white/90 text-[12px] leading-snug bg-black/20 rounded p-2 whitespace-pre-wrap">
+                                <span className="text-white/40 text-[10px] block mb-0.5">Transcrição</span>
+                                {m.transcription}
+                              </p>
+                            ) : (
+                              <button
+                                disabled={transcribingId === m.id}
+                                onClick={async () => {
+                                  setTranscribingId(m.id);
+                                  try {
+                                    const r = await transcribeFn({ data: { messageId: m.id } } as any);
+                                    setMsgs(prev => prev.map(x => x.id === m.id ? { ...x, transcription: r.transcript } : x));
+                                  } catch (e: any) { toast.error(e.message); }
+                                  finally { setTranscribingId(null); }
+                                }}
+                                className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-white/80 flex items-center gap-1">
+                                {transcribingId === m.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <ScrollText className="h-2.5 w-2.5" />}
+                                {transcribingId === m.id ? "Transcrevendo..." : "Transcrever"}
+                              </button>
+                            )}
                           </div>
                         )}
                         {m.media_type === "audio" && !m.media_url && (
