@@ -14,13 +14,13 @@ import { Route as WizardRouteImport } from './routes/wizard'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ManualRouteImport } from './routes/manual'
-import { Route as ConstrutorRouteImport } from './routes/construtor'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as FunisRouteImport } from './routes/funis'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContratosRouteImport } from './routes/contratos'
+import { Route as ConstrutorRouteImport } from './routes/construtor'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AgentesRouteImport } from './routes/agentes'
@@ -52,11 +52,6 @@ const WhatsappRoute = WhatsappRouteImport.update({
 const RelatoriosRoute = RelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConstrutorRoute = ConstrutorRouteImport.update({
-  id: '/construtor',
-  path: '/construtor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManualRoute = ManualRouteImport.update({
@@ -92,6 +87,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const ContratosRoute = ContratosRouteImport.update({
   id: '/contratos',
   path: '/contratos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConstrutorRoute = ConstrutorRouteImport.update({
+  id: '/construtor',
+  path: '/construtor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
@@ -161,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
   '/funis': typeof FunisRoute
@@ -186,6 +187,7 @@ export interface FileRoutesByTo {
   '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
   '/funis': typeof FunisRoute
@@ -212,6 +214,7 @@ export interface FileRoutesById {
   '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
   '/funis': typeof FunisRoute
@@ -239,6 +242,7 @@ export interface FileRouteTypes {
     | '/agentes'
     | '/clientes'
     | '/configuracoes'
+    | '/construtor'
     | '/contratos'
     | '/dashboard'
     | '/funis'
@@ -264,6 +268,7 @@ export interface FileRouteTypes {
     | '/agentes'
     | '/clientes'
     | '/configuracoes'
+    | '/construtor'
     | '/contratos'
     | '/dashboard'
     | '/funis'
@@ -289,6 +294,7 @@ export interface FileRouteTypes {
     | '/agentes'
     | '/clientes'
     | '/configuracoes'
+    | '/construtor'
     | '/contratos'
     | '/dashboard'
     | '/funis'
@@ -315,6 +321,7 @@ export interface RootRouteChildren {
   AgentesRoute: typeof AgentesRoute
   ClientesRoute: typeof ClientesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ConstrutorRoute: typeof ConstrutorRoute
   ContratosRoute: typeof ContratosRoute
   DashboardRoute: typeof DashboardRoute
   FunisRoute: typeof FunisRoute
@@ -322,7 +329,6 @@ export interface RootRouteChildren {
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
   ManualRoute: typeof ManualRoute
-  ConstrutorRoute: typeof ConstrutorRoute
   RelatoriosRoute: typeof RelatoriosRoute
   WhatsappRoute: typeof WhatsappRoute
   WizardRoute: typeof WizardRoute
@@ -364,13 +370,6 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/relatorios'
       preLoaderRoute: typeof RelatoriosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/construtor': {
-      id: '/construtor'
-      path: '/construtor'
-      fullPath: '/construtor'
-      preLoaderRoute: typeof ConstrutorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manual': {
@@ -420,6 +419,13 @@ declare module '@tanstack/react-router' {
       path: '/contratos'
       fullPath: '/contratos'
       preLoaderRoute: typeof ContratosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/construtor': {
+      id: '/construtor'
+      path: '/construtor'
+      fullPath: '/construtor'
+      preLoaderRoute: typeof ConstrutorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracoes': {
@@ -526,6 +532,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgentesRoute: AgentesRoute,
   ClientesRoute: ClientesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
+  ConstrutorRoute: ConstrutorRoute,
   ContratosRoute: ContratosRoute,
   DashboardRoute: DashboardRoute,
   FunisRoute: FunisRoute,
