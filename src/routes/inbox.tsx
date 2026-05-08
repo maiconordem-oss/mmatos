@@ -446,6 +446,13 @@ function InboxPage() {
   const translateFn           = useAuthServerFn(translateText);
   const sentimentFn           = useAuthServerFn(analyzeSentiment);
   const searchFn              = useAuthServerFn(semanticSearch);
+  const transcribeFn          = useAuthServerFn(transcribeAudioMessage);
+  const generateTTSFn         = useAuthServerFn(generateTTS);
+  const [transcribingId, setTranscribingId] = useState<string | null>(null);
+  const [ttsOpen, setTtsOpen] = useState(false);
+  const [ttsText, setTtsText] = useState("");
+  const [ttsBusy, setTtsBusy] = useState(false);
+  const [ttsBlob, setTtsBlob] = useState<Blob | null>(null);
 
   // Reset ao trocar de conversa
   useEffect(() => {
