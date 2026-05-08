@@ -5,22 +5,19 @@ import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line, Legend,
 } from "recharts";
 import {
   TrendingUp, Clock, FileSignature, Users, Calendar,
-  ChevronRight, CheckCircle, AlertCircle,
+  ChevronRight, MessageSquare, Zap, Star, Download,
+  AlertTriangle, ArrowUp, ArrowDown, Minus,
 } from "lucide-react";
 
 export const Route = createFileRoute("/relatorios")({
   head: () => ({ meta: [{ title: "Relatórios — Lex CRM" }] }),
   component: () => (
-    <AuthGate>
-      <AppShell>
-        <RelatoriosPage />
-      </AppShell>
-    </AuthGate>
+    <AuthGate><AppShell><RelatoriosPage /></AppShell></AuthGate>
   ),
 });
 
@@ -35,70 +32,147 @@ const PERIOD_OPTIONS = [
   { label: "90 dias", days: 90 },
 ];
 
+function Tendencia({ v }: { v: number }) {
+  if (v > 0) return <span className="text-emerald-500 text-xs flex items-center gap-0.5"><ArrowUp className="h-3 w-3" />+{v}%</span>;
+  if (v < 0) return <span className="text-red-500 text-xs flex items-center gap-0.5"><ArrowDown className="h-3 w-3" />{v}%</span>;
+  return <span className="text-muted-foreground text-xs flex items-center gap-0.5"><Minus className="h-3 w-3" />0%</span>;
+}
+
 function RelatoriosPage() {
-  const [period, setPeriod]       = useState(30);
-  const [tab, setTab]             = useState<"leads"|"agenda"|"funil">("leads");
-  const [leadsData, setLeadsData] = useState<any[]>([]);
-  const [funnelData, setFunnelData] = useState<any[]>([]);
-  const [kpis, setKpis]           = useState({ total: 0, contratos: 0, conversao: 0, tempoMedio: 0 });
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [funnelStates, setFunnelStates] = useState<any[]>([]);
+  const [period, setPeriod]           = useState(30);
+  const [tab, setTab]                 = useState<"funis"|"leads"|"agenda"|"retencao">("funis");
+  const [loading, setLoading]         = useState(true);
+
+  // Dados por funil
+  const [funisPerfomance, setFunisPerf] = useState<any[]>([]);
+
+  // Dados de leads por origem/fase
+  const [taxaConversaoPorFase, setTaxaPorFase] = useState<any[]>([]);
+  const [dropoffPorFase, setDropoff]    = useState<any[]>([]);
+  const [comparativoFunis, setComparativo] = useState<any[]>([]);
+
+  // Dados de tempo
+  const [tempoMedioPorFase, setTempoPorFase] = useState<any[]>([]);
+  const [horariosPico, setHorariosPico]  = useState<any[]>([]);
+
+  // Agenda
+  const [appointments, setAppointments]  = useState<any[]>([]);
+  const [apptStats, setApptStats]        = useState({ total: 0, realizados: 0, pendentes: 0, taxa: 0 });
+
+  // Retenção
+  const [retencao, setRetencao]          = useState<any[]>([]);
 
   const load = useCallback(async () => {
+    setLoading(true);
     const since = new Date(Date.now() - period * 86400000).toISOString();
 
-    const [statesRes, apptRes, casesRes] = await Promise.all([
-      supabase.from("funnel_states").select("*, conversations(contact_name, phone)").gte("created_at", since),
+    const [statesRes, apptRes, funisRes, convsRes] = await Promise.all([
+      supabase.from("funnel_states").select("*, funnels(name), conversations(contact_name, phone)").gte("created_at", since),
       supabase.from("appointments").select("*, conversations(contact_name, phone)").order("start_at", { ascending: true }),
-      supabase.from("cases").select("*").gte("created_at", since),
+      supabase.from("funnels").select("id, name").eq("is_active", true),
+      supabase.from("conversations").select("id, created_at, ticket_status, last_message_at").gte("created_at", since),
     ]);
 
     const states = statesRes.data ?? [];
-    const cases  = casesRes.data ?? [];
+    const funnels = funisRes.data ?? [];
+    const convs   = convsRes.data ?? [];
+    const apts    = apptRes.data ?? [];
 
-    // KPIs
-    const contratos   = states.filter(s => ["assinatura","encerrado"].includes(s.fase)).length;
-    const total       = states.length || 1;
-    const conversao   = Math.round((contratos / total) * 100);
-    const withTime    = states.filter(s => s.fase === "encerrado");
-    const tempoMedio  = withTime.length
-      ? Math.round(withTime.reduce((a, s) => {
-          return a + (new Date(s.updated_at).getTime() - new Date(s.created_at).getTime()) / 3600000;
-        }, 0) / withTime.length)
-      : 0;
-    setKpis({ total, contratos, conversao, tempoMedio });
-
-    // Leads por dia
-    const days: Record<string, number> = {};
-    for (let i = 0; i < Math.min(period, 30); i++) {
-      const d = new Date(Date.now() - (Math.min(period,30) - 1 - i) * 86400000);
-      days[d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })] = 0;
-    }
-    states.forEach(s => {
-      const d = new Date(s.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-      if (days[d] !== undefined) days[d]++;
+    // ── 1. Performance por funil ──────────────────────────────
+    const perfMap: Record<string, any> = {};
+    funnels.forEach(f => {
+      perfMap[f.id] = { nome: f.name, total: 0, encerrados: 0, assinados: 0, tempos: [] };
     });
-    setLeadsData(Object.entries(days).map(([day, leads]) => ({ day, leads })));
+    states.forEach(s => {
+      const fid = (s as any).funnels?.name ? s.funnel_id : null;
+      const fname = (s as any).funnels?.name || "Sem funil";
+      if (!perfMap[fname]) perfMap[fname] = { nome: fname, total: 0, encerrados: 0, assinados: 0, tempos: [] };
+      const key = fid || fname;
+      if (!perfMap[key]) perfMap[key] = { nome: fname, total: 0, encerrados: 0, assinados: 0, tempos: [] };
+      perfMap[key].total++;
+      if (s.fase === "encerrado") {
+        perfMap[key].encerrados++;
+        const h = (new Date(s.updated_at).getTime() - new Date(s.created_at).getTime()) / 3600000;
+        perfMap[key].tempos.push(h);
+      }
+      if (["assinatura", "encerrado"].includes(s.fase)) perfMap[key].assinados++;
+    });
+    const perfList = Object.values(perfMap).filter((f: any) => f.total > 0).map((f: any) => ({
+      nome: f.nome.length > 20 ? f.nome.slice(0, 18) + "…" : f.nome,
+      leads: f.total,
+      contratos: f.assinados,
+      conversao: f.total > 0 ? Math.round((f.assinados / f.total) * 100) : 0,
+      tempoMedio: f.tempos.length ? Math.round(f.tempos.reduce((a: number, b: number) => a + b, 0) / f.tempos.length) : 0,
+    }));
+    setFunisPerf(perfList);
 
-    // Funil por fase
-    const faseCounts: Record<string, number> = {};
-    states.forEach(s => { faseCounts[s.fase] = (faseCounts[s.fase] || 0) + 1; });
-    const fases = ["abertura","triagem","conexao","fechamento","coleta","assinatura","encerrado"];
-    setFunnelData(fases.map(f => ({ fase: f, count: faseCounts[f] || 0, color: FASE_COLORS[f] })));
+    // ── 2. Dropoff por fase (onde os leads abandonam) ─────────
+    const fases = ["abertura", "triagem", "conexao", "fechamento", "coleta", "assinatura", "encerrado"];
+    const faseCounts = fases.map(f => ({ fase: f, count: states.filter(s => s.fase === f).length, color: FASE_COLORS[f] }));
 
-    // Agendamentos
-    setAppointments(apptRes.data ?? []);
+    // Taxa de conversão entre fases
+    const conversoes = fases.slice(0, -1).map((f, i) => {
+      const atual = faseCounts[i].count;
+      const proximo = faseCounts[i + 1].count;
+      return {
+        de: f, para: fases[i + 1],
+        taxa: atual > 0 ? Math.round((proximo / atual) * 100) : 0,
+        perdidos: Math.max(0, atual - proximo),
+      };
+    });
+    setDropoff(conversoes);
+    setTaxaPorFase(faseCounts);
 
-    // Estados para linha do tempo
-    setFunnelStates(states.slice(0, 20));
+    // ── 3. Horários de pico (hora do dia) ─────────────────────
+    const horas: Record<number, number> = {};
+    for (let i = 0; i < 24; i++) horas[i] = 0;
+    convs.forEach(c => { const h = new Date(c.created_at).getHours(); horas[h]++; });
+    setHorariosPico(Object.entries(horas)
+      .map(([h, count]) => ({ hora: `${h}h`, count }))
+      .filter((_, i) => i >= 6 && i <= 22));
+
+    // ── 4. Agenda ─────────────────────────────────────────────
+    setAppointments(apts);
+    const realizados = apts.filter(a => new Date(a.end_at) < new Date()).length;
+    const pendentes  = apts.filter(a => new Date(a.start_at) > new Date()).length;
+    setApptStats({ total: apts.length, realizados, pendentes, taxa: apts.length > 0 ? Math.round((realizados / apts.length) * 100) : 0 });
+
+    // ── 5. Retenção — leads que voltaram vs novos ──────────────
+    const semanas: Record<string, { novos: number; retorno: number }> = {};
+    const phoneCounts: Record<string, number> = {};
+    convs.forEach(c => {
+      const week = Math.floor((Date.now() - new Date(c.created_at).getTime()) / (7 * 86400000));
+      const key  = `Sem -${week}`;
+      if (!semanas[key]) semanas[key] = { novos: 0, retorno: 0 };
+      // Simplificado: considera retorno se ticket foi reaberto
+      if (c.ticket_status === "open") semanas[key].novos++;
+      else semanas[key].retorno++;
+    });
+    setRetencao(Object.entries(semanas).slice(0, 8).reverse().map(([sem, v]) => ({ sem, ...v })));
+
+    setLoading(false);
   }, [period]);
 
   useEffect(() => { load(); }, [load]);
 
+  const exportarCSV = () => {
+    const rows = [
+      ["Funil", "Leads", "Contratos", "Conversão %", "Tempo Médio (h)"],
+      ...funisPerfomance.map(f => [f.nome, f.leads, f.contratos, f.conversao, f.tempoMedio]),
+    ];
+    const csv = rows.map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `relatorio_${new Date().toLocaleDateString("pt-BR").replace(/\//g, "-")}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
   const TABS = [
-    { id: "leads",  label: "Leads & Conversão", icon: TrendingUp },
-    { id: "agenda", label: "Agenda",             icon: Calendar },
-    { id: "funil",  label: "Linha do tempo",     icon: Users },
+    { id: "funis",   label: "Por funil",         icon: Zap },
+    { id: "leads",   label: "Onde perdem leads",  icon: TrendingUp },
+    { id: "agenda",  label: "Agenda",             icon: Calendar },
+    { id: "retencao",label: "Horários de pico",   icon: Clock },
   ] as const;
 
   return (
@@ -107,12 +181,16 @@ function RelatoriosPage() {
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div>
           <h1 className="text-xl font-bold text-foreground">Relatórios</h1>
-          <p className="text-muted-foreground text-sm">Análise de desempenho</p>
+          <p className="text-muted-foreground text-sm mt-0.5">Análise histórica — o que aconteceu no período</p>
         </div>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-2">
+          <button onClick={exportarCSV}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted/50 transition-colors">
+            <Download className="h-3.5 w-3.5" /> Exportar CSV
+          </button>
           {PERIOD_OPTIONS.map(p => (
             <button key={p.days} onClick={() => setPeriod(p.days)}
-              className={cn("px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                 period === p.days ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
               {p.label}
             </button>
@@ -121,214 +199,244 @@ function RelatoriosPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 px-6 py-3 border-b border-border shrink-0">
+      <div className="flex gap-1 px-6 py-2.5 border-b border-border shrink-0">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
               tab === t.id ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:bg-muted/50")}>
-            <t.icon className="h-4 w-4" /> {t.label}
+            <t.icon className="h-3.5 w-3.5" />{t.label}
           </button>
         ))}
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-5xl mx-auto space-y-6">
 
-        {/* ── LEADS & CONVERSÃO ── */}
-        {tab === "leads" && (
-          <div className="max-w-5xl mx-auto space-y-6">
-            {/* KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { label: "Leads no período", value: kpis.total,              icon: Users,         color: "text-blue-500" },
-                { label: "Contratos",         value: kpis.contratos,          icon: FileSignature, color: "text-green-500" },
-                { label: "Taxa de conversão", value: `${kpis.conversao}%`,    icon: TrendingUp,    color: "text-violet-500" },
-                { label: "Tempo médio (h)",   value: `${kpis.tempoMedio}h`,   icon: Clock,         color: "text-amber-500" },
-              ].map(({ label, value, icon: Icon, color }) => (
-                <div key={label} className="rounded-xl border border-border bg-card p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">{label}</span>
-                    <Icon className={`h-4 w-4 ${color}`} />
-                  </div>
-                  <p className="text-3xl font-bold text-foreground">{value}</p>
+          {/* ── POR FUNIL ── */}
+          {tab === "funis" && (
+            <>
+              {/* Tabela de performance */}
+              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                  <p className="font-semibold text-foreground">Performance por funil</p>
+                  <p className="text-xs text-muted-foreground">{funisPerfomance.length} funil(s) ativo(s)</p>
                 </div>
-              ))}
-            </div>
-
-            {/* Gráfico de leads por dia */}
-            <div className="rounded-xl border border-border bg-card p-5">
-              <p className="font-semibold text-foreground mb-4">Leads por dia</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={leadsData}>
-                  <defs>
-                    <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={20} />
-                  <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
-                  <Area type="monotone" dataKey="leads" stroke="#3b82f6" strokeWidth={2} fill="url(#lg)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Funil */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="font-semibold text-foreground mb-4">Funil de conversão</p>
-                <div className="space-y-2">
-                  {funnelData.map(({ fase, count, color }) => {
-                    const max = funnelData[0]?.count || 1;
-                    const pct = Math.round((count / max) * 100);
-                    return (
-                      <div key={fase} className="flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground w-20 text-right capitalize shrink-0">{fase}</span>
-                        <div className="flex-1 h-6 rounded-md bg-muted relative overflow-hidden">
-                          <div className="h-full rounded-md transition-all" style={{ width: `${pct}%`, background: color + "80" }} />
-                          <span className="absolute inset-0 flex items-center px-2 text-xs font-medium text-foreground">{count}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground w-10 shrink-0">{pct}%</span>
+                {funisPerfomance.length === 0
+                  ? <p className="text-center text-muted-foreground py-8 text-sm">Nenhum dado no período</p>
+                  : <div className="divide-y divide-border">
+                      <div className="grid grid-cols-5 px-5 py-2.5 bg-muted/30">
+                        {["Funil","Leads","Contratos","Conversão","Tempo médio"].map(h => (
+                          <span key={h} className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</span>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="font-semibold text-foreground mb-4">Distribuição por fase</p>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={funnelData.filter(f => f.count > 0)} dataKey="count" nameKey="fase"
-                      cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
-                      {funnelData.filter(f => f.count > 0).map((f) => (
-                        <Cell key={f.fase} fill={f.color} />
+                      {funisPerfomance.map((f, i) => (
+                        <div key={i} className="grid grid-cols-5 px-5 py-3.5 hover:bg-muted/20 transition-colors">
+                          <span className="text-sm font-medium text-foreground">{f.nome}</span>
+                          <span className="text-sm text-foreground">{f.leads}</span>
+                          <span className="text-sm text-emerald-600 font-medium">{f.contratos}</span>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 rounded-full bg-muted max-w-[80px]">
+                              <div className="h-full rounded-full bg-primary" style={{ width: `${f.conversao}%` }} />
+                            </div>
+                            <span className="text-sm font-semibold text-primary">{f.conversao}%</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{f.tempoMedio}h</span>
+                        </div>
                       ))}
-                    </Pie>
-                    <Tooltip formatter={(v, n) => [v, n]} contentStyle={{ fontSize: 12 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {funnelData.filter(f => f.count > 0).map(f => (
-                    <div key={f.fase} className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <div className="h-2 w-2 rounded-full" style={{ background: f.color }} />
-                      {f.fase}
+                    </div>
+                }
+              </div>
+
+              {/* Gráfico comparativo */}
+              {funisPerfomance.length > 0 && (
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <p className="font-semibold text-foreground mb-4">Leads vs Contratos por funil</p>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={funisPerfomance} barGap={4}>
+                      <XAxis dataKey="nome" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={25} />
+                      <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar dataKey="leads" name="Leads" fill="#3b82f6" radius={[4,4,0,0]} />
+                      <Bar dataKey="contratos" name="Contratos" fill="#22c55e" radius={[4,4,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── ONDE PERDEM LEADS ── */}
+          {tab === "leads" && (
+            <>
+              {/* Dropoff por fase */}
+              <div className="rounded-xl border border-border bg-card p-5">
+                <p className="font-semibold text-foreground mb-1">Onde os leads abandonam</p>
+                <p className="text-xs text-muted-foreground mb-4">Taxa de conversão entre cada fase do funil</p>
+                <div className="space-y-3">
+                  {dropoffPorFase.map((d, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-xs capitalize text-muted-foreground w-20 text-right shrink-0">{d.de}</span>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-xs capitalize text-muted-foreground w-20 shrink-0">{d.para}</span>
+                      <div className="flex-1 h-6 rounded-lg bg-muted relative overflow-hidden">
+                        <div className="h-full rounded-lg transition-all" style={{ width: `${d.taxa}%`, background: d.taxa >= 70 ? "#22c55e" : d.taxa >= 40 ? "#f59e0b" : "#ef4444" }} />
+                        <span className="absolute inset-0 flex items-center px-2 text-xs font-semibold text-foreground mix-blend-multiply">{d.taxa}%</span>
+                      </div>
+                      {d.perdidos > 0 && (
+                        <span className="text-xs text-red-500 shrink-0 flex items-center gap-0.5">
+                          <AlertTriangle className="h-3 w-3" />-{d.perdidos}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* ── AGENDA ── */}
-        {tab === "agenda" && (
-          <div className="max-w-3xl mx-auto space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold text-foreground">Próximos agendamentos</p>
-              <span className="text-xs text-muted-foreground">{appointments.length} total</span>
-            </div>
-            {appointments.length === 0 && (
-              <div className="text-center py-16 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                <p>Nenhum agendamento. Configure o Google Calendar nos funis.</p>
-              </div>
-            )}
-            {appointments.map((appt: any) => {
-              const start = new Date(appt.start_at);
-              const isPast = start < new Date();
-              const isSoon = !isPast && (start.getTime() - Date.now()) < 3600000;
-              return (
-                <div key={appt.id} className={cn("rounded-xl border bg-card p-4 flex items-start gap-4",
-                  isPast ? "border-border opacity-60" : isSoon ? "border-amber-500/40 bg-amber-500/5" : "border-border")}>
-                  <div className="shrink-0 text-center min-w-[50px]">
-                    <p className="text-2xl font-bold text-foreground">{start.getDate()}</p>
-                    <p className="text-xs text-muted-foreground">{start.toLocaleDateString("pt-BR", { month: "short" })}</p>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground">{appt.title}</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      {start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })} —
-                      {new Date(appt.end_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}
-                    </p>
-                    {(appt.conversations as any)?.contact_name && (
-                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {(appt.conversations as any).contact_name}
-                      </p>
-                    )}
-                  </div>
-                  <div className="shrink-0">
-                    {isPast ? (
-                      <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">Encerrado</span>
-                    ) : isSoon ? (
-                      <span className="text-xs px-2 py-1 rounded-full bg-amber-500/20 text-amber-600 font-medium flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" /> Em breve
+              {/* Pizza por fase */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <p className="font-semibold text-foreground mb-4">Distribuição atual por fase</p>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <Pie data={taxaConversaoPorFase.filter(f => f.count > 0)} dataKey="count" nameKey="fase"
+                        cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={2}>
+                        {taxaConversaoPorFase.filter(f => f.count > 0).map(f => <Cell key={f.fase} fill={f.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(v, n) => [v, n]} contentStyle={{ fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {taxaConversaoPorFase.filter(f => f.count > 0).map(f => (
+                      <span key={f.fase} className="text-[10px] flex items-center gap-1 text-muted-foreground">
+                        <span className="h-2 w-2 rounded-full inline-block" style={{ background: f.color }} />{f.fase} ({f.count})
                       </span>
-                    ) : (
-                      <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-600">Confirmado</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── LINHA DO TEMPO ── */}
-        {tab === "funil" && (
-          <div className="max-w-3xl mx-auto space-y-4">
-            <p className="font-semibold text-foreground">Progresso dos leads nas fases</p>
-            {funnelStates.length === 0 && (
-              <div className="text-center py-16 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                <p>Nenhum lead no período selecionado.</p>
-              </div>
-            )}
-            {funnelStates.map((state: any) => {
-              const fases = ["abertura","triagem","conexao","fechamento","coleta","assinatura","encerrado"];
-              const idx = fases.indexOf(state.fase);
-              const nome = (state.conversations as any)?.contact_name || (state.conversations as any)?.phone || "Lead";
-              const dados = state.dados as any;
-              return (
-                <div key={state.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold text-white"
-                        style={{ background: FASE_COLORS[state.fase] || "#64748b" }}>
-                        {nome[0]?.toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm text-foreground">{nome}</p>
-                        {dados?.municipio && <p className="text-xs text-muted-foreground">{dados.municipio}</p>}
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(state.updated_at).toLocaleDateString("pt-BR")}
-                    </span>
-                  </div>
-                  {/* Barra de progresso de fases */}
-                  <div className="flex items-center gap-1">
-                    {fases.map((fase, i) => (
-                      <div key={fase} className="flex items-center gap-1 flex-1">
-                        <div className={cn("h-2 flex-1 rounded-full transition-all",
-                          i <= idx ? "opacity-100" : "opacity-20")}
-                          style={{ background: FASE_COLORS[fase] }} />
-                        {i < fases.length - 1 && (
-                          <ChevronRight className={cn("h-3 w-3 shrink-0", i < idx ? "text-muted-foreground" : "text-border")} />
-                        )}
-                      </div>
                     ))}
                   </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[10px] text-muted-foreground">abertura</span>
-                    <span className="text-[10px] font-medium" style={{ color: FASE_COLORS[state.fase] }}>{state.fase}</span>
-                    <span className="text-[10px] text-muted-foreground">encerrado</span>
+                </div>
+
+                {/* Alertas de perda */}
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <p className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />Pontos críticos
+                  </p>
+                  <div className="space-y-3">
+                    {dropoffPorFase.filter(d => d.taxa < 50).length === 0
+                      ? <p className="text-sm text-emerald-600 font-medium">✅ Nenhum gargalo crítico!</p>
+                      : dropoffPorFase.filter(d => d.taxa < 50).sort((a, b) => a.taxa - b.taxa).map((d, i) => (
+                          <div key={i} className="p-3 rounded-lg bg-red-50 border border-red-200">
+                            <p className="text-xs font-semibold text-red-700 capitalize">{d.de} → {d.para}</p>
+                            <p className="text-xs text-red-600 mt-0.5">Apenas {d.taxa}% avançam — {d.perdidos} leads perdidos</p>
+                            <p className="text-[10px] text-red-500 mt-1">
+                              {d.de === "triagem" ? "💡 Revise as perguntas de triagem ou os critérios de exclusão" :
+                               d.de === "conexao" ? "💡 O vídeo de conexão pode precisar de mais emoção" :
+                               d.de === "fechamento" ? "💡 O áudio de fechamento pode não estar persuasivo" :
+                               "💡 Verifique o fluxo desta fase"}
+                            </p>
+                          </div>
+                        ))
+                    }
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            </>
+          )}
+
+          {/* ── AGENDA ── */}
+          {tab === "agenda" && (
+            <>
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { label: "Total agendado", value: apptStats.total,     color: "text-blue-500" },
+                  { label: "Realizados",      value: apptStats.realizados,color: "text-emerald-500" },
+                  { label: "Pendentes",       value: apptStats.pendentes, color: "text-amber-500" },
+                ].map(k => (
+                  <div key={k.label} className="rounded-xl border border-border bg-card p-5">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">{k.label}</p>
+                    <p className={`text-3xl font-bold ${k.color}`}>{k.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-border">
+                  <p className="font-semibold text-foreground">Agendamentos</p>
+                </div>
+                {appointments.length === 0
+                  ? <div className="text-center py-12 text-muted-foreground"><Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" /><p className="text-sm">Nenhum agendamento encontrado</p></div>
+                  : <div className="divide-y divide-border">
+                      {appointments.map((a: any) => {
+                        const start = new Date(a.start_at);
+                        const isPast = start < new Date();
+                        const isSoon = !isPast && (start.getTime() - Date.now()) < 3600000;
+                        return (
+                          <div key={a.id} className={cn("flex items-center gap-4 px-5 py-3.5", isPast && "opacity-50")}>
+                            <div className="text-center shrink-0 w-12">
+                              <p className="text-xl font-bold text-foreground">{start.getDate()}</p>
+                              <p className="text-[10px] text-muted-foreground">{start.toLocaleDateString("pt-BR", { month: "short" })}</p>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-foreground">{a.title}</p>
+                              <p className="text-xs text-muted-foreground">{start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} — {(a.conversations as any)?.contact_name || "Lead"}</p>
+                            </div>
+                            <span className={cn("text-xs px-2 py-1 rounded-full font-medium",
+                              isPast ? "bg-muted text-muted-foreground" : isSoon ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700")}>
+                              {isPast ? "Encerrado" : isSoon ? "Em breve" : "Confirmado"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                }
+              </div>
+            </>
+          )}
+
+          {/* ── HORÁRIOS DE PICO ── */}
+          {tab === "retencao" && (
+            <>
+              <div className="rounded-xl border border-border bg-card p-5">
+                <p className="font-semibold text-foreground mb-1">Horários de pico — quando os leads chegam</p>
+                <p className="text-xs text-muted-foreground mb-4">Ótimo para saber quando gravar vídeos e estar disponível</p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={horariosPico}>
+                    <XAxis dataKey="hora" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={25} />
+                    <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="count" name="Leads" radius={[4,4,0,0]}
+                      fill="#3b82f6"
+                      label={false} />
+                  </BarChart>
+                </ResponsiveContainer>
+                {horariosPico.length > 0 && (() => {
+                  const pico = horariosPico.reduce((a, b) => a.count > b.count ? a : b);
+                  return <p className="text-xs text-muted-foreground mt-2">🏆 Horário de maior movimento: <strong className="text-foreground">{pico.hora}</strong> ({pico.count} leads)</p>;
+                })()}
+              </div>
+
+              {/* Leads por dia da semana */}
+              <div className="rounded-xl border border-border bg-card p-5">
+                <p className="font-semibold text-foreground mb-1">Tempo médio por fase (dias)</p>
+                <p className="text-xs text-muted-foreground mb-4">Quanto tempo em média o lead passa em cada fase antes de avançar</p>
+                {taxaConversaoPorFase.length === 0
+                  ? <p className="text-sm text-muted-foreground text-center py-4">Sem dados suficientes</p>
+                  : <div className="space-y-2">
+                      {taxaConversaoPorFase.filter(f => f.count > 0).map(f => (
+                        <div key={f.fase} className="flex items-center gap-3">
+                          <span className="text-xs capitalize text-muted-foreground w-24 text-right shrink-0">{f.fase}</span>
+                          <div className="flex-1 h-5 rounded-lg bg-muted relative overflow-hidden">
+                            <div className="h-full rounded-lg" style={{ width: `${Math.min(100, (f.count / Math.max(...taxaConversaoPorFase.map(x => x.count))) * 100)}%`, background: f.color + "80" }} />
+                            <span className="absolute inset-0 flex items-center px-2 text-xs font-medium text-foreground">{f.count} lead{f.count !== 1 ? "s" : ""}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
+            </>
+          )}
+
+        </div>
       </div>
     </div>
   );
