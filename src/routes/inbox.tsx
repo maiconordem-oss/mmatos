@@ -1,9 +1,9 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock } from "lucide-react";
+import { Plus, Send, Search, MoreVertical, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, Image, FileVideo, FileAudio2, FileText, Clock3, AlertCircle, RefreshCcw, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -239,7 +239,6 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
 // ── Página principal ───────────────────────────────────────────
 function InboxPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -250,6 +249,15 @@ function InboxPage() {
   const [newConv, setNewConv] = useState({ phone: "", contact_name: "" });
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [showLeadPanel, setShowLeadPanel] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unread" | "paused">("all");
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [mediaPayload, setMediaPayload] = useState({
+    type: "image" as "image" | "video" | "audio" | "document",
+    url: "",
+    caption: "",
+    file: null as File | null,
+    previewUrl: "",
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef    = useRef<HTMLTextAreaElement>(null);
 
@@ -316,10 +324,10 @@ function InboxPage() {
     if (textareaRef.current) textareaRef.current.style.height = "40px";
 
     // Salvar no banco
-    await supabase.from("messages").insert({
+    const { data: inserted } = await supabase.from("messages").insert({
       user_id: user.id, conversation_id: activeId,
-      direction: "outbound", content, status: "sent",
-    });
+      direction: "outbound", content, status: "pending",
+    }).select("id").single();
     await supabase.from("conversations").update({
       last_message_at: new Date().toISOString(),
       last_message_preview: content.slice(0, 80),
@@ -337,8 +345,139 @@ function InboxPage() {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: inst.api_key },
         body: JSON.stringify({ number, text: content, textMessage: { text: content }, options: { delay: 500 } }),
-      }).catch(e => console.error("send manual error:", e));
+      })
+        .then(() => {
+          if (inserted?.id) {
+            supabase.from("messages").update({ status: "sent" }).eq("id", inserted.id);
+          }
+        })
+        .catch((e) => {
+          if (inserted?.id) {
+            supabase.from("messages").update({ status: "failed" }).eq("id", inserted.id);
+          }
+          console.error("send manual error:", e);
+        });
+    } else if (inserted?.id) {
+      await supabase.from("messages").update({ status: "pending" }).eq("id", inserted.id);
     }
+  };
+
+  const MAX_MEDIA_SIZE = 16 * 1024 * 1024;
+  const ACCEPTED_MIME: Record<string, string[]> = {
+    image: ["image/jpeg", "image/png", "image/webp"],
+    video: ["video/mp4", "video/webm"],
+    audio: ["audio/mpeg", "audio/ogg", "audio/wav"],
+    document: ["application/pdf"],
+  };
+
+  const getStatusIcon = (m: Message) => {
+    if (m.status === "failed") return <AlertCircle className="h-3 w-3 text-red-400" />;
+    if (m.status === "pending") return <Clock3 className="h-3 w-3 text-[#8696a0]" />;
+    if (m.status === "sent") return <Check className="h-3 w-3 text-[#8696a0]" />;
+    return <CheckCheck className={cn("h-3 w-3", m.status === "read" ? "text-[#53bdeb]" : "text-[#8696a0]")} />;
+  };
+
+  const handleRetryMessage = async (m: Message) => {
+    if (!activeId || !user) return;
+    if (!m.content && !m.media_url) return;
+    await supabase.from("messages").update({ status: "pending" }).eq("id", m.id);
+    const { data: conv } = await supabase.from("conversations").select("phone").eq("id", activeId).single();
+    const { data: inst } = await supabase.from("whatsapp_instances").select("*")
+      .eq("user_id", user.id).eq("status", "connected").limit(1).maybeSingle();
+    if (!conv?.phone || !inst?.api_url || !inst?.api_key) {
+      await supabase.from("messages").update({ status: "failed" }).eq("id", m.id);
+      return;
+    }
+    const number = conv.phone.replace(/\D/g, "");
+    const base = inst.api_url.replace(/\/$/, "");
+    const endpoint = m.media_type ? (m.media_type === "audio" ? `/message/sendWhatsAppAudio/${inst.instance_name}` : `/message/sendMedia/${inst.instance_name}`) : `/message/sendText/${inst.instance_name}`;
+    const payload = m.media_type
+      ? { number, mediatype: m.media_type, media: m.media_url, caption: m.content || "" }
+      : { number, text: m.content, textMessage: { text: m.content }, options: { delay: 500 } };
+    try {
+      const r = await fetch(`${base}${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json", apikey: inst.api_key }, body: JSON.stringify(payload) });
+      if (!r.ok) throw new Error("send failed");
+      await supabase.from("messages").update({ status: "sent" }).eq("id", m.id);
+    } catch {
+      await supabase.from("messages").update({ status: "failed" }).eq("id", m.id);
+    }
+  };
+
+  const handleMediaFile = async (file: File) => {
+    if (file.size > MAX_MEDIA_SIZE) { toast.error("Arquivo muito grande (máx. 16MB)"); return; }
+    if (!ACCEPTED_MIME[mediaPayload.type].includes(file.type)) { toast.error("Tipo de arquivo não permitido para esta mídia"); return; }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    setMediaPayload(prev => ({ ...prev, file, url: dataUrl, previewUrl: dataUrl }));
+  };
+
+  const handleSendMedia = async () => {
+    if (!user || !activeId || !mediaPayload.url.trim()) return;
+    const mediaUrl = mediaPayload.url.trim();
+    const caption = mediaPayload.caption.trim();
+    const mediaType = mediaPayload.type;
+    const preview = caption || `[${mediaType}]`;
+
+    if (!/^https?:\/\//i.test(mediaUrl)) {
+      toast.error("A URL da mídia precisa começar com http:// ou https://");
+      return;
+    }
+
+    const { data: inserted } = await supabase.from("messages").insert({
+      user_id: user.id,
+      conversation_id: activeId,
+      direction: "outbound",
+      content: preview,
+      media_type: mediaType,
+      media_url: mediaUrl,
+      status: "pending",
+    }).select("id").single();
+    await supabase.from("conversations").update({
+      last_message_at: new Date().toISOString(),
+      last_message_preview: preview.slice(0, 80),
+    }).eq("id", activeId);
+
+    const { data: conv } = await supabase.from("conversations").select("phone").eq("id", activeId).single();
+    const { data: inst } = await supabase.from("whatsapp_instances").select("*")
+      .eq("user_id", user.id).eq("status", "connected").limit(1).maybeSingle();
+
+    if (conv?.phone && inst?.api_url && inst?.api_key) {
+      const number = conv.phone.replace(/\D/g, "");
+      const base = inst.api_url.replace(/\/$/, "");
+      const endpoint = mediaType === "audio"
+        ? `/message/sendWhatsAppAudio/${inst.instance_name}`
+        : `/message/sendMedia/${inst.instance_name}`;
+      fetch(`${base}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: inst.api_key },
+        body: JSON.stringify({
+          number,
+          mediatype: mediaType,
+          media: mediaUrl,
+          caption,
+        }),
+      })
+        .then(() => {
+          if (inserted?.id) {
+            supabase.from("messages").update({ status: "sent" }).eq("id", inserted.id);
+          }
+        })
+        .catch((e) => {
+          if (inserted?.id) {
+            supabase.from("messages").update({ status: "failed" }).eq("id", inserted.id);
+          }
+          console.error("send media error:", e);
+        });
+    } else if (inserted?.id) {
+      await supabase.from("messages").update({ status: "pending" }).eq("id", inserted.id);
+    }
+
+    setMediaOpen(false);
+    setMediaPayload({ type: "image", url: "", caption: "", file: null, previewUrl: "" });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -358,9 +497,13 @@ function InboxPage() {
   };
 
   const active  = conversations.find(c => c.id === activeId);
-  const filtered = conversations.filter(c =>
-    (c.contact_name || c.phone).toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = conversations
+    .filter(c => (c.contact_name || c.phone).toLowerCase().includes(search.toLowerCase()))
+    .filter(c => {
+      if (filter === "unread") return c.unread_count > 0;
+      if (filter === "paused") return c.ai_paused;
+      return true;
+    });
   const grouped = groupByDate(messages);
 
   return (
@@ -411,6 +554,24 @@ function InboxPage() {
             <Search className="h-4 w-4 text-[#8696a0] shrink-0" />
             <input className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none"
               placeholder="Pesquisar conversas..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <div className="flex gap-1 mt-2">
+            {[
+              { key: "all", label: "Todas" },
+              { key: "unread", label: "Não lidas" },
+              { key: "paused", label: "IA pausada" },
+            ].map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key as "all" | "unread" | "paused")}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-[11px] transition-colors",
+                  filter === f.key ? "bg-[#25d366] text-black font-semibold" : "bg-[#202c33] text-[#aebac1]"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -563,25 +724,33 @@ function InboxPage() {
                     <div key={m.id} className={cn("flex mb-1", m.direction === "outbound" ? "justify-end" : "justify-start")}>
                       <div className={cn("max-w-[65%] px-3 py-2 rounded-lg text-sm", m.direction === "outbound" ? "rounded-tr-none" : "rounded-tl-none")}
                         style={{ background: m.direction === "outbound" ? "#005c4b" : "#202c33" }}>
-                        {m.media_type === "audio" && (
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)" }}>
-                              <Mic className="h-4 w-4 text-white" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="h-1 rounded-full opacity-40 bg-white w-24" />
-                              <p className="text-[10px] text-white/60 mt-0.5">Áudio</p>
-                            </div>
-                          </div>
+                        {m.media_type === "audio" && m.media_url && (
+                          <audio controls src={m.media_url} className="mb-1.5 max-w-full h-10" />
                         )}
                         {m.media_type === "image" && m.media_url && (
                           <img src={m.media_url} alt="img" className="rounded mb-1 max-w-full" style={{ maxHeight: 200 }} />
+                        )}
+                        {m.media_type === "video" && m.media_url && (
+                          <video controls src={m.media_url} className="rounded mb-1 max-w-full" style={{ maxHeight: 240 }} />
+                        )}
+                        {m.media_type === "document" && m.media_url && (
+                          <a href={m.media_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 mb-1.5 text-white underline">
+                            <FileText className="h-4 w-4" />
+                            Abrir documento
+                          </a>
                         )}
                         <p className="text-white leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
                         <div className="flex items-center gap-1 justify-end mt-1">
                           <span className="text-[10px] text-[#8696a0]">{formatMsgTime(m.created_at)}</span>
                           {m.direction === "outbound" && (
-                            <CheckCheck className={cn("h-3 w-3", m.status === "read" ? "text-[#53bdeb]" : "text-[#8696a0]")} />
+                            <>
+                              {m.status === "failed" && (
+                                <button onClick={() => handleRetryMessage(m)} title="Reenviar" className="text-red-400 hover:text-red-300">
+                                  <RefreshCcw className="h-3 w-3" />
+                                </button>
+                              )}
+                              {getStatusIcon(m)}
+                            </>
                           )}
                         </div>
                       </div>
@@ -595,7 +764,61 @@ function InboxPage() {
             {/* Input */}
             <div className="px-4 py-3 flex items-end gap-3 shrink-0" style={{ background: "#202c33" }}>
               <button className="p-2 text-[#aebac1] hover:text-white shrink-0"><Smile className="h-6 w-6" /></button>
-              <button className="p-2 text-[#aebac1] hover:text-white shrink-0"><Paperclip className="h-6 w-6" /></button>
+              <Dialog open={mediaOpen} onOpenChange={setMediaOpen}>
+                <DialogTrigger asChild>
+                  <button className="p-2 text-[#aebac1] hover:text-white shrink-0"><Paperclip className="h-6 w-6" /></button>
+                </DialogTrigger>
+                <DialogContent className="bg-[#202c33] border-[#2a3942] text-white">
+                  <DialogHeader><DialogTitle className="text-white">Enviar mídia</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { type: "image", icon: Image, label: "Imagem" },
+                        { type: "video", icon: FileVideo, label: "Vídeo" },
+                        { type: "audio", icon: FileAudio2, label: "Áudio" },
+                        { type: "document", icon: FileText, label: "Documento" },
+                      ].map((item) => (
+                        <button
+                          key={item.type}
+                          onClick={() => setMediaPayload(prev => ({ ...prev, type: item.type as any }))}
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm",
+                            mediaPayload.type === item.type ? "border-[#25d366] bg-[#25d366]/10" : "border-[#3b4a54] bg-[#2a3942]"
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div>
+                      <label className="text-xs text-[#8696a0] mb-1 block">Arquivo ou URL da mídia *</label>
+                      <input type="file" accept={ACCEPTED_MIME[mediaPayload.type].join(",")} className="w-full text-xs text-[#aebac1]" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleMediaFile(f); }} />
+                      <input
+                        className="w-full mt-2 bg-[#2a3942] border border-[#3b4a54] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#25d366]"
+                        value={mediaPayload.url}
+                        onChange={(e) => setMediaPayload(prev => ({ ...prev, url: e.target.value, previewUrl: e.target.value }))}
+                        placeholder="https://... ou selecione um arquivo"
+                      />
+                      {mediaPayload.previewUrl && mediaPayload.type === "image" && <img src={mediaPayload.previewUrl} alt="preview" className="mt-2 rounded max-h-32" />}
+                    </div>
+                    <div>
+                      <label className="text-xs text-[#8696a0] mb-1 block">Legenda (opcional)</label>
+                      <input
+                        className="w-full bg-[#2a3942] border border-[#3b4a54] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#25d366]"
+                        value={mediaPayload.caption}
+                        onChange={(e) => setMediaPayload(prev => ({ ...prev, caption: e.target.value }))}
+                        placeholder="Mensagem de acompanhamento"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <button onClick={handleSendMedia} className="bg-[#25d366] hover:bg-[#20ba5a] text-white px-4 py-2 rounded-lg text-sm font-medium">
+                      Enviar mídia
+                    </button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <div className="flex-1 rounded-lg px-4 py-2 flex items-end" style={{ background: "#2a3942" }}>
                 <textarea ref={textareaRef}
                   className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none resize-none leading-relaxed"
