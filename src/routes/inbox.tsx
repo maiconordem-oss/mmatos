@@ -1677,6 +1677,36 @@ function InboxPage() {
       {active && showLeadPanel && (
         <LeadPanel conv={active} onClose={() => setShowLeadPanel(false)} />
       )}
+
+      {/* TTS Dialog */}
+      <Dialog open={ttsOpen} onOpenChange={(v) => { setTtsOpen(v); if (!v) { setTtsBlob(null); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-violet-500" /> Gerar áudio com IA</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <textarea value={ttsText} onChange={(e) => { setTtsText(e.target.value); setTtsBlob(null); }}
+              placeholder="Digite o texto para virar áudio..." rows={4}
+              className="w-full p-3 rounded-md border border-input bg-background text-sm" />
+            {ttsBlob && (
+              <audio controls src={URL.createObjectURL(ttsBlob)} className="w-full h-9" />
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setTtsOpen(false)}>Fechar</Button>
+            {!ttsBlob ? (
+              <Button onClick={handleGenerateTTS} disabled={ttsBusy || !ttsText.trim()}>
+                {ttsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Gerar áudio"}
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={handleGenerateTTS} disabled={ttsBusy}>Regerar</Button>
+                <Button onClick={sendTTSAudio} disabled={ttsBusy}>
+                  {ttsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4" /> Enviar</>}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
