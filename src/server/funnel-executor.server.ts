@@ -682,9 +682,9 @@ async function createWhatsAppGroup(
         method:  "POST",
         headers,
         body: JSON.stringify({
-          number:       groupId,
-          text:         welcomeMsg,
-          textMessage:  { text: welcomeMsg },
+          number:  groupId,
+          text:    welcomeMsg,
+          options: { delay: 1000 },
         }),
       }).catch(() => {});
     }
@@ -1029,6 +1029,10 @@ async function handleFunnelMessageInner(
   const novosDados = { ...state.dados, ...reply.dados_extraidos };
 
   // 7. Processar ações
+  if (reply.acao === "criar_grupo") {
+    await createWhatsAppGroup(admin, userId, convId, funnel, novosDados);
+  }
+
   if (reply.acao === "gerar_contrato") {
     const dadosCompletos = { ...state.dados, ...reply.dados_extraidos };
     await gerarContrato(admin, userId, convId, funnel, dadosCompletos);
