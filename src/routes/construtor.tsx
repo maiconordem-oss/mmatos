@@ -109,7 +109,7 @@ const FASES_PADRAO: Fase[] = [
     id: "coleta", label: "Coleta de dados", emoji: "📝", cor: "#8b5cf6", corBg: "#f5f3ff",
     descricao: "Colete os dados necessários para o contrato. Um campo por mensagem.",
     perguntas: [], exclusoes: [], midias: [], textoAposMidia: "",
-    acao: "contrato", camposColeta: ["nome", "cpf", "rg", "endereco"], ativo: true,
+    acao: "contrato", camposColeta: ["nome", "cpf", "rg", "endereco"], scriptsMedia: {}, ativo: true,
   },
   {
     id: "assinatura", label: "Assinatura", emoji: "✍️", cor: "#22c55e", corBg: "#f0fdf4",
@@ -537,7 +537,7 @@ Gere o fluxo completo com perguntas de triagem, critérios de exclusão, dados a
       }
 
       toast.success("Fluxo gerado! Revise cada fase e ajuste se necessário.");
-      setExpandedId("triagem"); // Abrir triagem para revisão
+      setExpanded("triagem"); // Abrir triagem para revisão
     } catch (e: any) {
       toast.error(`Erro ao gerar: ${e.message}`);
     } finally {
@@ -562,8 +562,7 @@ Gere o fluxo completo com perguntas de triagem, critérios de exclusão, dados a
     try {
       const listaMidias = todasMidias.map(m =>
         `- ${m.tipo.toUpperCase()} "${m.chave}" (fase ${m.faseLabel})`
-      ).join("
-");
+      ).join("\n");
 
       const res = await fetch("/api/generate-prompt", {
         method: "POST",
@@ -684,7 +683,7 @@ Lembre: vídeo de abertura → primeira mensagem sempre. Áudio de fechamento �
   }, [cfg]);
 
   // Gerar prompt e salvar funil
-  const gerarEсалvar = async () => {
+  const gerarESalvar = async () => {
     if (!cfg.nome.trim()) { toast.error("Defina o nome do funil"); return; }
     if (!user) return;
     setGenerating(true);
@@ -930,6 +929,4 @@ Retorne APENAS o texto do prompt, sem JSON externo nem markdown.`,
     </div>
   );
 
-  // Alias para evitar erros de digitação acima
-  function gerarEСалvar() { return gerarESalvar(); }
 }
