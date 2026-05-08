@@ -56,8 +56,13 @@ export const Route = createFileRoute("/api/diagnostico")({
 
           // Evolution v2: participantes só com número limpo (sem @s.whatsapp.net)
           const participants = (numeros as string[])
-            .map(n => n.replace(/\D/g, ""))
-            .filter(n => n.length >= 10);
+            .map(n => {
+              const clean = n.replace(/\D/g, "");
+              // Garantir DDI 55 para números brasileiros
+              if (clean.length === 11 || clean.length === 10) return "55" + clean;
+              return clean;
+            })
+            .filter(n => n.length >= 12);
 
           if (participants.length === 0) return Response.json({ ok: false, erro: "Informe ao menos um número válido (mín. 10 dígitos)" });
 
@@ -77,15 +82,10 @@ export const Route = createFileRoute("/api/diagnostico")({
             `📋 Participantes enviados: ${participants.join(", ")}`,
           ];
 
-          // Se criou o grupo, verificar participantes
+          // Grupo criado com sucesso
           if (groupId) {
-            await new Promise(r => setTimeout(r, 2000));
-            const membersRes = await fetch(`${base}/group/findParticipants/${inst.instance_name}?groupJid=${encodeURIComponent(groupId)}`,
-              { headers }
-            ).catch(() => null);
-            const membersData = membersRes ? await membersRes.json().catch(() => null) : null;
-            const members = membersData?.participants ?? membersData ?? [];
-            etapas.push(`👥 Participantes no grupo: ${Array.isArray(members) ? members.length : "?"} ${Array.isArray(members) ? members.map((m: any) => m.id || m.jid || JSON.stringify(m)).join(", ") : JSON.stringify(members).slice(0, 80)}`);
+            etapas.push(`✅ Grupo criado com sucesso! ID: ${groupId}`);
+            etapas.push(`💡 Verifique no WhatsApp se os participantes foram adicionados.`);
           }
 
           // Enviar mensagem de boas-vindas

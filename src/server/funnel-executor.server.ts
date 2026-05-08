@@ -645,8 +645,12 @@ async function createWhatsAppGroup(
 
     // Montar lista de participantes: cliente + equipe
     const allParticipants = [
-      clientPhone.replace(/\D/g, ""),
-      ...participants.map((p: string) => p.replace(/\D/g, "")).filter(p => p.length >= 10),
+      // Garantir DDI 55 em todos os números
+      (() => { const c = clientPhone.replace(/\D/g, ""); return c.length <= 11 ? "55" + c : c; })(),
+      ...participants.map((p: string) => {
+        const c = p.replace(/\D/g, "");
+        return c.length <= 11 ? "55" + c : c;
+      }).filter(p => p.length >= 12),
     ];
 
     const base    = inst.api_url.replace(/\/$/, "");
