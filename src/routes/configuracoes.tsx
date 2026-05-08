@@ -147,9 +147,10 @@ function ConfigPage() {
   };
 
   const TABS = [
-    { id: "quick",  label: "Respostas rápidas", icon: Zap },
-    { id: "tags",   label: "Tags",              icon: Tag },
-    { id: "horario",label: "Horário",           icon: Clock },
+    { id: "quick",       label: "Respostas rápidas", icon: Zap },
+    { id: "tags",        label: "Tags",              icon: Tag },
+    { id: "horario",     label: "Horário",           icon: Clock },
+    { id: "integracoes", label: "Integrações",       icon: KeyRound },
   ] as const;
 
   return (
