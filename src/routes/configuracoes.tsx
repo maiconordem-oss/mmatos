@@ -11,8 +11,11 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Trash2, Zap, Tag, Clock, Save } from "lucide-react";
+import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAuthServerFn } from "@/hooks/use-server-fn";
+import { checkElevenlabsToken, saveElevenlabsToken, deleteElevenlabsToken } from "@/server/elevenlabs.functions";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Lex CRM" }] }),
@@ -30,7 +33,20 @@ const TAG_COLORS = ["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6","#ef4444",
 
 function ConfigPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<"quick"|"tags"|"horario">("quick");
+  const [tab, setTab] = useState<"quick"|"tags"|"horario"|"integracoes">("quick");
+
+  // ElevenLabs token
+  const checkElevenFn  = useAuthServerFn(checkElevenlabsToken);
+  const saveElevenFn   = useAuthServerFn(saveElevenlabsToken);
+  const deleteElevenFn = useAuthServerFn(deleteElevenlabsToken);
+  const [elevenInfo, setElevenInfo] = useState<{ configured: boolean; source: string | null; masked: string | null } | null>(null);
+  const [elevenOpen, setElevenOpen] = useState(false);
+  const [elevenInput, setElevenInput] = useState("");
+  const [savingEleven, setSavingEleven] = useState(false);
+  const loadElevenInfo = useCallback(async () => {
+    try { setElevenInfo(await checkElevenFn({ data: {} } as any)); } catch {}
+  }, [checkElevenFn]);
+  useEffect(() => { loadElevenInfo(); }, [loadElevenInfo]);
 
   // Quick Replies
   const [replies, setReplies]   = useState<any[]>([]);
@@ -131,9 +147,10 @@ function ConfigPage() {
   };
 
   const TABS = [
-    { id: "quick",  label: "Respostas rápidas", icon: Zap },
-    { id: "tags",   label: "Tags",              icon: Tag },
-    { id: "horario",label: "Horário",           icon: Clock },
+    { id: "quick",       label: "Respostas rápidas", icon: Zap },
+    { id: "tags",        label: "Tags",              icon: Tag },
+    { id: "horario",     label: "Horário",           icon: Clock },
+    { id: "integracoes", label: "Integrações",       icon: KeyRound },
   ] as const;
 
   return (
@@ -323,6 +340,77 @@ function ConfigPage() {
                   <Save className="h-4 w-4" /> Salvar horário
                 </Button>
               </div>
+            </div>
+          )}
+
+          {/* INTEGRAÇÕES */}
+          {tab === "integracoes" && (
+            <div className="space-y-5">
+              <div className={cn(
+                "rounded-xl border-l-4 border border-border bg-card p-5",
+                elevenInfo?.configured ? "border-l-emerald-500" : "border-l-amber-500"
+              )}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground flex items-center gap-2">
+                      <Mic className="h-4 w-4 text-violet-500" /> ElevenLabs (transcrição + TTS)
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {elevenInfo === null
+                        ? "Verificando..."
+                        : elevenInfo.configured
+                        ? `Configurado (${elevenInfo.source === "user" ? "salvo por você" : "via secret"}) — ${elevenInfo.masked}`
+                        : "Não configurado. Cole sua API key da ElevenLabs para habilitar transcrição de áudios e geração de voz."}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/70 mt-2">
+                      Pegue sua chave em <code className="bg-muted px-1 rounded">elevenlabs.io → Profile → API Keys</code>
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <Button size="sm" variant={elevenInfo?.configured ? "outline" : "default"}
+                      onClick={() => { setElevenInput(""); setElevenOpen(true); }}>
+                      {elevenInfo?.configured ? "Atualizar" : "Salvar token"}
+                    </Button>
+                    {elevenInfo?.configured && elevenInfo.source === "user" && (
+                      <Button size="sm" variant="ghost" className="text-destructive"
+                        onClick={async () => {
+                          if (!confirm("Remover o token salvo?")) return;
+                          try { await deleteElevenFn({ data: {} } as any); toast.success("Removido"); loadElevenInfo(); }
+                          catch (e: any) { toast.error(e.message); }
+                        }}>
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Dialog open={elevenOpen} onOpenChange={setElevenOpen}>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>API Key ElevenLabs</DialogTitle></DialogHeader>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Cole a chave (começa com sk_...)</Label>
+                    <Input type="password" placeholder="sk_..." value={elevenInput}
+                      onChange={(e) => setElevenInput(e.target.value)} autoFocus />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setElevenOpen(false)}>Cancelar</Button>
+                    <Button disabled={elevenInput.trim().length < 6 || savingEleven}
+                      onClick={async () => {
+                        setSavingEleven(true);
+                        try {
+                          await saveElevenFn({ data: { token: elevenInput.trim() } } as any);
+                          toast.success("Token salvo");
+                          setElevenOpen(false);
+                          loadElevenInfo();
+                        } catch (e: any) { toast.error(e.message); }
+                        finally { setSavingEleven(false); }
+                      }}>
+                      {savingEleven ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
 

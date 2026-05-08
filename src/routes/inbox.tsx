@@ -14,8 +14,10 @@ import {
   suggestReplies, rewriteMessage, summarizeConversation,
   extractTasks, translateText, analyzeSentiment, semanticSearch,
 } from "@/server/inbox-ai.functions";
+import { transcribeAudioMessage, generateTTS } from "@/server/elevenlabs.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 
 // ── Hook de notificação sonora + visual ────────────────────────
@@ -162,6 +164,7 @@ type Message = {
   content: string | null; created_at: string; status?: string;
   media_type?: string | null; media_url?: string | null; media_mime?: string | null;
   delivered_at?: string | null; read_at?: string | null;
+  transcription?: string | null;
 };
 
 const proxyUrl = (msg: Message) =>
@@ -444,6 +447,13 @@ function InboxPage() {
   const translateFn           = useAuthServerFn(translateText);
   const sentimentFn           = useAuthServerFn(analyzeSentiment);
   const searchFn              = useAuthServerFn(semanticSearch);
+  const transcribeFn          = useAuthServerFn(transcribeAudioMessage);
+  const generateTTSFn         = useAuthServerFn(generateTTS);
+  const [transcribingId, setTranscribingId] = useState<string | null>(null);
+  const [ttsOpen, setTtsOpen] = useState(false);
+  const [ttsText, setTtsText] = useState("");
+  const [ttsBusy, setTtsBusy] = useState(false);
+  const [ttsBlob, setTtsBlob] = useState<Blob | null>(null);
 
   // Reset ao trocar de conversa
   useEffect(() => {
@@ -661,55 +671,58 @@ function InboxPage() {
     if (textareaRef.current) textareaRef.current.focus();
   };
 
+  const uploadAndSendAudio = async (blob: Blob) => {
+    if (!activeId || !user) return;
+    const mime = blob.type || "audio/webm";
+    const ext  = mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "mp4" : mime.includes("mpeg") || mime.includes("mp3") ? "mp3" : "webm";
+    const fileName = `${user.id}/audio/${Date.now()}.${ext}`;
+
+    const { error: upErr } = await supabase.storage
+      .from("whatsapp-media")
+      .upload(fileName, blob, { contentType: mime, upsert: true });
+    if (upErr) throw new Error(`Upload: ${upErr.message}`);
+
+    const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(fileName);
+    const audioUrl = urlData?.publicUrl;
+    if (!audioUrl) throw new Error("URL não gerada");
+
+    await supabase.from("messages").insert({
+      user_id: user.id, conversation_id: activeId,
+      direction: "outbound", content: "[Áudio]",
+      media_type: "audio", media_url: audioUrl, status: "sent",
+    });
+    await supabase.from("conversations").update({
+      last_message_at: new Date().toISOString(),
+      last_message_preview: "🎤 Áudio",
+    }).eq("id", activeId);
+
+    const { data: conv } = await supabase.from("conversations")
+      .select("phone, instance_id").eq("id", activeId).single();
+    let inst: any = null;
+    if (conv?.instance_id) {
+      const { data } = await supabase.from("whatsapp_instances")
+        .select("*").eq("id", conv.instance_id).maybeSingle();
+      inst = data;
+    }
+    if (!inst?.api_url) {
+      const { data } = await supabase.from("whatsapp_instances").select("*")
+        .eq("user_id", user.id).eq("status", "connected").eq("is_office", false).limit(1).maybeSingle();
+      inst = data;
+    }
+    if (conv?.phone && inst?.api_url) {
+      fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendWhatsAppAudio/${inst.instance_name}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: inst.api_key },
+        body: JSON.stringify({ number: conv.phone.replace(/\D/g, ""), audio: audioUrl }),
+      }).catch(console.error);
+    }
+  };
+
   const sendRecordedAudio = async () => {
-    if (!recorder.audioBlob || !activeId || !user) return;
+    if (!recorder.audioBlob) return;
     setSendingAudio(true);
     try {
-      const mime = recorder.audioBlob.type || "audio/webm";
-      const ext  = mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "mp4" : "webm";
-      const fileName = `${user.id}/audio/${Date.now()}.${ext}`;
-
-      const { error: upErr } = await supabase.storage
-        .from("whatsapp-media")
-        .upload(fileName, recorder.audioBlob, { contentType: mime, upsert: true });
-
-      if (upErr) throw new Error(`Upload: ${upErr.message}`);
-
-      const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(fileName);
-      const audioUrl = urlData?.publicUrl;
-      if (!audioUrl) throw new Error("URL não gerada");
-
-      await supabase.from("messages").insert({
-        user_id: user.id, conversation_id: activeId,
-        direction: "outbound", content: "[Áudio]",
-        media_type: "audio", media_url: audioUrl, status: "sent",
-      });
-      await supabase.from("conversations").update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: "🎤 Áudio",
-      }).eq("id", activeId);
-
-      const { data: conv } = await supabase.from("conversations")
-        .select("phone, instance_id").eq("id", activeId).single();
-      let inst: any = null;
-      if (conv?.instance_id) {
-        const { data } = await supabase.from("whatsapp_instances")
-          .select("*").eq("id", conv.instance_id).maybeSingle();
-        inst = data;
-      }
-      if (!inst?.api_url) {
-        const { data } = await supabase.from("whatsapp_instances").select("*")
-          .eq("user_id", user.id).eq("status", "connected").eq("is_office", false).limit(1).maybeSingle();
-        inst = data;
-      }
-      if (conv?.phone && inst?.api_url && audioUrl) {
-        fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendWhatsAppAudio/${inst.instance_name}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: inst.api_key },
-          body: JSON.stringify({ number: conv.phone.replace(/\D/g, ""), audio: audioUrl }),
-        }).catch(console.error);
-      }
-
+      await uploadAndSendAudio(recorder.audioBlob);
       recorder.reset();
       toast.success("Áudio enviado!");
     } catch (e: any) {
@@ -718,6 +731,31 @@ function InboxPage() {
       setSendingAudio(false);
     }
   };
+
+  const handleGenerateTTS = async () => {
+    if (!ttsText.trim()) return;
+    setTtsBusy(true);
+    try {
+      const r = await generateTTSFn({ data: { text: ttsText.trim() } } as any);
+      const bin = atob(r.audioBase64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      setTtsBlob(new Blob([bytes], { type: r.mime }));
+    } catch (e: any) { toast.error(e.message); }
+    finally { setTtsBusy(false); }
+  };
+
+  const sendTTSAudio = async () => {
+    if (!ttsBlob) return;
+    setTtsBusy(true);
+    try {
+      await uploadAndSendAudio(ttsBlob);
+      toast.success("Áudio enviado!");
+      setTtsBlob(null); setTtsText(""); setTtsOpen(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setTtsBusy(false); }
+  };
+
 
   // Bloquear/desbloquear contato
   const toggleBlock = async (conv: Conversation) => {
@@ -1355,8 +1393,29 @@ function InboxPage() {
 
                         {/* ÁUDIO — player nativo */}
                         {m.media_type === "audio" && m.media_url && (
-                          <div className="px-2 py-2">
+                          <div className="px-2 py-2 space-y-1">
                             <audio controls src={proxyUrl(m) ?? ""} className="h-8 w-48" style={{ filter: "invert(0.8)" }} />
+                            {m.transcription ? (
+                              <p className="text-white/90 text-[12px] leading-snug bg-black/20 rounded p-2 whitespace-pre-wrap">
+                                <span className="text-white/40 text-[10px] block mb-0.5">Transcrição</span>
+                                {m.transcription}
+                              </p>
+                            ) : (
+                              <button
+                                disabled={transcribingId === m.id}
+                                onClick={async () => {
+                                  setTranscribingId(m.id);
+                                  try {
+                                    const r = await transcribeFn({ data: { messageId: m.id } } as any);
+                                    setMessages(prev => prev.map(x => x.id === m.id ? { ...x, transcription: r.transcript } : x));
+                                  } catch (e: any) { toast.error(e.message); }
+                                  finally { setTranscribingId(null); }
+                                }}
+                                className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-white/80 flex items-center gap-1">
+                                {transcribingId === m.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <ScrollText className="h-2.5 w-2.5" />}
+                                {transcribingId === m.id ? "Transcrevendo..." : "Transcrever"}
+                              </button>
+                            )}
                           </div>
                         )}
                         {m.media_type === "audio" && !m.media_url && (
@@ -1553,6 +1612,12 @@ function InboxPage() {
               )}
 
               {/* Botão Send/Mic/Gravando */}
+              <button
+                title="Gerar áudio com IA (ElevenLabs)"
+                onClick={() => { setTtsText(text); setTtsBlob(null); setTtsOpen(true); }}
+                className="p-2.5 rounded-full flex items-center justify-center shrink-0 hover:bg-[#2a3942] text-violet-400">
+                <Sparkles className="h-5 w-5" />
+              </button>
               {recorder.recording ? (
                 <button onClick={recorder.stop}
                   className="p-2.5 rounded-full flex items-center justify-center shrink-0 animate-pulse"
@@ -1613,6 +1678,36 @@ function InboxPage() {
       {active && showLeadPanel && (
         <LeadPanel conv={active} onClose={() => setShowLeadPanel(false)} />
       )}
+
+      {/* TTS Dialog */}
+      <Dialog open={ttsOpen} onOpenChange={(v) => { setTtsOpen(v); if (!v) { setTtsBlob(null); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-violet-500" /> Gerar áudio com IA</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <textarea value={ttsText} onChange={(e) => { setTtsText(e.target.value); setTtsBlob(null); }}
+              placeholder="Digite o texto para virar áudio..." rows={4}
+              className="w-full p-3 rounded-md border border-input bg-background text-sm" />
+            {ttsBlob && (
+              <audio controls src={URL.createObjectURL(ttsBlob)} className="w-full h-9" />
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setTtsOpen(false)}>Fechar</Button>
+            {!ttsBlob ? (
+              <Button onClick={handleGenerateTTS} disabled={ttsBusy || !ttsText.trim()}>
+                {ttsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Gerar áudio"}
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={handleGenerateTTS} disabled={ttsBusy}>Regerar</Button>
+                <Button onClick={sendTTSAudio} disabled={ttsBusy}>
+                  {ttsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4" /> Enviar</>}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
