@@ -257,6 +257,73 @@ const DADO_LABELS: Record<string, string> = {
 
 // ── Painel lateral do lead ─────────────────────────────────────
 function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void }) {
+  const { user } = useAuth();
+  const [saving, setSaving]         = useState(false);
+  const [saved, setSaved]           = useState(false);
+  const [showForm, setShowForm]     = useState(false);
+  const [clienteExiste, setClienteExiste] = useState<any>(null);
+  const [form, setForm]             = useState({
+    name: conv.contact_name || "",
+    phone: conv.phone || "",
+    email: "",
+    cpf: "",
+    notes: "",
+  });
+
+  // Verificar se já é cliente
+  useEffect(() => {
+    if (!conv.phone) return;
+    supabase.from("clients")
+      .select("id, name, email, cpf")
+      .eq("phone", conv.phone.replace(/\D/g, ""))
+      .maybeSingle()
+      .then(({ data }) => setClienteExiste(data));
+  }, [conv.phone]);
+
+  // Preencher form com dados do funil
+  useEffect(() => {
+    if (!conv.id) return;
+    supabase.from("funnel_states")
+      .select("dados")
+      .eq("conversation_id", conv.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data?.dados) return;
+        const d = data.dados as any;
+        setForm(prev => ({
+          ...prev,
+          name:  d.nome  || prev.name,
+          email: d.email || prev.email,
+          cpf:   d.cpf   || prev.cpf,
+        }));
+      });
+  }, [conv.id]);
+
+  const cadastrarCliente = async () => {
+    if (!form.name.trim() || !user) return;
+    setSaving(true);
+    try {
+      const phone = form.phone.replace(/\D/g, "");
+      // Upsert pelo telefone
+      const { data, error } = await supabase.from("clients").upsert({
+        user_id: user.id,
+        name:    form.name.trim(),
+        phone:   phone,
+        email:   form.email.trim() || null,
+        cpf:     form.cpf.trim()   || null,
+        notes:   form.notes.trim() || null,
+      }, { onConflict: "phone" }).select().single();
+      if (error) throw error;
+      setClienteExiste(data);
+      setSaved(true);
+      setShowForm(false);
+      toast.success("Cliente cadastrado com sucesso!");
+    } catch (e: any) {
+      toast.error("Erro: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
   const [state, setState] = useState<FunnelState | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -299,6 +366,79 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
               }
             </div>
           </div>
+        </div>
+
+        {/* Botão cadastrar cliente */}
+        <div className="rounded-lg border border-[#2a3942] overflow-hidden" style={{ background: "#182229" }}>
+          {clienteExiste ? (
+            <div className="px-3 py-2.5 flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-[#25d366] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Cliente cadastrado</p>
+                <p className="text-white text-xs font-medium truncate">{clienteExiste.name}</p>
+                {clienteExiste.cpf && <p className="text-[#8696a0] text-[10px]">CPF: {clienteExiste.cpf}</p>}
+              </div>
+              <button onClick={() => setShowForm(!showForm)}
+                className="text-[10px] text-[#25d366] hover:underline shrink-0">editar</button>
+            </div>
+          ) : (
+            <button onClick={() => setShowForm(!showForm)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#2a3942] transition-colors text-left">
+              <div className="h-7 w-7 rounded-full bg-[#25d366]/20 flex items-center justify-center shrink-0">
+                <User className="h-3.5 w-3.5 text-[#25d366]" />
+              </div>
+              <div>
+                <p className="text-white text-xs font-medium">Cadastrar como cliente</p>
+                <p className="text-[#8696a0] text-[10px]">Salvar na base de clientes</p>
+              </div>
+            </button>
+          )}
+
+          {showForm && (
+            <div className="border-t border-[#2a3942] px-3 py-3 space-y-2">
+              <div>
+                <p className="text-[10px] text-[#8696a0] mb-1">Nome *</p>
+                <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  className="w-full bg-[#2a3942] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#3b4a54] focus:border-[#25d366] placeholder-[#8696a0]"
+                  placeholder="Nome completo" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#8696a0] mb-1">Telefone</p>
+                <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                  className="w-full bg-[#2a3942] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#3b4a54] placeholder-[#8696a0]"
+                  placeholder="5551999999999" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#8696a0] mb-1">E-mail</p>
+                <input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                  className="w-full bg-[#2a3942] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#3b4a54] placeholder-[#8696a0]"
+                  placeholder="email@exemplo.com" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#8696a0] mb-1">CPF</p>
+                <input value={form.cpf} onChange={e => setForm(p => ({ ...p, cpf: e.target.value }))}
+                  className="w-full bg-[#2a3942] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#3b4a54] placeholder-[#8696a0]"
+                  placeholder="000.000.000-00" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#8696a0] mb-1">Observações</p>
+                <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                  rows={2} className="w-full bg-[#2a3942] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#3b4a54] placeholder-[#8696a0] resize-none"
+                  placeholder="Anotações sobre o cliente..." />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setShowForm(false)}
+                  className="flex-1 py-1.5 rounded-lg text-xs text-[#8696a0] hover:text-white border border-[#3b4a54] hover:bg-[#2a3942] transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={cadastrarCliente} disabled={saving || !form.name.trim()}
+                  className="flex-1 py-1.5 rounded-lg text-xs font-medium text-black disabled:opacity-50 transition-colors"
+                  style={{ background: "#25d366" }}>
+                  {saving ? "Salvando..." : saved ? "✓ Salvo!" : "Salvar"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {loading && <p className="text-[#8696a0] text-xs text-center py-4">Carregando...</p>}
