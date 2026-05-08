@@ -670,55 +670,58 @@ function InboxPage() {
     if (textareaRef.current) textareaRef.current.focus();
   };
 
+  const uploadAndSendAudio = async (blob: Blob) => {
+    if (!activeId || !user) return;
+    const mime = blob.type || "audio/webm";
+    const ext  = mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "mp4" : mime.includes("mpeg") || mime.includes("mp3") ? "mp3" : "webm";
+    const fileName = `${user.id}/audio/${Date.now()}.${ext}`;
+
+    const { error: upErr } = await supabase.storage
+      .from("whatsapp-media")
+      .upload(fileName, blob, { contentType: mime, upsert: true });
+    if (upErr) throw new Error(`Upload: ${upErr.message}`);
+
+    const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(fileName);
+    const audioUrl = urlData?.publicUrl;
+    if (!audioUrl) throw new Error("URL não gerada");
+
+    await supabase.from("messages").insert({
+      user_id: user.id, conversation_id: activeId,
+      direction: "outbound", content: "[Áudio]",
+      media_type: "audio", media_url: audioUrl, status: "sent",
+    });
+    await supabase.from("conversations").update({
+      last_message_at: new Date().toISOString(),
+      last_message_preview: "🎤 Áudio",
+    }).eq("id", activeId);
+
+    const { data: conv } = await supabase.from("conversations")
+      .select("phone, instance_id").eq("id", activeId).single();
+    let inst: any = null;
+    if (conv?.instance_id) {
+      const { data } = await supabase.from("whatsapp_instances")
+        .select("*").eq("id", conv.instance_id).maybeSingle();
+      inst = data;
+    }
+    if (!inst?.api_url) {
+      const { data } = await supabase.from("whatsapp_instances").select("*")
+        .eq("user_id", user.id).eq("status", "connected").eq("is_office", false).limit(1).maybeSingle();
+      inst = data;
+    }
+    if (conv?.phone && inst?.api_url) {
+      fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendWhatsAppAudio/${inst.instance_name}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: inst.api_key },
+        body: JSON.stringify({ number: conv.phone.replace(/\D/g, ""), audio: audioUrl }),
+      }).catch(console.error);
+    }
+  };
+
   const sendRecordedAudio = async () => {
-    if (!recorder.audioBlob || !activeId || !user) return;
+    if (!recorder.audioBlob) return;
     setSendingAudio(true);
     try {
-      const mime = recorder.audioBlob.type || "audio/webm";
-      const ext  = mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "mp4" : "webm";
-      const fileName = `${user.id}/audio/${Date.now()}.${ext}`;
-
-      const { error: upErr } = await supabase.storage
-        .from("whatsapp-media")
-        .upload(fileName, recorder.audioBlob, { contentType: mime, upsert: true });
-
-      if (upErr) throw new Error(`Upload: ${upErr.message}`);
-
-      const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(fileName);
-      const audioUrl = urlData?.publicUrl;
-      if (!audioUrl) throw new Error("URL não gerada");
-
-      await supabase.from("messages").insert({
-        user_id: user.id, conversation_id: activeId,
-        direction: "outbound", content: "[Áudio]",
-        media_type: "audio", media_url: audioUrl, status: "sent",
-      });
-      await supabase.from("conversations").update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: "🎤 Áudio",
-      }).eq("id", activeId);
-
-      const { data: conv } = await supabase.from("conversations")
-        .select("phone, instance_id").eq("id", activeId).single();
-      let inst: any = null;
-      if (conv?.instance_id) {
-        const { data } = await supabase.from("whatsapp_instances")
-          .select("*").eq("id", conv.instance_id).maybeSingle();
-        inst = data;
-      }
-      if (!inst?.api_url) {
-        const { data } = await supabase.from("whatsapp_instances").select("*")
-          .eq("user_id", user.id).eq("status", "connected").eq("is_office", false).limit(1).maybeSingle();
-        inst = data;
-      }
-      if (conv?.phone && inst?.api_url && audioUrl) {
-        fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendWhatsAppAudio/${inst.instance_name}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: inst.api_key },
-          body: JSON.stringify({ number: conv.phone.replace(/\D/g, ""), audio: audioUrl }),
-        }).catch(console.error);
-      }
-
+      await uploadAndSendAudio(recorder.audioBlob);
       recorder.reset();
       toast.success("Áudio enviado!");
     } catch (e: any) {
@@ -727,6 +730,31 @@ function InboxPage() {
       setSendingAudio(false);
     }
   };
+
+  const handleGenerateTTS = async () => {
+    if (!ttsText.trim()) return;
+    setTtsBusy(true);
+    try {
+      const r = await generateTTSFn({ data: { text: ttsText.trim() } } as any);
+      const bin = atob(r.audioBase64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      setTtsBlob(new Blob([bytes], { type: r.mime }));
+    } catch (e: any) { toast.error(e.message); }
+    finally { setTtsBusy(false); }
+  };
+
+  const sendTTSAudio = async () => {
+    if (!ttsBlob) return;
+    setTtsBusy(true);
+    try {
+      await uploadAndSendAudio(ttsBlob);
+      toast.success("Áudio enviado!");
+      setTtsBlob(null); setTtsText(""); setTtsOpen(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setTtsBusy(false); }
+  };
+
 
   // Bloquear/desbloquear contato
   const toggleBlock = async (conv: Conversation) => {
