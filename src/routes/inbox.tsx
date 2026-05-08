@@ -305,16 +305,36 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
     try {
       const phone = form.phone.replace(/\D/g, "");
       // Upsert pelo telefone
-      const { data, error } = await supabase.from("clients").upsert({
-        user_id:   user.id,
-        full_name: form.name.trim(),
-        phone:     phone,
-        whatsapp:  phone,
-        email:     form.email.trim()  || null,
-        document:  form.cpf.trim()    || null,
-        notes:     form.notes.trim()  || null,
-      }, { onConflict: "phone" }).select().single();
-      if (error) throw error;
+      // Verificar se já existe pelo telefone
+      const { data: existing } = await supabase.from("clients")
+        .select("id").eq("phone", phone).eq("user_id", user.id).maybeSingle();
+
+      let data: any;
+      if (existing?.id) {
+        // Atualizar
+        const { data: updated, error } = await supabase.from("clients").update({
+          full_name: form.name.trim(),
+          whatsapp:  phone,
+          email:     form.email.trim()  || null,
+          document:  form.cpf.trim()    || null,
+          notes:     form.notes.trim()  || null,
+        }).eq("id", existing.id).select().single();
+        if (error) throw error;
+        data = updated;
+      } else {
+        // Inserir novo
+        const { data: inserted, error } = await supabase.from("clients").insert({
+          user_id:   user.id,
+          full_name: form.name.trim(),
+          phone:     phone,
+          whatsapp:  phone,
+          email:     form.email.trim()  || null,
+          document:  form.cpf.trim()    || null,
+          notes:     form.notes.trim()  || null,
+        }).select().single();
+        if (error) throw error;
+        data = inserted;
+      }
       setClienteExiste(data);
       setSaved(true);
       setShowForm(false);
