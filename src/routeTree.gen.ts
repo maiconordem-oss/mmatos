@@ -18,11 +18,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as FunisRouteImport } from './routes/funis'
+import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ConstrutorRouteImport } from './routes/construtor'
-import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
-import { Route as ApiDiagnosticoRouteImport } from './routes/api/diagnostico'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AgentesRouteImport } from './routes/agentes'
@@ -31,6 +30,7 @@ import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiSimulateRouteImport } from './routes/api/simulate'
 import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
 import { Route as ApiGeneratePromptRouteImport } from './routes/api/generate-prompt'
+import { Route as ApiDiagnosticoRouteImport } from './routes/api/diagnostico'
 import { Route as ApiDebugWebhookRouteImport } from './routes/api/debug-webhook'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
@@ -81,6 +81,11 @@ const FunisRoute = FunisRouteImport.update({
   path: '/funis',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DiagnosticoRoute = DiagnosticoRouteImport.update({
+  id: '/diagnostico',
+  path: '/diagnostico',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -90,12 +95,6 @@ const ContratosRoute = ContratosRouteImport.update({
   id: '/contratos',
   path: '/contratos',
   getParentRoute: () => rootRouteImport,
-} as any)
-const DiagnosticoRoute = DiagnosticoRouteImport.update({
-  id: '/diagnostico', path: '/diagnostico', getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDiagnosticoRoute = ApiDiagnosticoRouteImport.update({
-  id: '/api/diagnostico', path: '/api/diagnostico', getParentRoute: () => rootRouteImport,
 } as any)
 const ConstrutorRoute = ConstrutorRouteImport.update({
   id: '/construtor',
@@ -142,6 +141,11 @@ const ApiGeneratePromptRoute = ApiGeneratePromptRouteImport.update({
   path: '/api/generate-prompt',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDiagnosticoRoute = ApiDiagnosticoRouteImport.update({
+  id: '/api/diagnostico',
+  path: '/api/diagnostico',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDebugWebhookRoute = ApiDebugWebhookRouteImport.update({
   id: '/api/debug-webhook',
   path: '/api/debug-webhook',
@@ -172,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
+  '/diagnostico': typeof DiagnosticoRoute
   '/funis': typeof FunisRoute
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
@@ -182,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
+  '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
@@ -198,6 +204,7 @@ export interface FileRoutesByTo {
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
+  '/diagnostico': typeof DiagnosticoRoute
   '/funis': typeof FunisRoute
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByTo {
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
+  '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
@@ -225,6 +233,7 @@ export interface FileRoutesById {
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
+  '/diagnostico': typeof DiagnosticoRoute
   '/funis': typeof FunisRoute
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
@@ -235,6 +244,7 @@ export interface FileRoutesById {
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
+  '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/construtor'
     | '/contratos'
     | '/dashboard'
+    | '/diagnostico'
     | '/funis'
     | '/inbox'
     | '/kanban'
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/wizard'
     | '/workflows'
     | '/api/debug-webhook'
+    | '/api/diagnostico'
     | '/api/generate-prompt'
     | '/api/media-proxy'
     | '/api/simulate'
@@ -279,6 +291,7 @@ export interface FileRouteTypes {
     | '/construtor'
     | '/contratos'
     | '/dashboard'
+    | '/diagnostico'
     | '/funis'
     | '/inbox'
     | '/kanban'
@@ -289,6 +302,7 @@ export interface FileRouteTypes {
     | '/wizard'
     | '/workflows'
     | '/api/debug-webhook'
+    | '/api/diagnostico'
     | '/api/generate-prompt'
     | '/api/media-proxy'
     | '/api/simulate'
@@ -305,6 +319,7 @@ export interface FileRouteTypes {
     | '/construtor'
     | '/contratos'
     | '/dashboard'
+    | '/diagnostico'
     | '/funis'
     | '/inbox'
     | '/kanban'
@@ -315,6 +330,7 @@ export interface FileRouteTypes {
     | '/wizard'
     | '/workflows'
     | '/api/debug-webhook'
+    | '/api/diagnostico'
     | '/api/generate-prompt'
     | '/api/media-proxy'
     | '/api/simulate'
@@ -332,6 +348,7 @@ export interface RootRouteChildren {
   ConstrutorRoute: typeof ConstrutorRoute
   ContratosRoute: typeof ContratosRoute
   DashboardRoute: typeof DashboardRoute
+  DiagnosticoRoute: typeof DiagnosticoRoute
   FunisRoute: typeof FunisRoute
   InboxRoute: typeof InboxRoute
   KanbanRoute: typeof KanbanRoute
@@ -342,6 +359,7 @@ export interface RootRouteChildren {
   WizardRoute: typeof WizardRoute
   WorkflowsRoute: typeof WorkflowsRouteWithChildren
   ApiDebugWebhookRoute: typeof ApiDebugWebhookRoute
+  ApiDiagnosticoRoute: typeof ApiDiagnosticoRoute
   ApiGeneratePromptRoute: typeof ApiGeneratePromptRoute
   ApiMediaProxyRoute: typeof ApiMediaProxyRoute
   ApiSimulateRoute: typeof ApiSimulateRoute
@@ -415,6 +433,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FunisRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/diagnostico': {
+      id: '/diagnostico'
+      path: '/diagnostico'
+      fullPath: '/diagnostico'
+      preLoaderRoute: typeof DiagnosticoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -427,20 +452,6 @@ declare module '@tanstack/react-router' {
       path: '/contratos'
       fullPath: '/contratos'
       preLoaderRoute: typeof ContratosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/diagnostico': {
-      id: '/diagnostico'
-      path: '/diagnostico'
-      fullPath: '/diagnostico'
-      preLoaderRoute: typeof DiagnosticoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/diagnostico': {
-      id: '/api/diagnostico'
-      path: '/api/diagnostico'
-      fullPath: '/api/diagnostico'
-      preLoaderRoute: typeof ApiDiagnosticoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/construtor': {
@@ -506,6 +517,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGeneratePromptRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/diagnostico': {
+      id: '/api/diagnostico'
+      path: '/api/diagnostico'
+      fullPath: '/api/diagnostico'
+      preLoaderRoute: typeof ApiDiagnosticoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/debug-webhook': {
       id: '/api/debug-webhook'
       path: '/api/debug-webhook'
@@ -557,6 +575,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConstrutorRoute: ConstrutorRoute,
   ContratosRoute: ContratosRoute,
   DashboardRoute: DashboardRoute,
+  DiagnosticoRoute: DiagnosticoRoute,
   FunisRoute: FunisRoute,
   InboxRoute: InboxRoute,
   KanbanRoute: KanbanRoute,
@@ -567,6 +586,7 @@ const rootRouteChildren: RootRouteChildren = {
   WizardRoute: WizardRoute,
   WorkflowsRoute: WorkflowsRouteWithChildren,
   ApiDebugWebhookRoute: ApiDebugWebhookRoute,
+  ApiDiagnosticoRoute: ApiDiagnosticoRoute,
   ApiGeneratePromptRoute: ApiGeneratePromptRoute,
   ApiMediaProxyRoute: ApiMediaProxyRoute,
   ApiSimulateRoute: ApiSimulateRoute,
@@ -577,3 +597,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
