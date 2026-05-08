@@ -1378,7 +1378,7 @@ function InboxPage() {
                                   setTranscribingId(m.id);
                                   try {
                                     const r = await transcribeFn({ data: { messageId: m.id } } as any);
-                                    setMsgs(prev => prev.map(x => x.id === m.id ? { ...x, transcription: r.transcript } : x));
+                                    setMessages(prev => prev.map(x => x.id === m.id ? { ...x, transcription: r.transcript } : x));
                                   } catch (e: any) { toast.error(e.message); }
                                   finally { setTranscribingId(null); }
                                 }}
