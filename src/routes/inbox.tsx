@@ -17,6 +17,7 @@ import {
 import { transcribeAudioMessage, generateTTS } from "@/server/elevenlabs.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 
 // ── Hook de notificação sonora + visual ────────────────────────
