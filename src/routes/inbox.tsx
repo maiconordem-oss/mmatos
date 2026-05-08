@@ -132,13 +132,13 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
             style={{ background: avatar(conv.contact_name, conv.phone).color }}>
             {avatar(conv.contact_name, conv.phone).label}
           </div>
-          <div>
-            <p className="text-white font-medium text-sm">{conv.contact_name || conv.phone}</p>
-            <p className="text-[#8696a0] text-xs">{conv.phone}</p>
-            <div className="flex items-center gap-1.5 mt-1">
+          <div className=\"flex-1\">
+            <p className=\"text-white font-medium text-sm\">{conv.contact_name || conv.phone}</p>
+            <p className=\"text-[#8696a0] text-xs\">{conv.phone}</p>
+            <div className=\"flex items-center gap-1.5 mt-1.5 flex-wrap\">
               {conv.ai_paused
-                ? <Badge className="text-[10px] px-1.5 py-0 bg-red-500/20 text-red-400 border-red-500/30">IA pausada</Badge>
-                : <Badge className="text-[10px] px-1.5 py-0 bg-green-500/20 text-green-400 border-green-500/30">IA ativa</Badge>
+                ? <Badge className=\"text-[10px] px-2 py-1 bg-red-600/20 text-red-400 border border-red-600/40 font-semibold\">IA pausada</Badge>
+                : <Badge className=\"text-[10px] px-2 py-1 bg-[#25d366]/20 text-[#25d366] border border-[#25d366]/40 font-semibold\">IA ativa</Badge>
               }
             </div>
           </div>
@@ -158,31 +158,33 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
             {/* Funil */}
             {(state.funnels as any)?.name && (
               <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
-                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-1">Funil</p>
-                <p className="text-white text-sm font-medium">{(state.funnels as any).name}</p>
+                <p className=\"text-[10px] text-[#8696a0] uppercase tracking-wide mb-2 font-semibold\">Funil em progresso</p>
+                <div className=\"inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold\" style={{ background: \"#34B7F1/20\", color: \"#34B7F1\", border: \"1px solid #34B7F1/40\" }}>
+                  🎯 {(state.funnels as any).name}
+                </div>
               </div>
             )}
 
             {/* Progresso de fases */}
             <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
-              <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-3">Progresso</p>
-              <div className="space-y-1.5">
+              <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-3 font-semibold">Progresso do funil</p>
+              <div className="space-y-2">
                 {FASES.map((fase, i) => {
                   const done    = i < faseIdx;
                   const current = i === faseIdx;
                   const future  = i > faseIdx;
                   return (
-                    <div key={fase} className="flex items-center gap-2">
+                    <div key={fase} className="flex items-center gap-2.5">
                       <div className={cn(
-                        "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
+                        "h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm",
                         done    && "bg-[#25d366] text-black",
-                        current && "border-2 text-white",
+                        current && "border-2 text-white border-2 shadow-md",
                         future  && "bg-[#2a3942] text-[#8696a0]",
                       )} style={current ? { borderColor: FASE_COLORS[fase], color: FASE_COLORS[fase] } : {}}>
                         {done ? "✓" : i + 1}
                       </div>
                       <span className={cn(
-                        "text-xs",
+                        "text-xs flex-1",
                         done    && "text-[#25d366]",
                         current && "font-semibold",
                         future  && "text-[#8696a0]",
@@ -190,7 +192,7 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
                         {FASE_LABELS[fase]}
                       </span>
                       {current && (
-                        <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: FASE_COLORS[fase] + "30", color: FASE_COLORS[fase] }}>
+                        <span className="text-[9px] px-2 py-1 rounded-full font-bold shrink-0" style={{ background: FASE_COLORS[fase] + "40", color: FASE_COLORS[fase], border: `1px solid ${FASE_COLORS[fase]}60` }}>
                           atual
                         </span>
                       )}
@@ -203,12 +205,12 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
             {/* Dados coletados */}
             {dadosKeys.length > 0 && (
               <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
-                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-2">Dados coletados</p>
-                <div className="space-y-1.5">
+                <p className=\"text-[10px] text-[#8696a0] uppercase tracking-wide mb-3 font-semibold\">Dados coletados</p>
+                <div className=\"space-y-2\">
                   {dadosKeys.map(k => (
-                    <div key={k} className="flex items-start gap-2">
-                      <span className="text-[10px] text-[#8696a0] shrink-0 pt-0.5 w-24">{DADO_LABELS[k]}:</span>
-                      <span className="text-xs text-white break-words">{String(dados[k])}</span>
+                    <div key={k} className=\"flex items-center gap-2 bg-[#202c33]/50 px-2.5 py-1.5 rounded border border-[#2a3942]\">
+                      <span className=\"text-[10px] text-[#8696a0] shrink-0\">{DADO_LABELS[k]}:</span>
+                      <span className=\"text-xs text-white font-medium truncate\" title={String(dados[k])}>{String(dados[k])}</span>
                     </div>
                   ))}
                 </div>
@@ -218,13 +220,12 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
             {/* Mídias enviadas */}
             {state.midias_enviadas.length > 0 && (
               <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
-                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-2">Mídias enviadas</p>
-                <div className="space-y-1">
+                <p className=\"text-[10px] text-[#8696a0] uppercase tracking-wide mb-3 font-semibold\">Mídias enviadas</p>
+                <div className=\"space-y-1.5 flex flex-wrap gap-1.5\">
                   {state.midias_enviadas.map(m => (
-                    <div key={m} className="flex items-center gap-1.5 text-[11px] text-[#25d366]">
-                      <CheckCheck className="h-3 w-3 shrink-0" />
-                      {m.replace(/_/g, " ")}
-                    </div>
+                    <div key={m} className=\"flex items-center gap-1.5 px-2.5 py-1 rounded-full\" style={{ background: \"#25d366/20\", border: \"1px solid #25d366/40\" }}>
+                      <CheckCheck className=\"h-3.5 w-3.5 shrink-0\" style={{ color: \"#25d366\" }} />
+                      <span className=\"text-[10px] font-medium\" style={{ color: \"#25d366\" }}>{m.replace(/_/g, \" \")}</span>\n                    </div>
                   ))}
                 </div>
               </div>
@@ -594,13 +595,13 @@ function InboxPage() {
                   </div>
                   {/* Indicador IA pausada */}
                   {c.ai_paused && (
-                    <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 border-2 border-[#111b21] flex items-center justify-center">
-                      <span className="text-[8px] text-white font-bold">P</span>
+                    <div className=\"absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-red-600 border-2 border-[#111b21] flex items-center justify-center shadow-lg\">
+                      <span className=\"text-[8px] text-white font-bold\">P</span>
                     </div>
                   )}
                   {!c.ai_paused && c.ai_handled && (
-                    <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-[#25d366] border-2 border-[#111b21] flex items-center justify-center">
-                      <Bot className="h-2.5 w-2.5 text-black" />
+                    <div className=\"absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-[#25d366] border-2 border-[#111b21] flex items-center justify-center shadow-lg\">
+                      <Bot className=\"h-3 w-3 text-black\" />
                     </div>
                   )}
                 </div>
@@ -611,13 +612,25 @@ function InboxPage() {
                       {c.last_message_at ? formatTime(c.last_message_at) : ""}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center mt-0.5">
-                    <p className="text-[#8696a0] text-xs truncate">{c.last_message_preview || "Sem mensagens"}</p>
-                    {c.unread_count > 0 && (
-                      <span className="ml-2 shrink-0 h-5 min-w-5 px-1 rounded-full bg-[#25d366] text-black text-xs font-bold flex items-center justify-center">
-                        {c.unread_count}
-                      </span>
-                    )}
+                  <div className=\"flex justify-between items-center mt-1.5 gap-2\">
+                    <p className=\"text-[#8696a0] text-xs truncate flex-1\">{c.last_message_preview || \"Sem mensagens\"}</p>
+                    <div className=\"flex items-center gap-1.5 shrink-0\">
+                      {c.unread_count > 0 && (
+                        <span className=\"inline-flex items-center h-6 px-2 rounded-full bg-[#25d366] text-black text-xs font-bold border border-[#25d366]/50\">
+                          {c.unread_count} nova{c.unread_count > 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {c.ai_paused && (
+                        <span className=\"inline-flex items-center h-6 px-2 rounded-full bg-red-600/20 text-red-400 text-[10px] font-semibold border border-red-600/40\">
+                          IA pausada
+                        </span>
+                      )}
+                      {!c.ai_paused && c.ai_handled && (
+                        <span className=\"inline-flex items-center h-6 px-2 rounded-full bg-[#25d366]/20 text-[#25d366] text-[10px] font-semibold border border-[#25d366]/40\">
+                          IA ativa
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </button>
@@ -652,15 +665,15 @@ function InboxPage() {
                 {/* Pausar/retomar IA */}
                 <button
                   onClick={() => toggleAiPause(active)}
-                  className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border",
                     active.ai_paused
-                      ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                      : "bg-[#25d366]/20 text-[#25d366] hover:bg-[#25d366]/30"
+                      ? "bg-red-600/20 text-red-400 hover:bg-red-600/30 border-red-600/40"
+                      : "bg-[#25d366]/20 text-[#25d366] hover:bg-[#25d366]/30 border-[#25d366]/40"
                   )}
                   title={active.ai_paused ? "Reativar IA" : "Pausar IA"}
                 >
-                  <Bot className="h-3.5 w-3.5" />
-                  {active.ai_paused ? "IA pausada" : "IA ativa"}
+                  <Bot className="h-4 w-4" />
+                  {active.ai_paused ? "IA Pausada" : "IA Ativa"}
                 </button>
                 <button onClick={() => setShowAiPanel(!showAiPanel)}
                   className={cn("p-2 rounded-full transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "hover:bg-[#2a3942] text-[#aebac1]")}>
