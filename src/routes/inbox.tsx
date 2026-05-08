@@ -14,6 +14,7 @@ import {
   suggestReplies, rewriteMessage, summarizeConversation,
   extractTasks, translateText, analyzeSentiment, semanticSearch,
 } from "@/server/inbox-ai.functions";
+import { transcribeAudioMessage, generateTTS } from "@/server/elevenlabs.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { Badge } from "@/components/ui/badge";
 
