@@ -1846,6 +1846,30 @@ function InboxPage() {
         <DialogContent>
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-violet-500" /> Gerar áudio com IA</DialogTitle></DialogHeader>
           <div className="space-y-2">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Voz</label>
+              <select
+                value={ttsVoice}
+                onChange={(e) => { setTtsVoice(e.target.value); setTtsBlob(null); }}
+                className="w-full p-2 rounded-md border border-input bg-background text-sm"
+              >
+                <option value="FGY2WhTYpPnrIDTdsKH5">Laura (feminina, pt/multi)</option>
+                <option value="EXAVITQu4vr4xnSDxMaL">Sarah (feminina)</option>
+                <option value="Xb7hH8MSUJpSbSDYk0k2">Alice (feminina)</option>
+                <option value="cgSgspJ2msm6clMCkdW9">Jessica (feminina)</option>
+                <option value="pFZP5JQG7iQjIQuC4Bku">Lily (feminina)</option>
+                <option value="XrExE9yKIg1WjnnlVkGX">Matilda (feminina)</option>
+                <option value="JBFqnCBsd6RMkjVDRZzb">George (masculina)</option>
+                <option value="onwK4e9ZLuTAKqWW03F9">Daniel (masculina)</option>
+                <option value="nPczCjzI2devNBz1zQrb">Brian (masculina)</option>
+                <option value="cjVigY5qzO86Huf0OWal">Eric (masculina)</option>
+                <option value="iP95p4xoKVk53GoZ742B">Chris (masculina)</option>
+                <option value="CwhRBWXzGAHq8TQ4Fs17">Roger (masculina)</option>
+                <option value="bIHbv24MWmeRgasZH58o">Will (masculina)</option>
+                <option value="TX3LPaxmHKxFdv7VOQHJ">Liam (masculina)</option>
+                <option value="IKne3meq5aSn9XLyUdCD">Charlie (masculina)</option>
+              </select>
+            </div>
             <textarea value={ttsText} onChange={(e) => { setTtsText(e.target.value); setTtsBlob(null); }}
               placeholder="Digite o texto para virar áudio..." rows={4}
               className="w-full p-3 rounded-md border border-input bg-background text-sm" />
