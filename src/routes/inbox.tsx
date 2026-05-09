@@ -615,6 +615,7 @@ function InboxPage() {
   const [ttsText, setTtsText] = useState("");
   const [ttsBusy, setTtsBusy] = useState(false);
   const [ttsBlob, setTtsBlob] = useState<Blob | null>(null);
+  const [ttsVoice, setTtsVoice] = useState("FGY2WhTYpPnrIDTdsKH5");
 
   // Reset ao trocar de conversa
   useEffect(() => {
