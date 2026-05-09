@@ -898,7 +898,7 @@ function InboxPage() {
     if (!ttsText.trim()) return;
     setTtsBusy(true);
     try {
-      const r = await generateTTSFn({ data: { text: ttsText.trim() } } as any);
+      const r = await generateTTSFn({ data: { text: ttsText.trim(), voiceId: ttsVoice } } as any);
       const bin = atob(r.audioBase64);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
