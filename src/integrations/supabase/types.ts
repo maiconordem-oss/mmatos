@@ -883,6 +883,7 @@ export type Database = {
           media_type: string | null
           media_url: string | null
           status: Database["public"]["Enums"]["message_status"]
+          transcription: string | null
           user_id: string
         }
         Insert: {
@@ -896,6 +897,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           status?: Database["public"]["Enums"]["message_status"]
+          transcription?: string | null
           user_id: string
         }
         Update: {
@@ -909,6 +911,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           status?: Database["public"]["Enums"]["message_status"]
+          transcription?: string | null
           user_id?: string
         }
         Relationships: [
