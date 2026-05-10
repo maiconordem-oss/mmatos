@@ -13,6 +13,7 @@ import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as WizardRouteImport } from './routes/wizard'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as ProcessosRouteImport } from './routes/processos'
 import { Route as ManualRouteImport } from './routes/manual'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
@@ -54,6 +55,11 @@ const WhatsappRoute = WhatsappRouteImport.update({
 const RelatoriosRoute = RelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcessosRoute = ProcessosRouteImport.update({
+  id: '/processos',
+  path: '/processos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManualRoute = ManualRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
+  '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
@@ -210,6 +217,7 @@ export interface FileRoutesByTo {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
+  '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
@@ -239,6 +247,7 @@ export interface FileRoutesById {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
+  '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
@@ -269,6 +278,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/login'
     | '/manual'
+    | '/processos'
     | '/relatorios'
     | '/whatsapp'
     | '/wizard'
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/login'
     | '/manual'
+    | '/processos'
     | '/relatorios'
     | '/whatsapp'
     | '/wizard'
@@ -325,6 +336,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/login'
     | '/manual'
+    | '/processos'
     | '/relatorios'
     | '/whatsapp'
     | '/wizard'
@@ -354,6 +366,7 @@ export interface RootRouteChildren {
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
   ManualRoute: typeof ManualRoute
+  ProcessosRoute: typeof ProcessosRoute
   RelatoriosRoute: typeof RelatoriosRoute
   WhatsappRoute: typeof WhatsappRoute
   WizardRoute: typeof WizardRoute
@@ -396,6 +409,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/relatorios'
       preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/processos': {
+      id: '/processos'
+      path: '/processos'
+      fullPath: '/processos'
+      preLoaderRoute: typeof ProcessosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manual': {
@@ -581,6 +601,7 @@ const rootRouteChildren: RootRouteChildren = {
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
   ManualRoute: ManualRoute,
+  ProcessosRoute: ProcessosRoute,
   RelatoriosRoute: RelatoriosRoute,
   WhatsappRoute: WhatsappRoute,
   WizardRoute: WizardRoute,
