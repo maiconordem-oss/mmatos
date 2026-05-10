@@ -924,6 +924,134 @@ export type Database = {
           },
         ]
       }
+      processo_movimentacoes: {
+        Row: {
+          codigo: number | null
+          complemento: string | null
+          created_at: string
+          data_movimentacao: string | null
+          id: string
+          is_new: boolean
+          nome: string | null
+          processo_id: string
+          raw: Json | null
+          user_id: string
+        }
+        Insert: {
+          codigo?: number | null
+          complemento?: string | null
+          created_at?: string
+          data_movimentacao?: string | null
+          id?: string
+          is_new?: boolean
+          nome?: string | null
+          processo_id: string
+          raw?: Json | null
+          user_id: string
+        }
+        Update: {
+          codigo?: number | null
+          complemento?: string | null
+          created_at?: string
+          data_movimentacao?: string | null
+          id?: string
+          is_new?: boolean
+          nome?: string | null
+          processo_id?: string
+          raw?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_movimentacoes_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_monitorados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processos_monitorados: {
+        Row: {
+          assunto: string | null
+          ativo: boolean
+          case_id: string | null
+          classe: string | null
+          client_id: string | null
+          created_at: string
+          data_ajuizamento: string | null
+          grau: string | null
+          id: string
+          nivel_sigilo: number | null
+          notas: string | null
+          numero_processo: string
+          orgao_julgador: string | null
+          raw: Json | null
+          tribunal: string
+          ultima_consulta_em: string | null
+          ultima_movimentacao_em: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assunto?: string | null
+          ativo?: boolean
+          case_id?: string | null
+          classe?: string | null
+          client_id?: string | null
+          created_at?: string
+          data_ajuizamento?: string | null
+          grau?: string | null
+          id?: string
+          nivel_sigilo?: number | null
+          notas?: string | null
+          numero_processo: string
+          orgao_julgador?: string | null
+          raw?: Json | null
+          tribunal: string
+          ultima_consulta_em?: string | null
+          ultima_movimentacao_em?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assunto?: string | null
+          ativo?: boolean
+          case_id?: string | null
+          classe?: string | null
+          client_id?: string | null
+          created_at?: string
+          data_ajuizamento?: string | null
+          grau?: string | null
+          id?: string
+          nivel_sigilo?: number | null
+          notas?: string | null
+          numero_processo?: string
+          orgao_julgador?: string | null
+          raw?: Json | null
+          tribunal?: string
+          ultima_consulta_em?: string | null
+          ultima_movimentacao_em?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processos_monitorados_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_monitorados_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
