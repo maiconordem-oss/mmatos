@@ -135,6 +135,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
       color: "#d97706",
       items: [
         { to: "/contratos",  label: "Contratos",   icon: FileSignature },
+        { to: "/processos",  label: "Processos",   icon: Scale },
         { to: "/relatorios", label: "Relatórios",  icon: BarChart2 },
       ],
     },

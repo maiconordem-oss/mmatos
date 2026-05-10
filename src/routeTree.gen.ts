@@ -13,6 +13,7 @@ import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as WizardRouteImport } from './routes/wizard'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as ProcessosRouteImport } from './routes/processos'
 import { Route as ManualRouteImport } from './routes/manual'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
@@ -35,6 +36,7 @@ import { Route as ApiDebugWebhookRouteImport } from './routes/api/debug-webhook'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
+import { Route as ApiPublicCronDatajudRouteImport } from './routes/api/public/cron-datajud'
 
 const WorkflowsRoute = WorkflowsRouteImport.update({
   id: '/workflows',
@@ -54,6 +56,11 @@ const WhatsappRoute = WhatsappRouteImport.update({
 const RelatoriosRoute = RelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcessosRoute = ProcessosRouteImport.update({
+  id: '/processos',
+  path: '/processos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManualRoute = ManualRouteImport.update({
@@ -167,6 +174,11 @@ const ApiPublicWhatsappWebhookRoute =
     path: '/api/public/whatsapp-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronDatajudRoute = ApiPublicCronDatajudRouteImport.update({
+  id: '/api/public/cron-datajud',
+  path: '/api/public/cron-datajud',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -182,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
+  '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
@@ -192,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
+  '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -210,6 +224,7 @@ export interface FileRoutesByTo {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
+  '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
@@ -220,6 +235,7 @@ export interface FileRoutesByTo {
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
+  '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -239,6 +255,7 @@ export interface FileRoutesById {
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
+  '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
@@ -249,6 +266,7 @@ export interface FileRoutesById {
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
+  '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -269,6 +287,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/login'
     | '/manual'
+    | '/processos'
     | '/relatorios'
     | '/whatsapp'
     | '/wizard'
@@ -279,6 +298,7 @@ export interface FileRouteTypes {
     | '/api/media-proxy'
     | '/api/simulate'
     | '/workflows/$id'
+    | '/api/public/cron-datajud'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -297,6 +317,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/login'
     | '/manual'
+    | '/processos'
     | '/relatorios'
     | '/whatsapp'
     | '/wizard'
@@ -307,6 +328,7 @@ export interface FileRouteTypes {
     | '/api/media-proxy'
     | '/api/simulate'
     | '/workflows/$id'
+    | '/api/public/cron-datajud'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -325,6 +347,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/login'
     | '/manual'
+    | '/processos'
     | '/relatorios'
     | '/whatsapp'
     | '/wizard'
@@ -335,6 +358,7 @@ export interface FileRouteTypes {
     | '/api/media-proxy'
     | '/api/simulate'
     | '/workflows/$id'
+    | '/api/public/cron-datajud'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -354,6 +378,7 @@ export interface RootRouteChildren {
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
   ManualRoute: typeof ManualRoute
+  ProcessosRoute: typeof ProcessosRoute
   RelatoriosRoute: typeof RelatoriosRoute
   WhatsappRoute: typeof WhatsappRoute
   WizardRoute: typeof WizardRoute
@@ -363,6 +388,7 @@ export interface RootRouteChildren {
   ApiGeneratePromptRoute: typeof ApiGeneratePromptRoute
   ApiMediaProxyRoute: typeof ApiMediaProxyRoute
   ApiSimulateRoute: typeof ApiSimulateRoute
+  ApiPublicCronDatajudRoute: typeof ApiPublicCronDatajudRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicWorkflowTickRoute: typeof ApiPublicWorkflowTickRoute
   ApiPublicZapsignWebhookRoute: typeof ApiPublicZapsignWebhookRoute
@@ -396,6 +422,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/relatorios'
       preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/processos': {
+      id: '/processos'
+      path: '/processos'
+      fullPath: '/processos'
+      preLoaderRoute: typeof ProcessosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manual': {
@@ -552,6 +585,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron-datajud': {
+      id: '/api/public/cron-datajud'
+      path: '/api/public/cron-datajud'
+      fullPath: '/api/public/cron-datajud'
+      preLoaderRoute: typeof ApiPublicCronDatajudRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -581,6 +621,7 @@ const rootRouteChildren: RootRouteChildren = {
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
   ManualRoute: ManualRoute,
+  ProcessosRoute: ProcessosRoute,
   RelatoriosRoute: RelatoriosRoute,
   WhatsappRoute: WhatsappRoute,
   WizardRoute: WizardRoute,
@@ -590,6 +631,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGeneratePromptRoute: ApiGeneratePromptRoute,
   ApiMediaProxyRoute: ApiMediaProxyRoute,
   ApiSimulateRoute: ApiSimulateRoute,
+  ApiPublicCronDatajudRoute: ApiPublicCronDatajudRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicWorkflowTickRoute: ApiPublicWorkflowTickRoute,
   ApiPublicZapsignWebhookRoute: ApiPublicZapsignWebhookRoute,
@@ -597,12 +639,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
