@@ -451,9 +451,9 @@ function ConfigPage() {
                       onClick={async () => {
                         setSavingDatajud(true);
                         try {
-                          await supabase.from("user_settings").upsert(
-                            { user_id: user?.id, key: "datajud_api_key", value: datajudInput.trim() },
-                            { onConflict: "user_id,key" }
+                          await supabase.from("user_integrations").upsert(
+                            { user_id: user?.id!, provider: "datajud", config: { api_key: datajudInput.trim() } },
+                            { onConflict: "user_id,provider" }
                           );
                           setDatajudKey(datajudInput.trim());
                           setDatajudSaved(true);
