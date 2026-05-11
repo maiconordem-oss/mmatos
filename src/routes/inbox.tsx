@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import { normalizeBRPhone, formatBRPhone, phoneVariants } from "@/lib/phone";
 import { qualifierReply, extractQualification, generateProposal } from "@/server/ai-agent.functions";
 import {
   suggestReplies, rewriteMessage, summarizeConversation,
