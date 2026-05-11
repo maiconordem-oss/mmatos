@@ -219,8 +219,15 @@ function ProcessosPage() {
   // Form novo
   const [form, setForm] = useState({ numero: "", client_id: "", case_id: "", notas: "" });
   const [salvando, setSalvando] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifMsg, setNotifMsg] = useState("");
+  const [notifOpen, setNotifOpen]         = useState(false);
+  const [notifMsg, setNotifMsg]           = useState("");
+  const [oabOpen, setOabOpen]             = useState(false);
+  const [oabNumero, setOabNumero]         = useState("");
+  const [oabEstado, setOabEstado]         = useState("RS");
+  const [oabResultados, setOabResultados] = useState<any[]>([]);
+  const [oabLoading, setOabLoading]       = useState(false);
+  const [oabSelecionados, setOabSelecionados] = useState<Set<string>>(new Set());
+  const [oabSalvando, setOabSalvando]     = useState(false);
 
   const fnConsultar = useAuthServerFn(consultarProcesso);
   const fnCadastrar = useAuthServerFn(cadastrarProcesso);
