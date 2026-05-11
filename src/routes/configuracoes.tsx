@@ -55,9 +55,10 @@ function ConfigPage() {
   const [datajudInput, setDatajudInput]   = useState("");
   const [savingDatajud, setSavingDatajud] = useState(false);
   const loadDatajudKey = useCallback(async () => {
-    const { data } = await supabase.from("user_settings")
-      .select("value").eq("key", "datajud_api_key").maybeSingle();
-    if (data?.value) { setDatajudKey(data.value); setDatajudSaved(true); }
+    const { data } = await supabase.from("user_integrations")
+      .select("config").eq("provider", "datajud").maybeSingle();
+    const k = (data?.config as any)?.api_key;
+    if (k) { setDatajudKey(k); setDatajudSaved(true); }
   }, []);
   useEffect(() => { loadDatajudKey(); }, [loadDatajudKey]);
 
