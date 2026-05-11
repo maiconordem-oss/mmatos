@@ -165,7 +165,6 @@ async function buscarPorOabNoTribunal(
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `APIKey ${DATAJUD_API_KEY}` },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(8000),
   }).catch(() => null);
 
   if (!res?.ok) return [];
