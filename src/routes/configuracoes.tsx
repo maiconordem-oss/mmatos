@@ -11,7 +11,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound } from "lucide-react";
+import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
@@ -55,9 +55,10 @@ function ConfigPage() {
   const [datajudInput, setDatajudInput]   = useState("");
   const [savingDatajud, setSavingDatajud] = useState(false);
   const loadDatajudKey = useCallback(async () => {
-    const { data } = await supabase.from("user_settings")
-      .select("value").eq("key", "datajud_api_key").maybeSingle();
-    if (data?.value) { setDatajudKey(data.value); setDatajudSaved(true); }
+    const { data } = await supabase.from("user_integrations")
+      .select("config").eq("provider", "datajud").maybeSingle();
+    const k = (data?.config as any)?.api_key;
+    if (k) { setDatajudKey(k); setDatajudSaved(true); }
   }, []);
   useEffect(() => { loadDatajudKey(); }, [loadDatajudKey]);
 
@@ -450,9 +451,9 @@ function ConfigPage() {
                       onClick={async () => {
                         setSavingDatajud(true);
                         try {
-                          await supabase.from("user_settings").upsert(
-                            { user_id: user?.id, key: "datajud_api_key", value: datajudInput.trim() },
-                            { onConflict: "user_id,key" }
+                          await supabase.from("user_integrations").upsert(
+                            { user_id: user?.id!, provider: "datajud", config: { api_key: datajudInput.trim() } },
+                            { onConflict: "user_id,provider" }
                           );
                           setDatajudKey(datajudInput.trim());
                           setDatajudSaved(true);

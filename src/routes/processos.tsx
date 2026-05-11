@@ -379,7 +379,7 @@ function ProcessosPage() {
 
     const res = await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", apikey: inst.api_key },
+      headers: { "Content-Type": "application/json", apikey: inst.api_key ?? "" },
       body: JSON.stringify({ number: numero, text: notifMsg, options: { delay: 500 } }),
     }).catch(() => null);
 

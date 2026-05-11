@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import { normalizeBRPhone, formatBRPhone, phoneVariants } from "@/lib/phone";
 import { qualifierReply, extractQualification, generateProposal } from "@/server/ai-agent.functions";
 import {
   suggestReplies, rewriteMessage, summarizeConversation,
@@ -270,13 +271,14 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
     notes: "",
   });
 
-  // Verificar se já é cliente
+  // Verificar se já é cliente (por qualquer variante do número)
   useEffect(() => {
     if (!conv.phone) return;
+    const variants = phoneVariants(conv.phone);
     supabase.from("clients")
       .select("id, full_name, email, document")
-      .eq("phone", conv.phone.replace(/\D/g, ""))
-      .maybeSingle()
+      .in("phone", variants.length ? variants : [conv.phone.replace(/\D/g, "")])
+      .limit(1).maybeSingle()
       .then(({ data }) => setClienteExiste(data));
   }, [conv.phone]);
 
@@ -303,11 +305,12 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
     if (!form.name.trim() || !user) return;
     setSaving(true);
     try {
-      const phone = form.phone.replace(/\D/g, "");
-      // Upsert pelo telefone
-      // Verificar se já existe pelo telefone
+      const phone = normalizeBRPhone(form.phone) || form.phone.replace(/\D/g, "");
+      // Upsert pelo telefone (verifica todas as variantes)
+      const variants = phoneVariants(phone);
       const { data: existing } = await supabase.from("clients")
-        .select("id").eq("phone", phone).eq("user_id", user.id).maybeSingle();
+        .select("id").in("phone", variants.length ? variants : [phone])
+        .eq("user_id", user.id).limit(1).maybeSingle();
 
       let data: any;
       if (existing?.id) {
@@ -379,7 +382,7 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
           </div>
           <div>
             <p className="text-white font-medium text-sm">{conv.contact_name || conv.phone}</p>
-            <p className="text-[#8696a0] text-xs">{conv.phone}</p>
+            <p className="text-[#8696a0] text-xs">{formatBRPhone(conv.phone) || conv.phone}</p>
             <div className="flex items-center gap-1.5 mt-1">
               {conv.ai_paused
                 ? <Badge className="text-[10px] px-1.5 py-0 bg-red-500/20 text-red-400 border-red-500/30">IA pausada</Badge>
@@ -765,14 +768,36 @@ function InboxPage() {
 
   const handleNewConv = async () => {
     if (!user || !newConv.phone) return;
+    const phone = normalizeBRPhone(newConv.phone) || newConv.phone.replace(/\D/g, "");
+    // Verifica se já existe (em qualquer formato)
+    const variants = phoneVariants(phone);
+    const { data: existing } = await supabase.from("conversations")
+      .select("id").eq("user_id", user.id).in("phone", variants.length ? variants : [phone]).limit(1).maybeSingle();
+    if (existing) {
+      setOpen(false); setNewConv({ phone: "", contact_name: "" });
+      setActiveId(existing.id); setShowLeadPanel(true);
+      toast.info("Conversa já existente aberta");
+      return;
+    }
     const { data, error } = await supabase.from("conversations").insert({
-      user_id: user.id, phone: newConv.phone,
+      user_id: user.id, phone,
       contact_name: newConv.contact_name || null, status: "open",
     }).select().single();
     if (error) { toast.error(error.message); return; }
     setOpen(false); setNewConv({ phone: "", contact_name: "" });
     loadConvs();
     if (data) { setActiveId(data.id); setShowLeadPanel(true); }
+  };
+
+  // Excluir conversa (e todas as mensagens)
+  const deleteConversation = async (convId: string) => {
+    if (!confirm("Excluir esta conversa e todas as mensagens? Esta ação não pode ser desfeita.")) return;
+    await supabase.from("messages").delete().eq("conversation_id", convId);
+    const { error } = await supabase.from("conversations").delete().eq("id", convId);
+    if (error) { toast.error(error.message); return; }
+    setConversations(prev => prev.filter(c => c.id !== convId));
+    if (activeId === convId) setActiveId(null);
+    toast.success("Conversa excluída");
   };
 
   // Aceitar ticket (assume o atendimento)
@@ -1287,9 +1312,9 @@ function InboxPage() {
                 )}
               </div>
               <button className="flex-1 text-left" onClick={() => setShowLeadPanel(!showLeadPanel)}>
-                <p className="text-white font-medium text-sm">{active.contact_name || active.phone}</p>
+                <p className="text-white font-medium text-sm">{active.contact_name || formatBRPhone(active.phone) || active.phone}</p>
                 <p className="text-[#8696a0] text-xs">
-                  {active.phone}
+                  {formatBRPhone(active.phone) || active.phone}
                   {(active as any).instance_id && instances.find(i => i.id === (active as any).instance_id) && (
                     <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-[#25d366]/20 text-[#25d366] text-[10px]">
                       📱 {instances.find(i => i.id === (active as any).instance_id)?.phone_number || instances.find(i => i.id === (active as any).instance_id)?.instance_name}
@@ -1379,6 +1404,7 @@ function InboxPage() {
                       { label: "Marcar como não lido",     action: () => markUnread(active.id) },
                       { label: "Exportar conversa",        action: () => exportConversation(active) },
                       { label: active.blocked ? "Desbloquear contato" : "Bloquear contato", action: () => toggleBlock(active), danger: true },
+                      { label: "Excluir conversa", action: () => deleteConversation(active.id), danger: true },
                     ].map(item => (
                       <button key={item.label} onClick={item.action}
                         className={cn("w-full text-left px-4 py-2.5 text-sm hover:bg-[#2a3942] transition-colors", item.danger ? "text-red-400" : "text-white")}>

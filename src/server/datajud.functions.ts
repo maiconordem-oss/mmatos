@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 
 // API pública CNJ Datajud — chave pública documentada
@@ -10,12 +11,10 @@ const DATAJUD_API_KEY_DEFAULT =
 async function getDatajudApiKey(userId?: string): Promise<string> {
   if (!userId) return DATAJUD_API_KEY_DEFAULT;
   try {
-    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-    const admin = createClient(url, key, { auth: { persistSession: false } });
-    const { data } = await admin.from("user_settings")
-      .select("value").eq("user_id", userId).eq("key", "datajud_api_key").maybeSingle();
-    return data?.value || DATAJUD_API_KEY_DEFAULT;
+    const { data } = await supabaseAdmin.from("user_integrations")
+      .select("config").eq("user_id", userId).eq("provider", "datajud").maybeSingle();
+    const key = (data?.config as any)?.api_key;
+    return key || DATAJUD_API_KEY_DEFAULT;
   } catch { return DATAJUD_API_KEY_DEFAULT; }
 }
 
