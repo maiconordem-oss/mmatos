@@ -3,9 +3,21 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 // API pública CNJ Datajud — chave pública documentada
-const DATAJUD_API_KEY =
+const DATAJUD_API_KEY_DEFAULT =
   process.env.DATAJUD_API_KEY ||
   "cDQHYnYL7geSeKHsJpa2A2GBCvOsfRyAwcF6aJoH";
+
+async function getDatajudApiKey(userId?: string): Promise<string> {
+  if (!userId) return DATAJUD_API_KEY_DEFAULT;
+  try {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+    const admin = createClient(url, key, { auth: { persistSession: false } });
+    const { data } = await admin.from("user_settings")
+      .select("value").eq("user_id", userId).eq("key", "datajud_api_key").maybeSingle();
+    return data?.value || DATAJUD_API_KEY_DEFAULT;
+  } catch { return DATAJUD_API_KEY_DEFAULT; }
+}
 
 // Mapeamento dos endpoints por tribunal (extraído da numeração CNJ)
 // Numeração: NNNNNNN-DD.AAAA.J.TR.OOOO  → J = segmento, TR = tribunal
@@ -88,7 +100,7 @@ async function consultarDatajud(numeroCnj: string) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `APIKey ${DATAJUD_API_KEY}`,
+      "Authorization": `APIKey ${DATAJUD_API_KEY_DEFAULT}`,
     },
     body: JSON.stringify(body),
   });
@@ -141,6 +153,7 @@ async function buscarPorOabNoTribunal(
   oabNumero: string,
   oabEstado: string,
   tribunalAlias: string,
+  apiKey: string,
   size = 50
 ): Promise<any[]> {
   const url = `https://api-publica.datajud.cnj.jus.br/api_publica_${tribunalAlias}/_search`;
@@ -163,7 +176,7 @@ async function buscarPorOabNoTribunal(
 
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `APIKey ${DATAJUD_API_KEY}` },
+    headers: { "Content-Type": "application/json", "Authorization": `APIKey ${apiKey}` },
     body: JSON.stringify(body),
   }).catch(() => null);
 
@@ -181,8 +194,10 @@ export const buscarProcessosPorOAB = createServerFn({ method: "POST" })
     oabEstado: z.string().min(2).max(2),
     tribunais:  z.array(z.string()).optional(), // se vazio, usa todos do estado
   }).parse)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const { oabNumero, oabEstado, tribunais } = data;
+    const userId = (context as any)?.userId || (context as any)?.user?.id;
+    const apiKey = await getDatajudApiKey(userId);
     const uf = oabEstado.toUpperCase();
     const lista = tribunais?.length ? tribunais : (TRIBUNAIS_POR_UF[uf] ?? ["tjrs","trt4","trf4"]);
 
@@ -193,7 +208,7 @@ export const buscarProcessosPorOAB = createServerFn({ method: "POST" })
     for (let i = 0; i < lista.length; i += 3) {
       const lote = lista.slice(i, i + 3);
       const res = await Promise.allSettled(
-        lote.map(t => buscarPorOabNoTribunal(oabNumero, uf, t))
+        lote.map(t => buscarPorOabNoTribunal(oabNumero, uf, t, apiKey))
       );
       res.forEach((r, idx) => {
         if (r.status === "fulfilled") resultados.push(...r.value);

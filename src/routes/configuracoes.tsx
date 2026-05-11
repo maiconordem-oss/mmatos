@@ -48,6 +48,19 @@ function ConfigPage() {
   }, [checkElevenFn]);
   useEffect(() => { loadElevenInfo(); }, [loadElevenInfo]);
 
+  // DataJud API Key
+  const [datajudKey, setDatajudKey]       = useState("");
+  const [datajudSaved, setDatajudSaved]   = useState(false);
+  const [datajudOpen, setDatajudOpen]     = useState(false);
+  const [datajudInput, setDatajudInput]   = useState("");
+  const [savingDatajud, setSavingDatajud] = useState(false);
+  const loadDatajudKey = useCallback(async () => {
+    const { data } = await supabase.from("user_settings")
+      .select("value").eq("key", "datajud_api_key").maybeSingle();
+    if (data?.value) { setDatajudKey(data.value); setDatajudSaved(true); }
+  }, []);
+  useEffect(() => { loadDatajudKey(); }, [loadDatajudKey]);
+
   // Quick Replies
   const [replies, setReplies]   = useState<any[]>([]);
   const [newShortcut, setNewShortcut] = useState("");
@@ -384,6 +397,75 @@ function ConfigPage() {
                   </div>
                 </div>
               </div>
+
+              {/* DataJud */}
+              <div className={cn(
+                "rounded-xl border-l-4 border border-border bg-card p-5",
+                datajudSaved ? "border-l-emerald-500" : "border-l-amber-500"
+              )}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground flex items-center gap-2">
+                      <Scale className="h-4 w-4 text-blue-500" /> DataJud CNJ (busca de processos)
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {datajudSaved
+                        ? `Chave configurada — ${datajudKey.slice(0,8)}...${datajudKey.slice(-4)}`
+                        : "Não configurado. A chave padrão pode ter expirado. Gere uma nova no portal DataJud."}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/70 mt-2">
+                      Acesse <code className="bg-muted px-1 rounded">datajud.cnj.jus.br</code> → Login → Meu Perfil → API Key → Gerar Nova Chave
+                    </p>
+                  </div>
+                  <Button size="sm" variant={datajudSaved ? "outline" : "default"}
+                    onClick={() => { setDatajudInput(datajudKey); setDatajudOpen(true); }}>
+                    {datajudSaved ? "Atualizar" : "Configurar"}
+                  </Button>
+                </div>
+              </div>
+
+              <Dialog open={datajudOpen} onOpenChange={setDatajudOpen}>
+                <DialogContent>
+                  <DialogHeader><DialogTitle className="flex items-center gap-2"><Scale className="h-4 w-4" />API Key DataJud CNJ</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700">
+                      <p className="font-semibold mb-1">Como obter a chave:</p>
+                      <ol className="list-decimal pl-4 space-y-1">
+                        <li>Acesse <strong>datajud.cnj.jus.br</strong> e faça login</li>
+                        <li>Clique em <strong>Meu Perfil</strong></li>
+                        <li>Clique em <strong>API Key</strong></li>
+                        <li>Clique em <strong>Gerar Nova Chave</strong></li>
+                        <li>Copie e cole aqui abaixo</li>
+                      </ol>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Chave DataJud</Label>
+                      <Input className="mt-1 font-mono text-xs" placeholder="cDQH..." value={datajudInput}
+                        onChange={e => setDatajudInput(e.target.value)} autoFocus />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setDatajudOpen(false)}>Cancelar</Button>
+                    <Button disabled={datajudInput.trim().length < 10 || savingDatajud}
+                      onClick={async () => {
+                        setSavingDatajud(true);
+                        try {
+                          await supabase.from("user_settings").upsert(
+                            { user_id: user?.id, key: "datajud_api_key", value: datajudInput.trim() },
+                            { onConflict: "user_id,key" }
+                          );
+                          setDatajudKey(datajudInput.trim());
+                          setDatajudSaved(true);
+                          setDatajudOpen(false);
+                          toast.success("Chave DataJud salva!");
+                        } catch (e: any) { toast.error(e.message); }
+                        finally { setSavingDatajud(false); }
+                      }}>
+                      {savingDatajud ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <Dialog open={elevenOpen} onOpenChange={setElevenOpen}>
                 <DialogContent>
