@@ -1310,9 +1310,9 @@ function InboxPage() {
                 )}
               </div>
               <button className="flex-1 text-left" onClick={() => setShowLeadPanel(!showLeadPanel)}>
-                <p className="text-white font-medium text-sm">{active.contact_name || active.phone}</p>
+                <p className="text-white font-medium text-sm">{active.contact_name || formatBRPhone(active.phone) || active.phone}</p>
                 <p className="text-[#8696a0] text-xs">
-                  {active.phone}
+                  {formatBRPhone(active.phone) || active.phone}
                   {(active as any).instance_id && instances.find(i => i.id === (active as any).instance_id) && (
                     <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-[#25d366]/20 text-[#25d366] text-[10px]">
                       📱 {instances.find(i => i.id === (active as any).instance_id)?.phone_number || instances.find(i => i.id === (active as any).instance_id)?.instance_name}
