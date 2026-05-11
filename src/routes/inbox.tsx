@@ -766,14 +766,36 @@ function InboxPage() {
 
   const handleNewConv = async () => {
     if (!user || !newConv.phone) return;
+    const phone = normalizeBRPhone(newConv.phone) || newConv.phone.replace(/\D/g, "");
+    // Verifica se já existe (em qualquer formato)
+    const variants = phoneVariants(phone);
+    const { data: existing } = await supabase.from("conversations")
+      .select("id").eq("user_id", user.id).in("phone", variants.length ? variants : [phone]).limit(1).maybeSingle();
+    if (existing) {
+      setOpen(false); setNewConv({ phone: "", contact_name: "" });
+      setActiveId(existing.id); setShowLeadPanel(true);
+      toast.info("Conversa já existente aberta");
+      return;
+    }
     const { data, error } = await supabase.from("conversations").insert({
-      user_id: user.id, phone: newConv.phone,
+      user_id: user.id, phone,
       contact_name: newConv.contact_name || null, status: "open",
     }).select().single();
     if (error) { toast.error(error.message); return; }
     setOpen(false); setNewConv({ phone: "", contact_name: "" });
     loadConvs();
     if (data) { setActiveId(data.id); setShowLeadPanel(true); }
+  };
+
+  // Excluir conversa (e todas as mensagens)
+  const deleteConversation = async (convId: string) => {
+    if (!confirm("Excluir esta conversa e todas as mensagens? Esta ação não pode ser desfeita.")) return;
+    await supabase.from("messages").delete().eq("conversation_id", convId);
+    const { error } = await supabase.from("conversations").delete().eq("id", convId);
+    if (error) { toast.error(error.message); return; }
+    setConversations(prev => prev.filter(c => c.id !== convId));
+    if (activeId === convId) setActiveId(null);
+    toast.success("Conversa excluída");
   };
 
   // Aceitar ticket (assume o atendimento)
