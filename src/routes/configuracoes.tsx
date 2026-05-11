@@ -11,7 +11,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound } from "lucide-react";
+import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
