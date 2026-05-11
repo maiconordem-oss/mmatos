@@ -1402,6 +1402,7 @@ function InboxPage() {
                       { label: "Marcar como não lido",     action: () => markUnread(active.id) },
                       { label: "Exportar conversa",        action: () => exportConversation(active) },
                       { label: active.blocked ? "Desbloquear contato" : "Bloquear contato", action: () => toggleBlock(active), danger: true },
+                      { label: "Excluir conversa", action: () => deleteConversation(active.id), danger: true },
                     ].map(item => (
                       <button key={item.label} onClick={item.action}
                         className={cn("w-full text-left px-4 py-2.5 text-sm hover:bg-[#2a3942] transition-colors", item.danger ? "text-red-400" : "text-white")}>
