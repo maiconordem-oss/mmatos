@@ -271,13 +271,14 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
     notes: "",
   });
 
-  // Verificar se já é cliente
+  // Verificar se já é cliente (por qualquer variante do número)
   useEffect(() => {
     if (!conv.phone) return;
+    const variants = phoneVariants(conv.phone);
     supabase.from("clients")
       .select("id, full_name, email, document")
-      .eq("phone", conv.phone.replace(/\D/g, ""))
-      .maybeSingle()
+      .in("phone", variants.length ? variants : [conv.phone.replace(/\D/g, "")])
+      .limit(1).maybeSingle()
       .then(({ data }) => setClienteExiste(data));
   }, [conv.phone]);
 
