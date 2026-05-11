@@ -616,6 +616,8 @@ function InboxPage() {
   const [transcribingId, setTranscribingId] = useState<string | null>(null);
   const [ttsOpen, setTtsOpen] = useState(false);
   const [ttsText, setTtsText] = useState("");
+  const [sendingFile, setSendingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [ttsBusy, setTtsBusy] = useState(false);
   const [ttsBlob, setTtsBlob] = useState<Blob | null>(null);
   const [ttsVoice, setTtsVoice] = useState("FGY2WhTYpPnrIDTdsKH5");
@@ -1041,6 +1043,78 @@ function InboxPage() {
         headers: { "Content-Type": "application/json", apikey: inst.api_key },
         body: JSON.stringify({ number, text: content, options: { delay: 500 } }),
       }).catch(e => console.error("send manual error:", e));
+    }
+  };
+
+  const handleSendFile = async (file: File) => {
+    if (!active || !user || sendingFile) return;
+    setSendingFile(true);
+    try {
+      // Upload para Supabase Storage
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `${user.id}/${Date.now()}.${ext}`;
+      const { data: uploaded, error: upErr } = await supabase.storage
+        .from("whatsapp-media").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+
+      // Buscar instância
+      const { data: convRow } = await supabase.from("conversations")
+        .select("instance_id, phone").eq("id", active.id).maybeSingle();
+      let inst: any = null;
+      if (convRow?.instance_id) {
+        const { data } = await supabase.from("whatsapp_instances").select("*").eq("id", convRow.instance_id).maybeSingle();
+        inst = data;
+      }
+      if (!inst) {
+        const { data } = await supabase.from("whatsapp_instances").select("*").eq("user_id", user.id).eq("status", "connected").limit(1).maybeSingle();
+        inst = data;
+      }
+      if (!inst?.api_url) throw new Error("Nenhuma instância WhatsApp conectada");
+
+      const number = (convRow?.phone || active.phone || "").replace(/\D/g, "");
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      const isAudio = file.type.startsWith("audio/");
+      const isPdf   = file.type === "application/pdf";
+
+      // Enviar via Evolution API
+      let endpoint = "sendMedia";
+      let mediaType = "document";
+      if (isImage) mediaType = "image";
+      else if (isVideo) mediaType = "video";
+      else if (isAudio) mediaType = "audio";
+
+      const body: any = {
+        number,
+        mediatype: mediaType,
+        media: publicUrl,
+        fileName: file.name,
+        caption: "",
+        options: { delay: 500 },
+      };
+
+      await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendMedia/${inst.instance_name}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: inst.api_key },
+        body: JSON.stringify(body),
+      });
+
+      // Salvar mensagem local
+      await supabase.from("messages").insert({
+        conversation_id: active.id,
+        content: `[${isImage ? "Imagem" : isVideo ? "Vídeo" : isAudio ? "Áudio" : "Documento"}: ${file.name}]`,
+        sender_type: "human",
+        media_url: publicUrl,
+        media_type: isImage ? "image" : isVideo ? "video" : isAudio ? "audio" : "document",
+      });
+
+      toast.success(`${isImage ? "Imagem" : isVideo ? "Vídeo" : isAudio ? "Áudio" : "Documento"} enviado!`);
+    } catch (e: any) {
+      toast.error("Erro ao enviar: " + e.message);
+    } finally {
+      setSendingFile(false);
     }
   };
 
@@ -1798,6 +1872,26 @@ function InboxPage() {
                   </button>
                 </div>
               )}
+
+              {/* Botão de anexo */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleSendFile(file);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                title="Enviar arquivo, foto ou vídeo"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={sendingFile}
+                className="p-2.5 rounded-full flex items-center justify-center shrink-0 hover:bg-[#2a3942] text-[#8696a0] hover:text-white transition-colors disabled:opacity-40">
+                {sendingFile ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
+              </button>
 
               {/* Botão Send/Mic/Gravando */}
               <button
