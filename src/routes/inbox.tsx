@@ -305,11 +305,12 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
     if (!form.name.trim() || !user) return;
     setSaving(true);
     try {
-      const phone = form.phone.replace(/\D/g, "");
-      // Upsert pelo telefone
-      // Verificar se já existe pelo telefone
+      const phone = normalizeBRPhone(form.phone) || form.phone.replace(/\D/g, "");
+      // Upsert pelo telefone (verifica todas as variantes)
+      const variants = phoneVariants(phone);
       const { data: existing } = await supabase.from("clients")
-        .select("id").eq("phone", phone).eq("user_id", user.id).maybeSingle();
+        .select("id").in("phone", variants.length ? variants : [phone])
+        .eq("user_id", user.id).limit(1).maybeSingle();
 
       let data: any;
       if (existing?.id) {
