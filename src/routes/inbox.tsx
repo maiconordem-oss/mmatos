@@ -1032,8 +1032,14 @@ function InboxPage() {
     }
     if (!inst) {
       const { data } = await supabase.from("whatsapp_instances").select("*")
-        .eq("user_id", user.id).eq("status", "connected").limit(1).maybeSingle();
-      inst = data;
+        .eq("user_id", user.id).eq("status", "connected").eq("is_office", false).limit(1).maybeSingle();
+      inst = data ?? null;
+      if (!inst) {
+        // fallback: qualquer instância conectada
+        const { data: d2 } = await supabase.from("whatsapp_instances").select("*")
+          .eq("user_id", user.id).eq("status", "connected").limit(1).maybeSingle();
+        inst = d2;
+      }
     }
 
     if (conv?.phone && inst?.api_url && inst?.api_key) {
@@ -1079,27 +1085,26 @@ function InboxPage() {
       const isAudio = file.type.startsWith("audio/");
       const isPdf   = file.type === "application/pdf";
 
-      // Enviar via Evolution API
-      let endpoint = "sendMedia";
-      let mediaType = "document";
-      if (isImage) mediaType = "image";
-      else if (isVideo) mediaType = "video";
-      else if (isAudio) mediaType = "audio";
-
-      const body: any = {
-        number,
-        mediatype: mediaType,
-        media: publicUrl,
-        fileName: file.name,
-        caption: "",
-        options: { delay: 500 },
-      };
-
-      await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendMedia/${inst.instance_name}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: inst.api_key },
-        body: JSON.stringify(body),
-      });
+      // Enviar via Evolution API — áudio como nota de voz, resto como media
+      let mediaRes: Response | null = null;
+      if (isAudio) {
+        mediaRes = await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendWhatsAppAudio/${inst.instance_name}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: inst.api_key },
+          body: JSON.stringify({ number, audio: publicUrl, options: { delay: 500 } }),
+        }).catch(() => null);
+      } else {
+        const mediaType = isImage ? "image" : isVideo ? "video" : "document";
+        const body = { number, mediatype: mediaType, media: publicUrl, fileName: file.name, caption: "", options: { delay: 500 } };
+        mediaRes = await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendMedia/${inst.instance_name}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: inst.api_key },
+          body: JSON.stringify(body),
+        }).catch(() => null);
+      }
+      if (!mediaRes?.ok) {
+        console.warn("Envio de mídia falhou:", mediaRes?.status);
+      }
 
       // Salvar mensagem no banco com campos corretos
       const mediaLabel = isImage ? "image" : isVideo ? "video" : isAudio ? "audio" : "document";
