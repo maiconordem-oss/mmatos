@@ -380,7 +380,7 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
           </div>
           <div>
             <p className="text-white font-medium text-sm">{conv.contact_name || conv.phone}</p>
-            <p className="text-[#8696a0] text-xs">{conv.phone}</p>
+            <p className="text-[#8696a0] text-xs">{formatBRPhone(conv.phone) || conv.phone}</p>
             <div className="flex items-center gap-1.5 mt-1">
               {conv.ai_paused
                 ? <Badge className="text-[10px] px-1.5 py-0 bg-red-500/20 text-red-400 border-red-500/30">IA pausada</Badge>
