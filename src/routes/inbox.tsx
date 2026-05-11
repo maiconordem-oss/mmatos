@@ -364,10 +364,10 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
   const dadosKeys = Object.keys(dados).filter(k => dados[k] && DADO_LABELS[k]);
 
   return (
-    <div className="w-72 shrink-0 flex flex-col border-l" style={{ background: "#111b21" }}>
+    <div className="w-72 shrink-0 flex flex-col border-l border-[#e9edef]" style={{ background: "#f0f2f5" }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a3942]" style={{ background: "#202c33" }}>
-        <span className="text-white text-sm font-medium">Ficha do Lead</span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a3942]" style={{ background: "#f0f2f5" }}>
+        <span className="text-[#111b21] text-sm font-medium">Ficha do Lead</span>
         <button onClick={onClose} className="text-[#aebac1] hover:text-white p-1">
           <X className="h-4 w-4" />
         </button>
@@ -381,8 +381,8 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
             {avatar(conv.contact_name, conv.phone).label}
           </div>
           <div>
-            <p className="text-white font-medium text-sm">{conv.contact_name || conv.phone}</p>
-            <p className="text-[#8696a0] text-xs">{formatBRPhone(conv.phone) || conv.phone}</p>
+            <p className="text-[#111b21] font-medium text-sm">{conv.contact_name || conv.phone}</p>
+            <p className="text-[#667781] text-xs">{formatBRPhone(conv.phone) || conv.phone}</p>
             <div className="flex items-center gap-1.5 mt-1">
               {conv.ai_paused
                 ? <Badge className="text-[10px] px-1.5 py-0 bg-red-500/20 text-red-400 border-red-500/30">IA pausada</Badge>
@@ -393,7 +393,7 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
         </div>
 
         {/* Botão cadastrar cliente */}
-        <div className="rounded-lg border border-[#2a3942] overflow-hidden" style={{ background: "#182229" }}>
+        <div className="rounded-lg border border-[#e9edef] overflow-hidden bg-white">
           {clienteExiste ? (
             <div className="px-3 py-2.5 flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-[#25d366] shrink-0" />
@@ -407,7 +407,7 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
             </div>
           ) : (
             <button onClick={() => setShowForm(!showForm)}
-              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#2a3942] transition-colors text-left">
+              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#f0f2f5] transition-colors text-left">
               <div className="h-7 w-7 rounded-full bg-[#25d366]/20 flex items-center justify-center shrink-0">
                 <User className="h-3.5 w-3.5 text-[#25d366]" />
               </div>
@@ -419,40 +419,40 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
           )}
 
           {showForm && (
-            <div className="border-t border-[#2a3942] px-3 py-3 space-y-2">
+            <div className="border-t border-[#e9edef] px-3 py-3 space-y-2">
               <div>
                 <p className="text-[10px] text-[#8696a0] mb-1">Nome *</p>
                 <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full bg-[#2a3942] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#3b4a54] focus:border-[#25d366] placeholder-[#8696a0]"
+                  className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef] focus:border-[#25d366] placeholder-[#8696a0]"
                   placeholder="Nome completo" />
               </div>
               <div>
                 <p className="text-[10px] text-[#8696a0] mb-1">Telefone</p>
                 <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                  className="w-full bg-[#2a3942] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#3b4a54] placeholder-[#8696a0]"
+                  className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef] placeholder-[#8696a0]"
                   placeholder="5551999999999" />
               </div>
               <div>
                 <p className="text-[10px] text-[#8696a0] mb-1">E-mail</p>
                 <input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                  className="w-full bg-[#2a3942] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#3b4a54] placeholder-[#8696a0]"
+                  className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef] placeholder-[#8696a0]"
                   placeholder="email@exemplo.com" />
               </div>
               <div>
                 <p className="text-[10px] text-[#8696a0] mb-1">CPF</p>
                 <input value={form.cpf} onChange={e => setForm(p => ({ ...p, cpf: e.target.value }))}
-                  className="w-full bg-[#2a3942] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#3b4a54] placeholder-[#8696a0]"
+                  className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef] placeholder-[#8696a0]"
                   placeholder="000.000.000-00" />
               </div>
               <div>
                 <p className="text-[10px] text-[#8696a0] mb-1">Observações</p>
                 <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                  rows={2} className="w-full bg-[#2a3942] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#3b4a54] placeholder-[#8696a0] resize-none"
+                  rows={2} className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef] placeholder-[#8696a0] resize-none"
                   placeholder="Anotações sobre o cliente..." />
               </div>
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setShowForm(false)}
-                  className="flex-1 py-1.5 rounded-lg text-xs text-[#8696a0] hover:text-white border border-[#3b4a54] hover:bg-[#2a3942] transition-colors">
+                  className="flex-1 py-1.5 rounded-lg text-xs text-[#54656f] hover:text-[#111b21] border border-[#e9edef] hover:bg-[#f0f2f5] transition-colors">
                   Cancelar
                 </button>
                 <button onClick={cadastrarCliente} disabled={saving || !form.name.trim()}
@@ -470,7 +470,7 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
         {!loading && !state && (
           <div className="text-center py-4">
             <Bot className="h-8 w-8 mx-auto mb-2 text-[#8696a0] opacity-40" />
-            <p className="text-[#8696a0] text-xs">Funil ainda não iniciado</p>
+            <p className="text-[#667781] text-xs">Funil ainda não iniciado</p>
           </div>
         )}
 
@@ -478,14 +478,14 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
           <>
             {/* Funil */}
             {(state.funnels as any)?.name && (
-              <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
+              <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
                 <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-1">Funil</p>
                 <p className="text-white text-sm font-medium">{(state.funnels as any).name}</p>
               </div>
             )}
 
             {/* Progresso de fases */}
-            <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
+            <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
               <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-3">Progresso</p>
               <div className="space-y-1.5">
                 {FASES.map((fase, i) => {
@@ -523,13 +523,13 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
 
             {/* Dados coletados */}
             {dadosKeys.length > 0 && (
-              <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
+              <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
                 <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-2">Dados coletados</p>
                 <div className="space-y-1.5">
                   {dadosKeys.map(k => (
                     <div key={k} className="flex items-start gap-2">
                       <span className="text-[10px] text-[#8696a0] shrink-0 pt-0.5 w-24">{DADO_LABELS[k]}:</span>
-                      <span className="text-xs text-white break-words">{String(dados[k])}</span>
+                      <span className="text-xs text-[#111b21] break-words">{String(dados[k])}</span>
                     </div>
                   ))}
                 </div>
@@ -538,7 +538,7 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
 
             {/* Mídias enviadas */}
             {state.midias_enviadas.length > 0 && (
-              <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#182229" }}>
+              <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
                 <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-2">Mídias enviadas</p>
                 <div className="space-y-1">
                   {state.midias_enviadas.map(m => (
@@ -1164,56 +1164,56 @@ function InboxPage() {
   const grouped = groupByDate(displayMessages);
 
   return (
-    <div className="flex flex-1 overflow-hidden" style={{ background: "#111b21" }}>
+    <div className="flex flex-1 overflow-hidden" style={{ background: "#f0f2f5" }}>
       <Toaster />
 
       {/* ── SIDEBAR ── */}
-      <div className="w-[360px] flex flex-col border-r border-[#2a3942] shrink-0" style={{ background: "#111b21" }}>
+      <div className="w-[360px] flex flex-col border-r border-[#2a3942] shrink-0" style={{ background: "#f0f2f5" }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3" style={{ background: "#202c33" }}>
+        <div className="flex items-center justify-between px-4 py-3" style={{ background: "#f0f2f5" }}>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-[#25d366]">
+            <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-[#00a884]">
               {user?.email?.[0]?.toUpperCase() ?? "M"}
             </div>
-            <span className="text-white font-medium text-sm">Lex CRM</span>
+            <span className="text-[#111b21] font-medium text-sm">Lex CRM</span>
           </div>
           <div className="flex items-center gap-1">
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><Plus className="h-5 w-5" /></button>
+                <button className="p-2 rounded-full hover:bg-[#d9dde1] text-[#54656f]"><Plus className="h-5 w-5" /></button>
               </DialogTrigger>
-              <DialogContent className="bg-[#202c33] border-[#2a3942] text-white">
-                <DialogHeader><DialogTitle className="text-white">Nova conversa</DialogTitle></DialogHeader>
+              <DialogContent className="bg-white border-[#e9edef]">
+                <DialogHeader><DialogTitle className="text-[#111b21]">Nova conversa</DialogTitle></DialogHeader>
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs text-[#8696a0] mb-1 block">Telefone *</label>
-                    <input className="w-full bg-[#2a3942] border border-[#3b4a54] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#25d366]"
+                    <input className="w-full bg-[#f0f2f5] border border-[#e9edef] rounded-lg px-3 py-2 text-[#111b21] text-sm outline-none focus:border-[#00a884]"
                       placeholder="+5551..." value={newConv.phone} onChange={e => setNewConv({ ...newConv, phone: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-xs text-[#8696a0] mb-1 block">Nome do contato</label>
-                    <input className="w-full bg-[#2a3942] border border-[#3b4a54] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#25d366]"
+                    <input className="w-full bg-[#f0f2f5] border border-[#e9edef] rounded-lg px-3 py-2 text-[#111b21] text-sm outline-none focus:border-[#00a884]"
                       value={newConv.contact_name} onChange={e => setNewConv({ ...newConv, contact_name: e.target.value })} />
                   </div>
                 </div>
                 <DialogFooter>
-                  <button onClick={handleNewConv} className="bg-[#25d366] hover:bg-[#20ba5a] text-white px-4 py-2 rounded-lg text-sm font-medium">Criar</button>
+                  <button onClick={handleNewConv} className="bg-[#00a884] hover:bg-[#017d63] text-white px-4 py-2 rounded-lg text-sm font-medium">Criar</button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><MoreVertical className="h-5 w-5" /></button>
+            <button className="p-2 rounded-full hover:bg-[#d9dde1] text-[#54656f]"><MoreVertical className="h-5 w-5" /></button>
           </div>
         </div>
 
         {/* Seletor de número/instância */}
         {instances.length > 0 && (
-          <div className="px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto" style={{ background: "#111b21" }}>
+          <div className="px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto" style={{ background: "#f0f2f5" }}>
             <button
               onClick={() => setActiveInstance("all")}
               className={cn("shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
                 activeInstance === "all"
-                  ? "bg-[#25d366] text-black"
-                  : "bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]"
+                  ? "bg-[#00a884] text-white"
+                  : "bg-white text-[#54656f] hover:bg-[#f5f5f5] border border-[#e9edef]"
               )}>
               <span>Todos</span>
               <span className="text-[10px] opacity-70">({conversations.length})</span>
@@ -1230,7 +1230,7 @@ function InboxPage() {
                       : "bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]"
                   )}>
                   <div className={cn("h-1.5 w-1.5 rounded-full", inst.status === "connected" ? "bg-[#25d366]" : "bg-red-400")}
-                    style={isActive ? { background: "black" } : {}} />
+                    style={isActive ? { background: "white" } : {}} />
                   <span className="truncate max-w-[80px]">
                     {inst.phone_number || inst.instance_name}
                   </span>
@@ -1244,7 +1244,7 @@ function InboxPage() {
         )}
 
         {/* Abas de status do ticket */}
-        <div className="flex border-b border-[#2a3942] shrink-0" style={{ background: "#202c33" }}>
+        <div className="flex border-b border-[#2a3942] shrink-0" style={{ background: "#f0f2f5" }}>
           {([
             { key: "all",      label: "Todos" },
             { key: "pending",  label: "Pendentes" },
@@ -1258,8 +1258,8 @@ function InboxPage() {
               <button key={tab.key} onClick={() => setTicketFilter(tab.key)}
                 className={cn("flex-1 py-2 text-[11px] font-medium transition-colors border-b-2",
                   ticketFilter === tab.key
-                    ? "border-[#25d366] text-[#25d366]"
-                    : "border-transparent text-[#8696a0] hover:text-[#aebac1]")}>
+                    ? "border-[#00a884] text-[#00a884]"
+                    : "border-transparent text-[#54656f] hover:text-[#111b21]")}>
                 {tab.label}
                 {count > 0 && (
                   <span className="ml-1 px-1 py-0.5 rounded-full text-[9px] font-bold"
@@ -1273,16 +1273,16 @@ function InboxPage() {
         </div>
 
         {/* Busca + Ordenar */}
-        <div className="px-3 py-2 flex gap-2" style={{ background: "#111b21" }}>
-          <div className="flex items-center gap-2 rounded-lg px-3 py-2 flex-1" style={{ background: "#202c33" }}>
+        <div className="px-3 py-2 flex gap-2" style={{ background: "#f0f2f5" }}>
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2 flex-1" style={{ background: "#ffffff" }}>
             <Search className="h-4 w-4 text-[#8696a0] shrink-0" />
-            <input className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none"
+            <input className="flex-1 bg-transparent text-sm text-[#111b21] placeholder-[#8696a0] outline-none"
               placeholder="Pesquisar conversas..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <button onClick={() => setSortUnread(!sortUnread)}
             title="Ordenar por não lidas"
-            className={cn("px-2 rounded-lg text-xs font-medium transition-colors", sortUnread ? "bg-[#25d366] text-black" : "text-[#8696a0] hover:text-white")}
-            style={{ background: sortUnread ? "#25d366" : "#202c33" }}>
+            className={cn("px-2 rounded-lg text-xs font-medium transition-colors", sortUnread ? "bg-[#00a884] text-white" : "text-[#54656f] hover:text-[#111b21]")}
+            style={{ background: sortUnread ? "#00a884" : "#f0f2f5" }}>
             🔔
           </button>
         </div>
@@ -1290,7 +1290,7 @@ function InboxPage() {
         {/* Lista */}
         <div className="flex-1 overflow-y-auto">
           {filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-40 text-[#8696a0] text-sm">
+            <div className="flex flex-col items-center justify-center h-40 text-[#8696a0] text-sm bg-white">
               <MessageSquare className="h-8 w-8 mb-2 opacity-40" />Nenhuma conversa
             </div>
           )}
@@ -1299,7 +1299,7 @@ function InboxPage() {
             const isActive = activeId === c.id;
             return (
               <button key={c.id} onClick={() => { setActiveId(c.id); setShowLeadPanel(true); }}
-                className={cn("w-full flex items-center gap-3 px-4 py-3 border-b border-[#2a3942] hover:bg-[#2a3942] transition-colors text-left", isActive && "bg-[#2a3942]")}>
+                className={cn("w-full flex items-center gap-3 px-4 py-3 border-b border-[#e9edef] hover:bg-[#f5f5f5] transition-colors text-left bg-white", isActive && "bg-[#f0f2f5]")}>
                 <div className="relative shrink-0">
                   {c.photo_url ? (
                     <img src={c.photo_url} alt={c.contact_name || c.phone}
@@ -1330,7 +1330,7 @@ function InboxPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center">
-                    <span className="text-white font-medium text-sm truncate">{c.contact_name || c.phone}</span>
+                    <span className="text-[#111b21] font-medium text-sm truncate">{c.contact_name || c.phone}</span>
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       {/* Badge de status */}
                       {(c.ticket_status ?? "pending") === "pending" && (
@@ -1339,7 +1339,7 @@ function InboxPage() {
                       {(c.ticket_status ?? "pending") === "resolved" && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-500/20 text-slate-400 font-bold">✓</span>
                       )}
-                      <span className={cn("text-xs", c.unread_count > 0 ? "text-[#25d366]" : "text-[#8696a0]")}>
+                      <span className={cn("text-xs", c.unread_count > 0 ? "text-[#00a884]" : "text-[#667781]")}>
                         {c.last_message_at ? formatTime(c.last_message_at) : ""}
                       </span>
                     </div>
@@ -1347,7 +1347,7 @@ function InboxPage() {
                   <div className="flex justify-between items-center mt-0.5">
                     <p className="text-[#8696a0] text-xs truncate flex-1">{c.last_message_preview || "Sem mensagens"}</p>
                     {c.unread_count > 0 && (
-                      <span className="ml-2 shrink-0 h-5 min-w-5 px-1 rounded-full bg-[#25d366] text-black text-xs font-bold flex items-center justify-center">
+                      <span className="ml-2 shrink-0 h-5 min-w-5 px-1 rounded-full bg-[#00a884] text-white text-xs font-bold flex items-center justify-center">
                         {c.unread_count}
                       </span>
                     )}
@@ -1374,19 +1374,19 @@ function InboxPage() {
       </div>
 
       {/* ── ÁREA DE CHAT ── */}
-      <div className="flex-1 flex flex-col min-w-0" style={{ background: "#0b141a" }}>
+      <div className="flex-1 flex flex-col min-w-0" style={{ background: "#eae6da" }}>
         {!active ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-[#8696a0]">
-            <div className="h-24 w-24 rounded-full flex items-center justify-center mb-6" style={{ background: "rgba(37,211,102,0.1)", border: "2px solid rgba(37,211,102,0.2)" }}>
-              <MessageSquare className="h-10 w-10" style={{ color: "#25d366" }} />
+          <div className="flex-1 flex flex-col items-center justify-center text-[#8696a0]" style={{ background: "#f0f2f5" }}>
+            <div className="h-24 w-24 rounded-full flex items-center justify-center mb-6" style={{ background: "rgba(0,168,132,0.1)", border: "2px solid rgba(0,168,132,0.2)" }}>
+              <MessageSquare className="h-10 w-10" style={{ color: "#00a884" }} />
             </div>
-            <h2 className="text-white text-xl font-light mb-2">Lex CRM — WhatsApp</h2>
+            <h2 className="text-[#41525d] text-xl font-light mb-2">Lex CRM — WhatsApp</h2>
             <p className="text-sm text-center max-w-xs">Selecione uma conversa para começar o atendimento.</p>
           </div>
         ) : (
           <>
             {/* Header do chat */}
-            <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "#202c33" }}>
+            <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "#f0f2f5" }}>
               <div className="shrink-0">
                 {active.photo_url ? (
                   <img src={active.photo_url} alt={active.contact_name || active.phone}
@@ -1400,11 +1400,11 @@ function InboxPage() {
                 )}
               </div>
               <button className="flex-1 text-left" onClick={() => setShowLeadPanel(!showLeadPanel)}>
-                <p className="text-white font-medium text-sm">{active.contact_name || formatBRPhone(active.phone) || active.phone}</p>
-                <p className="text-[#8696a0] text-xs">
+                <p className="text-[#111b21] font-medium text-sm">{active.contact_name || formatBRPhone(active.phone) || active.phone}</p>
+                <p className="text-[#667781] text-xs">
                   {formatBRPhone(active.phone) || active.phone}
                   {(active as any).instance_id && instances.find(i => i.id === (active as any).instance_id) && (
-                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-[#25d366]/20 text-[#25d366] text-[10px]">
+                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-[#00a884]/20 text-[#00a884] text-[10px]">
                       📱 {instances.find(i => i.id === (active as any).instance_id)?.phone_number || instances.find(i => i.id === (active as any).instance_id)?.instance_name}
                     </span>
                   )}
@@ -1417,8 +1417,8 @@ function InboxPage() {
                   onClick={() => toggleAiPause(active)}
                   className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors",
                     active.ai_paused
-                      ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                      : "bg-[#25d366]/20 text-[#25d366] hover:bg-[#25d366]/30"
+                      ? "bg-red-500/20 text-red-600 hover:bg-red-500/30"
+                      : "bg-[#00a884]/20 text-[#00a884] hover:bg-[#00a884]/30"
                   )}
                   title={active.ai_paused ? "Reativar IA" : "Pausar IA"}
                 >
@@ -1454,7 +1454,7 @@ function InboxPage() {
                     🏷️ Tags
                   </button>
                   {showTagMenu && (
-                    <div className="absolute top-8 right-0 z-50 w-48 rounded-xl border border-[#2a3942] shadow-xl overflow-hidden" style={{ background: "#202c33" }}>
+                    <div className="absolute top-8 right-0 z-50 w-48 rounded-xl border border-[#e9edef] shadow-xl overflow-hidden bg-white">
                       <p className="text-[10px] text-[#8696a0] uppercase px-3 pt-2 pb-1">Adicionar tag</p>
                       {tags.length === 0 && (
                         <p className="text-xs text-[#8696a0] px-3 pb-3">Sem tags. Crie em configurações.</p>
@@ -1464,10 +1464,10 @@ function InboxPage() {
                         return (
                           <button key={tag.id}
                             onClick={() => toggleTag(active.id, tag.name, active.tags ?? [])}
-                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#2a3942] text-left transition-colors">
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#f5f5f5] text-left transition-colors">
                             <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: tag.color }} />
-                            <span className="text-sm text-white flex-1">{tag.name}</span>
-                            {hasTag && <span className="text-[#25d366] text-xs">✓</span>}
+                            <span className="text-sm text-[#111b21] flex-1">{tag.name}</span>
+                            {hasTag && <span className="text-[#00a884] text-xs">✓</span>}
                           </button>
                         );
                       })}
@@ -1485,8 +1485,8 @@ function InboxPage() {
                 </button>
                 {/* Menu de contexto */}
                 <div className="relative group">
-                  <button className="p-2 rounded-full hover:bg-[#2a3942] text-[#aebac1]"><MoreVertical className="h-5 w-5" /></button>
-                  <div className="absolute right-0 top-10 z-50 w-52 rounded-xl border border-[#2a3942] shadow-xl overflow-hidden hidden group-hover:block" style={{ background: "#202c33" }}>
+                  <button className="p-2 rounded-full hover:bg-[#d9dde1] text-[#54656f]"><MoreVertical className="h-5 w-5" /></button>
+                  <div className="absolute right-0 top-10 z-50 w-52 rounded-xl border border-[#e9edef] shadow-xl overflow-hidden hidden group-hover:block bg-white">
                     {[
                       { label: "Ver histórico do contato", action: () => loadHistory(active.phone) },
                       { label: "Marcar como não lido",     action: () => markUnread(active.id) },
@@ -1495,7 +1495,7 @@ function InboxPage() {
                       { label: "Excluir conversa", action: () => deleteConversation(active.id), danger: true },
                     ].map(item => (
                       <button key={item.label} onClick={item.action}
-                        className={cn("w-full text-left px-4 py-2.5 text-sm hover:bg-[#2a3942] transition-colors", item.danger ? "text-red-400" : "text-white")}>
+                        className={cn("w-full text-left px-4 py-2.5 text-sm hover:bg-[#f5f5f5] transition-colors", item.danger ? "text-red-500" : "text-[#111b21]")}>
                         {item.label}
                       </button>
                     ))}
@@ -1506,22 +1506,22 @@ function InboxPage() {
 
             {/* Painel de ferramentas IA — expandido */}
             {showAiPanel && (
-              <div className="border-b border-[#2a3942] max-h-[50vh] overflow-y-auto" style={{ background: "#182229" }}>
+              <div className="border-b border-[#e9edef] max-h-[50vh] overflow-y-auto bg-white">
                 {/* Linha 1: ações rápidas */}
-                <div className="flex items-center gap-2 px-4 py-2 flex-wrap border-b border-[#2a3942]/60">
+                <div className="flex items-center gap-2 px-4 py-2 flex-wrap border-b border-[#e9edef]">
                   <span className="text-[#8696a0] text-xs font-medium mr-1">Ferramentas IA:</span>
                   <button disabled={aiBusy !== null} onClick={() => doSummary()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#f0f2f5] text-[#111b21] hover:bg-[#e9edef] disabled:opacity-50">
                     {aiBusy === "summary" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ScrollText className="h-3 w-3 text-[#53bdeb]" />}
                     Resumir
                   </button>
                   <button disabled={aiBusy !== null} onClick={() => doTasks()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#f0f2f5] text-[#111b21] hover:bg-[#e9edef] disabled:opacity-50">
                     {aiBusy === "tasks" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ListChecks className="h-3 w-3 text-[#f0c040]" />}
                     Extrair tarefas
                   </button>
                   <button disabled={aiBusy !== null} onClick={() => doSentiment()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#f0f2f5] text-[#111b21] hover:bg-[#e9edef] disabled:opacity-50">
                     {aiBusy === "sentiment" ? <Loader2 className="h-3 w-3 animate-spin" /> : <SmileIcon className="h-3 w-3 text-[#25d366]" />}
                     Sentimento
                   </button>
@@ -1530,7 +1530,7 @@ function InboxPage() {
                     try { await qualifierReplyFn({ data: { conversationId: active.id } }); toast.success("IA respondeu!"); }
                     catch (e: any) { toast.error(e.message); } finally { setAiBusy(null); }
                   }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#f0f2f5] text-[#111b21] hover:bg-[#e9edef] disabled:opacity-50">
                     <Bot className="h-3 w-3 text-[#25d366]" />
                     {aiBusy === "reply" ? "Respondendo..." : "Auto-responder"}
                   </button>
@@ -1545,7 +1545,7 @@ function InboxPage() {
                       }
                     } catch (e: any) { toast.error(e.message); } finally { setAiBusy(null); }
                   }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#2a3942] text-white hover:bg-[#3b4a54] disabled:opacity-50">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#f0f2f5] text-[#111b21] hover:bg-[#e9edef] disabled:opacity-50">
                     <Sparkles className="h-3 w-3 text-[#f0c040]" />
                     {aiBusy === "qual" ? "Qualificando..." : "Qualificar + Proposta"}
                   </button>
@@ -1555,7 +1555,7 @@ function InboxPage() {
                 {/* Resultados */}
                 <div className="px-4 py-3 space-y-3">
                   {aiSentiment && (
-                    <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                    <div className="rounded-lg p-3 border border-[#e9edef] bg-[#f9fafb]">
                       <div className="flex items-center gap-2 mb-1">
                         <SmileIcon className="h-3.5 w-3.5 text-[#25d366]" />
                         <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Sentimento</span>
@@ -1575,7 +1575,7 @@ function InboxPage() {
                   )}
 
                   {aiSummary && (
-                    <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                    <div className="rounded-lg p-3 border border-[#e9edef] bg-[#f9fafb]">
                       <div className="flex items-center gap-2 mb-1.5">
                         <ScrollText className="h-3.5 w-3.5 text-[#53bdeb]" />
                         <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Resumo</span>
@@ -1585,7 +1585,7 @@ function InboxPage() {
                   )}
 
                   {aiTasks.length > 0 && (
-                    <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                    <div className="rounded-lg p-3 border border-[#e9edef] bg-[#f9fafb]">
                       <div className="flex items-center gap-2 mb-2">
                         <ListChecks className="h-3.5 w-3.5 text-[#f0c040]" />
                         <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Tarefas identificadas</span>
@@ -1605,7 +1605,7 @@ function InboxPage() {
                   )}
 
                   {/* Busca semântica */}
-                  <div className="rounded-lg p-3 border border-[#2a3942]" style={{ background: "#0f1a20" }}>
+                  <div className="rounded-lg p-3 border border-[#e9edef] bg-[#f9fafb]">
                     <div className="flex items-center gap-2 mb-2">
                       <Search className="h-3.5 w-3.5 text-[#aebac1]" />
                       <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Busca inteligente</span>
@@ -1614,9 +1614,9 @@ function InboxPage() {
                       <input value={aiSearchQ} onChange={e => setAiSearchQ(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && doSearch()}
                         placeholder='ex: "qual o endereço que ele mandou?"'
-                        className="flex-1 bg-[#2a3942] border border-[#3b4a54] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-[#25d366]" />
+                        className="flex-1 bg-[#f0f2f5] border border-[#e9edef] rounded px-2 py-1.5 text-xs text-[#111b21] outline-none focus:border-[#00a884]" />
                       <button onClick={doSearch} disabled={aiBusy !== null || !aiSearchQ.trim()}
-                        className="px-3 py-1.5 rounded text-xs font-medium bg-[#25d366] text-black hover:bg-[#20ba5a] disabled:opacity-50">
+                        className="px-3 py-1.5 rounded text-xs font-medium bg-[#00a884] text-white hover:bg-[#017d63] disabled:opacity-50">
                         {aiBusy === "search" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Buscar"}
                       </button>
                     </div>
@@ -1637,21 +1637,21 @@ function InboxPage() {
 
             {/* Mensagens */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
-              style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }}>
+              style={{ background: "#eae6da", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cpath fill='%23d4c9b0' fill-opacity='0.25' d='M10 20c0-1 .5-2 1.5-2.7L20 11.8V8h2v4.2l9.5 6.5c.7.5 1.5 1.5 1.5 2.8v1H10v-2zm40 0c0-1 .5-2 1.5-2.7L60 11.8V8h2v4.2l8.5 6.5c.7.5 1.5 1.5 1.5 2.8v1H50v-2z'/%3E%3C/svg%3E\")" }}>
               {grouped.length === 0 && (
                 <div className="flex justify-center py-8">
-                  <span className="px-3 py-1.5 rounded-lg text-xs text-[#8696a0]" style={{ background: "rgba(0,0,0,0.3)" }}>Nenhuma mensagem ainda</span>
+                  <span className="px-3 py-1.5 rounded-lg text-xs text-[#54656f]" style={{ background: "#ffffff", boxShadow: "0 1px 0.5px rgba(11,20,26,.13)" }}>Nenhuma mensagem ainda</span>
                 </div>
               )}
               {grouped.map(group => (
                 <div key={group.date}>
                   <div className="flex justify-center my-4">
-                    <span className="px-3 py-1 rounded-lg text-xs text-[#8696a0] font-medium" style={{ background: "#182229" }}>{group.date}</span>
+                    <span className="px-3 py-1 rounded-lg text-xs text-[#54656f] font-medium" style={{ background: "#ffffff", boxShadow: "0 1px 0.5px rgba(11,20,26,.13)" }}>{group.date}</span>
                   </div>
                   {group.messages.map(m => (
                     <div key={m.id} className={cn("flex mb-1", m.direction === "outbound" ? "justify-end" : "justify-start")}>
                       <div className={cn("max-w-[65%] rounded-lg text-sm overflow-hidden", m.direction === "outbound" ? "rounded-tr-none" : "rounded-tl-none")}
-                        style={{ background: m.direction === "outbound" ? "#005c4b" : "#202c33" }}>
+                        style={{ background: m.direction === "outbound" ? "#d9fdd3" : "#ffffff", boxShadow: "0 1px 0.5px rgba(11,20,26,.13)" }}>
 
                         {/* IMAGEM */}
                         {m.media_type === "image" && m.media_url && (
@@ -1742,15 +1742,15 @@ function InboxPage() {
 
                         {/* TEXTO */}
                         {m.content && m.media_type !== "document" && (
-                          <p className="text-white leading-relaxed whitespace-pre-wrap break-words px-3 py-2">{m.content}</p>
+                          <p className="text-[#111b21] leading-relaxed whitespace-pre-wrap break-words px-3 py-2">{m.content}</p>
                         )}
                         {!m.content && !m.media_type && (
-                          <p className="text-white/30 text-xs px-3 py-2 italic">Mensagem</p>
+                          <p className="text-[#667781] text-xs px-3 py-2 italic">Mensagem</p>
                         )}
 
                         {/* Timestamp */}
                         <div className="flex items-center gap-1 justify-end px-2 pb-1.5 -mt-1">
-                          <span className="text-[10px] text-[#8696a0]">{formatMsgTime(m.created_at)}</span>
+                          <span className="text-[10px] text-[#667781]">{formatMsgTime(m.created_at)}</span>
                           {m.direction === "outbound" && (
                             <span title={(m as any).read_at ? "Lido" : (m as any).delivered_at ? "Entregue" : "Enviado"}>
                               {(m as any).read_at
@@ -1771,10 +1771,10 @@ function InboxPage() {
 
             {/* Busca dentro do chat */}
             {showSearchMsg && (
-              <div className="px-4 py-2 flex items-center gap-2 border-b border-[#2a3942]" style={{ background: "#1a262e" }}>
+              <div className="px-4 py-2 flex items-center gap-2 border-b border-[#e9edef] bg-white">
                 <Search className="h-4 w-4 text-[#8696a0] shrink-0" />
                 <input autoFocus
-                  className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none"
+                  className="flex-1 bg-transparent text-sm text-[#111b21] placeholder-[#8696a0] outline-none"
                   placeholder="Buscar nas mensagens..."
                   value={searchMsg} onChange={e => setSearchMsg(e.target.value)} />
                 <button onClick={() => { setShowSearchMsg(false); setSearchMsg(""); }}
@@ -1784,11 +1784,11 @@ function InboxPage() {
 
             {/* Quick Replies */}
             {showQuickReplies && (
-              <div className="border-t border-[#2a3942] px-3 py-2" style={{ background: "#1a262e" }}>
+              <div className="border-t border-[#e9edef] px-3 py-2 bg-white">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[#25d366] text-xs font-medium">⚡ Respostas rápidas</span>
+                  <span className="text-[#00a884] text-xs font-medium">⚡ Respostas rápidas</span>
                   <input
-                    className="flex-1 bg-[#2a3942] rounded px-2 py-1 text-xs text-white placeholder-[#8696a0] outline-none"
+                    className="flex-1 bg-[#f0f2f5] rounded px-2 py-1 text-xs text-[#111b21] placeholder-[#8696a0] outline-none"
                     placeholder="Buscar..." value={quickSearch} onChange={e => setQuickSearch(e.target.value)} autoFocus />
                   <button onClick={() => { setShowQuickReplies(false); setQuickSearch(""); }}
                     className="text-[#8696a0] hover:text-white"><X className="h-4 w-4" /></button>
@@ -1798,9 +1798,9 @@ function InboxPage() {
                     .filter(r => quickSearch === "" || r.shortcut.includes(quickSearch) || r.message.toLowerCase().includes(quickSearch.toLowerCase()))
                     .map(r => (
                       <button key={r.id} onClick={() => insertQuickReply(r.message)}
-                        className="w-full flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-[#2a3942] text-left transition-colors">
-                        <span className="text-[#25d366] text-xs font-mono shrink-0">/{r.shortcut}</span>
-                        <span className="text-white/80 text-xs truncate">{r.message}</span>
+                        className="w-full flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-[#f0f2f5] text-left transition-colors">
+                        <span className="text-[#00a884] text-xs font-mono shrink-0">/{r.shortcut}</span>
+                        <span className="text-[#111b21] text-xs truncate">{r.message}</span>
                       </button>
                     ))}
                   {quickReplies.filter(r => quickSearch === "" || r.shortcut.includes(quickSearch) || r.message.toLowerCase().includes(quickSearch.toLowerCase())).length === 0 && (
@@ -1812,7 +1812,7 @@ function InboxPage() {
 
             {/* Sugestões inteligentes (chips) */}
             {(suggestions.length > 0 || aiBusy === "suggest") && (
-              <div className="px-4 pt-2 pb-1 shrink-0 border-t border-[#2a3942]/50" style={{ background: "#1a262e" }}>
+              <div className="px-4 pt-2 pb-1 shrink-0 border-t border-[#e9edef] bg-white">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Sparkles className="h-3 w-3 text-[#25d366]" />
                   <span className="text-[10px] text-[#8696a0] uppercase tracking-wide">Sugestões</span>
@@ -1829,7 +1829,7 @@ function InboxPage() {
                   {aiBusy === "suggest" && <span className="text-xs text-[#8696a0] flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Gerando...</span>}
                   {suggestions.map((s, i) => (
                     <button key={i} onClick={() => { setText(s); textareaRef.current?.focus(); }}
-                      className="text-xs px-3 py-1.5 rounded-full bg-[#2a3942] hover:bg-[#3b4a54] text-white border border-[#3b4a54] text-left max-w-md">
+                      className="text-xs px-3 py-1.5 rounded-full bg-[#f0f2f5] hover:bg-[#e9edef] text-[#111b21] border border-[#e9edef] text-left max-w-md">
                       {s}
                     </button>
                   ))}
@@ -1838,21 +1838,21 @@ function InboxPage() {
             )}
 
             {/* Input */}
-            <div className="px-4 py-3 flex items-end gap-2 shrink-0" style={{ background: "#202c33" }}>
+            <div className="px-4 py-3 flex items-end gap-2 shrink-0" style={{ background: "#f0f2f5" }}>
               {/* Quick Replies button */}
               <button onClick={() => setShowQuickReplies(!showQuickReplies)}
                 title="Respostas rápidas (⚡)"
-                className={cn("p-2 shrink-0 transition-colors", showQuickReplies ? "text-[#25d366]" : "text-[#aebac1] hover:text-[#25d366]")}>
+                className={cn("p-2 shrink-0 transition-colors", showQuickReplies ? "text-[#00a884]" : "text-[#54656f] hover:text-[#00a884]")}>
                 <Zap className="h-5 w-5" />
               </button>
               <button onClick={() => doSuggest()} disabled={aiBusy !== null}
                 title="Sugerir 3 respostas"
-                className="p-2 text-[#aebac1] hover:text-[#25d366] shrink-0 disabled:opacity-50">
+                className="p-2 text-[#54656f] hover:text-[#00a884] shrink-0 disabled:opacity-50">
                 {aiBusy === "suggest" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
               </button>
-              <div className="flex-1 rounded-lg px-3 py-2 flex flex-col gap-1" style={{ background: "#2a3942" }}>
+              <div className="flex-1 rounded-lg px-3 py-2 flex flex-col gap-1 bg-white">
                 <textarea ref={textareaRef}
-                  className="flex-1 bg-transparent text-sm text-white placeholder-[#8696a0] outline-none resize-none leading-relaxed"
+                  className="flex-1 bg-transparent text-sm text-[#111b21] placeholder-[#8696a0] outline-none resize-none leading-relaxed"
                   style={{ height: "40px", maxHeight: "120px" }}
                   placeholder={active.ai_paused ? "Você está no controle — IA pausada" : "Digite uma mensagem"}
                   value={text} onChange={handleTextChange} onKeyDown={handleKeyDown} rows={1} />
@@ -1862,12 +1862,12 @@ function InboxPage() {
                     <span className="text-[9px] text-[#8696a0] uppercase tracking-wide mr-1">Reescrever:</span>
                     {(["curta", "clara", "profissional", "persuasiva"] as const).map(s => (
                       <button key={s} onClick={() => doRewrite(s)} disabled={aiBusy !== null}
-                        className="text-[10px] px-2 py-0.5 rounded-full bg-[#3b4a54] hover:bg-[#4a5a64] text-[#aebac1] hover:text-white disabled:opacity-50">
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-[#f0f2f5] hover:bg-[#e9edef] text-[#54656f] hover:text-[#111b21] disabled:opacity-50">
                         {aiBusy === "rewrite" ? <Loader2 className="h-2.5 w-2.5 animate-spin inline" /> : <Wand2 className="h-2.5 w-2.5 inline mr-0.5" />} {s}
                       </button>
                     ))}
                     <button onClick={doTranslate} disabled={aiBusy !== null}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-[#3b4a54] hover:bg-[#4a5a64] text-[#aebac1] hover:text-white disabled:opacity-50">
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-[#f0f2f5] hover:bg-[#e9edef] text-[#54656f] hover:text-[#111b21] disabled:opacity-50">
                       {aiBusy === "translate" ? <Loader2 className="h-2.5 w-2.5 animate-spin inline" /> : <Languages className="h-2.5 w-2.5 inline mr-0.5" />} traduzir
                     </button>
                   </div>
@@ -1876,12 +1876,12 @@ function InboxPage() {
 
               {/* Preview do áudio gravado */}
               {recorder.audioBlob && !recorder.recording && (
-                <div className="px-4 py-2 flex items-center gap-3 border-t border-[#2a3942]" style={{ background: "#1a262e" }}>
+                <div className="px-4 py-2 flex items-center gap-3 border-t border-[#e9edef] bg-white">
                   <audio controls src={URL.createObjectURL(recorder.audioBlob)} className="h-8 flex-1" style={{ filter: "invert(0.7)" }} />
                   <button onClick={recorder.cancel} className="text-red-400 hover:text-red-300 p-1"><X className="h-4 w-4" /></button>
                   <button onClick={sendRecordedAudio} disabled={sendingAudio}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-black"
-                    style={{ background: "#25d366" }}>
+                    style={{ background: "#00a884" }}>
                     {sendingAudio ? "Enviando..." : <><Send className="h-3.5 w-3.5" /> Enviar</>}
                   </button>
                 </div>
@@ -1903,7 +1903,7 @@ function InboxPage() {
                 title="Enviar arquivo, foto ou vídeo"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={sendingFile}
-                className="p-2.5 rounded-full flex items-center justify-center shrink-0 hover:bg-[#2a3942] text-[#8696a0] hover:text-white transition-colors disabled:opacity-40">
+                className="p-2.5 rounded-full flex items-center justify-center shrink-0 hover:bg-[#e9edef] text-[#54656f] hover:text-[#111b21] transition-colors disabled:opacity-40">
                 {sendingFile ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
               </button>
 
@@ -1911,7 +1911,7 @@ function InboxPage() {
               <button
                 title="Gerar áudio com IA (ElevenLabs)"
                 onClick={() => { setTtsText(text); setTtsBlob(null); setTtsOpen(true); }}
-                className="p-2.5 rounded-full flex items-center justify-center shrink-0 hover:bg-[#2a3942] text-violet-400">
+                className="p-2.5 rounded-full flex items-center justify-center shrink-0 hover:bg-[#e9edef] text-violet-500">
                 <Sparkles className="h-5 w-5" />
               </button>
               {recorder.recording ? (
@@ -1924,7 +1924,7 @@ function InboxPage() {
                 <button
                   onClick={text.trim() ? handleSend : recorder.start}
                   className="p-2.5 rounded-full flex items-center justify-center shrink-0"
-                  style={{ background: "#25d366" }}>
+                  style={{ background: "#00a884" }}>
                   {text.trim() ? <Send className="h-5 w-5 text-white" /> : <Mic className="h-5 w-5 text-white" />}
                 </button>
               )}
@@ -1937,10 +1937,10 @@ function InboxPage() {
       {/* Modal histórico do contato */}
       {showHistory && active && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowHistory(false)}>
-          <div className="w-96 max-h-[80vh] rounded-2xl border border-[#2a3942] overflow-hidden flex flex-col" style={{ background: "#202c33" }}
+          <div className="w-96 max-h-[80vh] rounded-2xl border border-[#2a3942] overflow-hidden flex flex-col" className="bg-white"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a3942]">
-              <p className="text-white font-medium">Histórico — {active.contact_name || active.phone}</p>
+              <p className="text-[#111b21] font-medium">Histórico — {active.contact_name || active.phone}</p>
               <button onClick={() => setShowHistory(false)} className="text-[#8696a0] hover:text-white"><X className="h-5 w-5" /></button>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -1949,10 +1949,10 @@ function InboxPage() {
               )}
               {historyConvs.map(c => (
                 <button key={c.id} onClick={() => { setActiveId(c.id); setShowHistory(false); }}
-                  className="w-full flex items-start gap-3 px-4 py-3 border-b border-[#2a3942] hover:bg-[#2a3942] text-left transition-colors">
+                  className="w-full flex items-start gap-3 px-4 py-3 border-b border-[#e9edef] hover:bg-[#f5f5f5] text-left transition-colors">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-sm text-white font-medium">
+                      <span className="text-sm text-[#111b21] font-medium">
                         {new Date(c.last_message_at).toLocaleDateString("pt-BR")}
                       </span>
                       <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium",
