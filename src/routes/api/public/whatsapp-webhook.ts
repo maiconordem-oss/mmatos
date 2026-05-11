@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { handleFunnelMessage } from "@/server/funnel-executor.server";
+import { normalizeBRPhone, phoneVariants } from "@/lib/phone";
 
 export const Route = createFileRoute("/api/public/whatsapp-webhook")({
   server: {
