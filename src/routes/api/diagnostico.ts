@@ -172,6 +172,44 @@ export const Route = createFileRoute("/api/diagnostico")({
           });
         }
 
+        // ── 7. Testar estrutura da API DataJud ─────────────────
+        if (acao === "test-datajud-oab") {
+          const { oabNumero, oabEstado } = payload;
+          const API_KEY = process.env.DATAJUD_API_KEY || "cDQHYnYL7geSeKHsJpa2A2GBCvOsfRyAwcF6aJoH";
+
+          // Buscar 1 processo para ver a estrutura do campo representante
+          const resEstrutura = await fetch(
+            "https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search",
+            { method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `APIKey ${API_KEY}` },
+              body: JSON.stringify({ query: { match_all: {} }, size: 1, _source: ["numeroProcesso","representante","advogados"] }) }
+          ).catch(() => null);
+          const estrutura = resEstrutura?.ok ? await resEstrutura.json().catch(() => null) : null;
+          const sampleHit = estrutura?.hits?.hits?.[0]?._source ?? null;
+
+          // Tentar buscar pelo OAB com diferentes variações de campo
+          const queries = [
+            { nome: "representante.oabNumero (match)", body: { query: { match: { "representante.oabNumero": oabNumero } }, size: 3, _source: ["numeroProcesso","representante"] } },
+            { nome: "representante.oabNumero (nested)", body: { query: { nested: { path: "representante", query: { match: { "representante.oabNumero": oabNumero } } } }, size: 3 } },
+            { nome: "advogados.oabNumero", body: { query: { match: { "advogados.oabNumero": oabNumero } }, size: 3 } },
+            { nome: "advogado.numeroOab", body: { query: { match: { "advogado.numeroOab": oabNumero } }, size: 3 } },
+          ];
+
+          const resultados = [];
+          for (const q of queries) {
+            const r = await fetch(
+              "https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search",
+              { method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `APIKey ${API_KEY}` },
+                body: JSON.stringify(q.body) }
+            ).catch(() => null);
+            const d = r?.ok ? await r.json().catch(() => null) : null;
+            resultados.push({ query: q.nome, status: r?.status, total: d?.hits?.total?.value ?? 0, error: d?.error?.reason ?? null });
+          }
+
+          return Response.json({ ok: true, sampleHit, resultados });
+        }
+
         return Response.json({ ok: false, erro: "Ação desconhecida: " + acao });
       },
     },
