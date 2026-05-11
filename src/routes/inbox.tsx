@@ -1101,14 +1101,23 @@ function InboxPage() {
         body: JSON.stringify(body),
       });
 
-      // Salvar mensagem local
-      await supabase.from("messages").insert({
+      // Salvar mensagem no banco com campos corretos
+      const mediaLabel = isImage ? "image" : isVideo ? "video" : isAudio ? "audio" : "document";
+      const { data: newMsg } = await supabase.from("messages").insert({
         conversation_id: active.id,
-        content: `[${isImage ? "Imagem" : isVideo ? "Vídeo" : isAudio ? "Áudio" : "Documento"}: ${file.name}]`,
-        sender_type: "human",
+        content: file.name,
+        direction: "outbound",
         media_url: publicUrl,
-        media_type: isImage ? "image" : isVideo ? "video" : isAudio ? "audio" : "document",
-      });
+        media_type: mediaLabel,
+        media_mime: file.type,
+        status: "sent",
+      }).select().single();
+
+      // Adicionar imediatamente na conversa sem esperar realtime
+      if (newMsg) {
+        setMessages(prev => [...prev, newMsg as Message]);
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+      }
 
       toast.success(`${isImage ? "Imagem" : isVideo ? "Vídeo" : isAudio ? "Áudio" : "Documento"} enviado!`);
     } catch (e: any) {
