@@ -118,6 +118,112 @@ function normalizarMovimentacoes(raw: any): Array<{
   }));
 }
 
+
+// ── Tribunais relevantes por UF para busca por OAB ──────────────
+const TRIBUNAIS_POR_UF: Record<string, string[]> = {
+  AC: ["tjac","trt14","trf1"],  AL: ["tjal","trt19","trf5"],
+  AM: ["tjam","trt11","trf1"],  AP: ["tjap","trt8","trf1"],
+  BA: ["tjba","trt5","trf1"],   CE: ["tjce","trt7","trf5"],
+  DF: ["tjdft","trt10","trf1"], ES: ["tjes","trt17","trf2"],
+  GO: ["tjgo","trt18","trf1"],  MA: ["tjma","trt16","trf1"],
+  MG: ["tjmg","trt3","trf6"],   MS: ["tjms","trt24","trf3"],
+  MT: ["tjmt","trt23","trf1"],  PA: ["tjpa","trt8","trf1"],
+  PB: ["tjpb","trt13","trf5"],  PE: ["tjpe","trt6","trf5"],
+  PI: ["tjpi","trt22","trf1"],  PR: ["tjpr","trt9","trf4"],
+  RJ: ["tjrj","trt1","trf2"],   RN: ["tjrn","trt21","trf5"],
+  RO: ["tjro","trt14","trf1"],  RR: ["tjrr","trt11","trf1"],
+  RS: ["tjrs","trt4","trf4"],   SC: ["tjsc","trt12","trf4"],
+  SE: ["tjse","trt20","trf5"],  SP: ["tjsp","trt2","trf3"],
+  TO: ["tjto","trt10","trf1"],
+};
+
+async function buscarPorOabNoTribunal(
+  oabNumero: string,
+  oabEstado: string,
+  tribunalAlias: string,
+  size = 50
+): Promise<any[]> {
+  const url = `https://api-publica.datajud.cnj.jus.br/api_publica_${tribunalAlias}/_search`;
+  const body = {
+    query: {
+      bool: {
+        should: [
+          { match: { "representante.oabNumero": oabNumero } },
+          { nested: { path: "representante",
+            query: { match: { "representante.oabNumero": oabNumero } } }
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    },
+    _source: ["numeroProcesso","tribunal","classe","assunto","orgaoJulgador","movimentos","dataAjuizamento","grau"],
+    size,
+    sort: [{ "dataAjuizamento": { order: "desc" } }],
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `APIKey ${DATAJUD_API_KEY}` },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000),
+  }).catch(() => null);
+
+  if (!res?.ok) return [];
+  const json = await res.json().catch(() => null);
+  return (json?.hits?.hits ?? []).map((h: any) => ({ ...h._source, _tribunal: tribunalAlias }));
+}
+
+// ── Busca por OAB em múltiplos tribunais ────────────────────────
+export const buscarProcessosPorOAB = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({
+    __token: z.string().optional(),
+    oabNumero: z.string().min(1),
+    oabEstado: z.string().min(2).max(2),
+    tribunais:  z.array(z.string()).optional(), // se vazio, usa todos do estado
+  }).parse)
+  .handler(async ({ data }) => {
+    const { oabNumero, oabEstado, tribunais } = data;
+    const uf = oabEstado.toUpperCase();
+    const lista = tribunais?.length ? tribunais : (TRIBUNAIS_POR_UF[uf] ?? ["tjrs","trt4","trf4"]);
+
+    // Buscar em paralelo (máx 3 por vez para não sobrecarregar)
+    const resultados: any[] = [];
+    const erros: string[] = [];
+
+    for (let i = 0; i < lista.length; i += 3) {
+      const lote = lista.slice(i, i + 3);
+      const res = await Promise.allSettled(
+        lote.map(t => buscarPorOabNoTribunal(oabNumero, uf, t))
+      );
+      res.forEach((r, idx) => {
+        if (r.status === "fulfilled") resultados.push(...r.value);
+        else erros.push(lista[i + idx]);
+      });
+    }
+
+    // Normalizar e desduplicar por numero
+    const vistos = new Set<string>();
+    const processos = resultados
+      .filter(p => {
+        const num = p.numeroProcesso || "";
+        if (vistos.has(num)) return false;
+        vistos.add(num); return true;
+      })
+      .map(p => ({
+        numero: p.numeroProcesso ?? "",
+        tribunal: p._tribunal?.toUpperCase() ?? p.tribunal ?? "",
+        classe: p.classe?.nome ?? p.classe ?? null,
+        assunto: Array.isArray(p.assunto) ? p.assunto[0]?.nome : (p.assunto?.nome ?? p.assunto ?? null),
+        orgaoJulgador: p.orgaoJulgador?.nome ?? p.orgaoJulgador ?? null,
+        dataAjuizamento: p.dataAjuizamento ?? null,
+        grau: p.grau ?? null,
+        totalMovimentos: (p.movimentos ?? []).length,
+      }));
+
+    return { processos, total: processos.length, tribunaisConsultados: lista, erros };
+  });
+
 // ── 1. Consulta ad-hoc (sem salvar) ────────────────────────────────
 export const consultarProcesso = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

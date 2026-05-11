@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
-import { consultarProcesso, cadastrarProcesso, atualizarProcesso, marcarMovsLidas } from "@/server/datajud.functions";
+import { consultarProcesso, cadastrarProcesso, atualizarProcesso, marcarMovsLidas, buscarProcessosPorOAB } from "@/server/datajud.functions";
 import { cn } from "@/lib/utils";
 import {
   Search, Plus, RefreshCw, Trash2, Scale, Clock, Building2,
@@ -226,6 +226,7 @@ function ProcessosPage() {
   const fnCadastrar = useAuthServerFn(cadastrarProcesso);
   const fnAtualizar = useAuthServerFn(atualizarProcesso);
   const fnMarcarLidas = useAuthServerFn(marcarMovsLidas);
+  const fnBuscarOAB   = useAuthServerFn(buscarProcessosPorOAB);
 
   const carregar = useCallback(async () => {
     const { data: procs } = await supabase
@@ -332,6 +333,33 @@ function ProcessosPage() {
     setNotifOpen(true);
   };
 
+  const handleBuscarOAB = async () => {
+    if (!oabNumero.trim()) return;
+    setOabLoading(true); setOabResultados([]); setOabSelecionados(new Set());
+    try {
+      const r = await fnBuscarOAB({ data: { oabNumero: oabNumero.trim(), oabEstado } });
+      setOabResultados(r.processos);
+      if (r.processos.length === 0) toast.info(`Nenhum processo encontrado para OAB ${oabNumero}/${oabEstado}`);
+      else toast.success(`${r.processos.length} processo(s) encontrado(s) em ${r.tribunaisConsultados.length} tribunal(is)`);
+    } catch (e: any) { toast.error(e.message || "Erro na busca"); }
+    finally { setOabLoading(false); }
+  };
+
+  const handleSalvarSelecionados = async () => {
+    if (oabSelecionados.size === 0) return;
+    setOabSalvando(true);
+    let salvos = 0;
+    for (const numero of oabSelecionados) {
+      try {
+        await fnCadastrar({ data: { numero, client_id: null, case_id: null } });
+        salvos++;
+      } catch {}
+    }
+    toast.success(`${salvos} processo(s) adicionado(s) ao monitoramento!`);
+    setOabOpen(false); setOabResultados([]); setOabSelecionados(new Set());
+    setOabSalvando(false); carregar();
+  };
+
   const enviarNotificacao = async () => {
     const processo = processos.find(p => p.id === activeId);
     const cliente = clientes.find(c => c.id === processo?.client_id);
@@ -383,6 +411,9 @@ function ProcessosPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setOabOpen(true)} className="gap-1.5 text-xs h-8 text-violet-600 border-violet-200 hover:bg-violet-50">
+              <Search className="h-3.5 w-3.5" /> Buscar por OAB
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setConsultaRapida(true)} className="gap-1.5 text-xs h-8">
               <Search className="h-3.5 w-3.5" /> Consulta rápida
             </Button>
@@ -542,6 +573,118 @@ function ProcessosPage() {
               {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scale className="h-4 w-4" />}
               {salvando ? "Consultando CNJ..." : "Salvar e monitorar"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal: Busca por OAB ── */}
+      <Dialog open={oabOpen} onOpenChange={v => { setOabOpen(v); if (!v) { setOabResultados([]); setOabSelecionados(new Set()); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-violet-600" />
+              Buscar processos por OAB
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 shrink-0">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground">Número OAB *</Label>
+                <Input className="mt-1 font-mono" value={oabNumero}
+                  onChange={e => setOabNumero(e.target.value.replace(/\D/g, ""))}
+                  placeholder="136221" onKeyDown={e => e.key === "Enter" && handleBuscarOAB()} />
+              </div>
+              <div className="w-24">
+                <Label className="text-xs text-muted-foreground">Estado</Label>
+                <select value={oabEstado} onChange={e => setOabEstado(e.target.value)}
+                  className="mt-1 w-full h-9 rounded-md border border-border bg-background px-2 text-sm outline-none">
+                  {["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"].map(uf => (
+                    <option key={uf} value={uf}>{uf}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <Button onClick={handleBuscarOAB} disabled={oabLoading || !oabNumero.trim()} className="gap-1.5 h-9">
+                  {oabLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  {oabLoading ? "Buscando..." : "Buscar"}
+                </Button>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Consulta os tribunais do estado selecionado (TJ, TRT e TRF). Pode levar alguns segundos.
+            </p>
+          </div>
+
+          {/* Resultados */}
+          {oabResultados.length > 0 && (
+            <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+              <div className="flex items-center justify-between sticky top-0 bg-background py-2">
+                <p className="text-sm font-semibold text-foreground">{oabResultados.length} processo(s) encontrado(s)</p>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setOabSelecionados(new Set(oabResultados.map(p => p.numero)))}
+                    className="text-xs text-primary hover:underline">Selecionar todos</button>
+                  <span className="text-muted-foreground">·</span>
+                  <button onClick={() => setOabSelecionados(new Set())}
+                    className="text-xs text-muted-foreground hover:underline">Limpar</button>
+                </div>
+              </div>
+
+              {oabResultados.map(p => {
+                const sel = oabSelecionados.has(p.numero);
+                const jaMonitorado = processos.some(pm => pm.numero_processo.replace(/\D/g,"") === p.numero.replace(/\D/g,""));
+                return (
+                  <div key={p.numero}
+                    onClick={() => !jaMonitorado && setOabSelecionados(prev => {
+                      const n = new Set(prev);
+                      sel ? n.delete(p.numero) : n.add(p.numero);
+                      return n;
+                    })}
+                    className={cn(
+                      "rounded-xl border p-3 transition-all",
+                      jaMonitorado ? "border-border bg-muted/30 opacity-50 cursor-not-allowed" :
+                      sel ? "border-primary bg-primary/5 cursor-pointer" :
+                      "border-border bg-card hover:border-primary/30 cursor-pointer"
+                    )}>
+                    <div className="flex items-start gap-3">
+                      <div className={cn("h-4 w-4 rounded border mt-0.5 flex items-center justify-center shrink-0 transition-all",
+                        sel ? "bg-primary border-primary" : "border-muted-foreground")}>
+                        {sel && <CheckCircle2 className="h-3 w-3 text-white" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs font-bold text-foreground">{fmtCnj(p.numero)}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{p.tribunal}</span>
+                          {p.grau && <span className="text-[10px] text-muted-foreground">{p.grau}</span>}
+                          {jaMonitorado && <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">já monitorado</span>}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {p.classe || "—"}{p.assunto ? ` · ${p.assunto}` : ""}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
+                          {p.orgaoJulgador && <span>{p.orgaoJulgador}</span>}
+                          {p.dataAjuizamento && <span>Ajuizado: {fmtDataCurta(p.dataAjuizamento)}</span>}
+                          {p.totalMovimentos > 0 && <span>{p.totalMovimentos} mov.</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <DialogFooter className="shrink-0 pt-2 border-t border-border">
+            <div className="flex items-center gap-2 w-full">
+              <span className="text-xs text-muted-foreground flex-1">
+                {oabSelecionados.size > 0 ? `${oabSelecionados.size} selecionado(s)` : "Selecione os processos para monitorar"}
+              </span>
+              <Button variant="outline" onClick={() => setOabOpen(false)}>Fechar</Button>
+              <Button onClick={handleSalvarSelecionados} disabled={oabSelecionados.size === 0 || oabSalvando} className="gap-1.5">
+                {oabSalvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                {oabSalvando ? "Adicionando..." : `Monitorar ${oabSelecionados.size > 0 ? oabSelecionados.size : ""} selecionado(s)`}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
