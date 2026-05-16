@@ -49,18 +49,52 @@ export const qualifierReply = createServerFn({ method: "POST" })
 
     const { data: msgs } = await supabase
       .from("messages")
-      .select("direction, content")
+      .select("direction, content, transcription")
       .eq("conversation_id", data.conversationId)
       .order("created_at")
       .limit(30);
 
     const history = (msgs ?? []).map((m: any) => ({
       role: m.direction === "inbound" ? "user" : "assistant",
-      content: m.content ?? "",
+      content: m.transcription ? `[áudio transcrito] ${m.transcription}` : (m.content ?? ""),
     }));
 
+    // Enriquece com Base de Conhecimento + Memória do cliente
+    const { data: conv } = await supabase
+      .from("conversations").select("client_id").eq("id", data.conversationId).maybeSingle();
+
+    let kbContext = "";
+    const lastUser = [...history].reverse().find(h => h.role === "user")?.content ?? "";
+    if (lastUser) {
+      const { data: kb } = await supabase
+        .from("kb_documents").select("title, content")
+        .eq("user_id", userId).eq("active", true).limit(30);
+      if (kb && kb.length) {
+        const q = lastUser.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const terms = q.split(/\s+/).filter((w: string) => w.length > 3);
+        const ranked = (kb as any[])
+          .map(d => {
+            const t = `${d.title} ${d.content}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const score = terms.reduce((s, term) => s + (t.includes(term) ? 1 : 0), 0);
+            return { d, score };
+          })
+          .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 4);
+        if (ranked.length) {
+          kbContext = "\n\nBase de conhecimento do escritório:\n" +
+            ranked.map(x => `- ${x.d.title}: ${x.d.content}`).join("\n");
+        }
+      }
+    }
+
+    let memoryContext = "";
+    if (conv?.client_id) {
+      const { data: mem } = await supabase
+        .from("client_memory").select("summary").eq("client_id", conv.client_id).maybeSingle();
+      if (mem?.summary) memoryContext = `\n\nO que sabemos deste cliente:\n${mem.summary}`;
+    }
+
     const aiRes = await callAI(model, [
-      { role: "system", content: qualifierPrompt },
+      { role: "system", content: qualifierPrompt + kbContext + memoryContext },
       ...history,
     ]);
 
