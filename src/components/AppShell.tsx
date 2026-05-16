@@ -122,10 +122,12 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
       emoji: "🤖",
       color: "#7c3aed",
       items: [
-        { to: "/construtor", label: "Construtor de Funil", icon: Zap },
-        { to: "/funis",      label: "Meus Funis",         icon: Bot },
-        { to: "/wizard",     label: "Wizard (avançado)",  icon: Wand2 },
-        { to: "/manual",     label: "Manual de Prompts",  icon: BookOpen },
+        { to: "/construtor",   label: "Construtor de Funil", icon: Zap },
+        { to: "/funis",        label: "Meus Funis",         icon: Bot },
+        { to: "/templates",    label: "Respostas Rápidas",  icon: Zap },
+        { to: "/conhecimento", label: "Base de Conhecimento", icon: BookOpenIcon },
+        { to: "/wizard",       label: "Wizard (avançado)",  icon: Wand2 },
+        { to: "/manual",       label: "Manual de Prompts",  icon: BookOpen },
       ],
     },
     {
