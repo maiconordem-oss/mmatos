@@ -36,6 +36,7 @@ import { Route as ApiDebugWebhookRouteImport } from './routes/api/debug-webhook'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
+import { Route as ApiPublicCronScheduledRouteImport } from './routes/api/public/cron-scheduled'
 import { Route as ApiPublicCronDatajudRouteImport } from './routes/api/public/cron-datajud'
 
 const WorkflowsRoute = WorkflowsRouteImport.update({
@@ -174,6 +175,11 @@ const ApiPublicWhatsappWebhookRoute =
     path: '/api/public/whatsapp-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronScheduledRoute = ApiPublicCronScheduledRouteImport.update({
+  id: '/api/public/cron-scheduled',
+  path: '/api/public/cron-scheduled',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronDatajudRoute = ApiPublicCronDatajudRouteImport.update({
   id: '/api/public/cron-datajud',
   path: '/api/public/cron-datajud',
@@ -206,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
+  '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -236,6 +243,7 @@ export interface FileRoutesByTo {
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
+  '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
+  '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/cron-datajud'
+    | '/api/public/cron-scheduled'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/cron-datajud'
+    | '/api/public/cron-scheduled'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -359,6 +370,7 @@ export interface FileRouteTypes {
     | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/cron-datajud'
+    | '/api/public/cron-scheduled'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -389,6 +401,7 @@ export interface RootRouteChildren {
   ApiMediaProxyRoute: typeof ApiMediaProxyRoute
   ApiSimulateRoute: typeof ApiSimulateRoute
   ApiPublicCronDatajudRoute: typeof ApiPublicCronDatajudRoute
+  ApiPublicCronScheduledRoute: typeof ApiPublicCronScheduledRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicWorkflowTickRoute: typeof ApiPublicWorkflowTickRoute
   ApiPublicZapsignWebhookRoute: typeof ApiPublicZapsignWebhookRoute
@@ -585,6 +598,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron-scheduled': {
+      id: '/api/public/cron-scheduled'
+      path: '/api/public/cron-scheduled'
+      fullPath: '/api/public/cron-scheduled'
+      preLoaderRoute: typeof ApiPublicCronScheduledRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron-datajud': {
       id: '/api/public/cron-datajud'
       path: '/api/public/cron-datajud'
@@ -632,6 +652,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMediaProxyRoute: ApiMediaProxyRoute,
   ApiSimulateRoute: ApiSimulateRoute,
   ApiPublicCronDatajudRoute: ApiPublicCronDatajudRoute,
+  ApiPublicCronScheduledRoute: ApiPublicCronScheduledRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicWorkflowTickRoute: ApiPublicWorkflowTickRoute,
   ApiPublicZapsignWebhookRoute: ApiPublicZapsignWebhookRoute,
