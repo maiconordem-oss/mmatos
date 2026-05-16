@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as WizardRouteImport } from './routes/wizard'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
+import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ProcessosRouteImport } from './routes/processos'
 import { Route as ManualRouteImport } from './routes/manual'
@@ -23,6 +24,7 @@ import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ConstrutorRouteImport } from './routes/construtor'
+import { Route as ConhecimentoRouteImport } from './routes/conhecimento'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AgentesRouteImport } from './routes/agentes'
@@ -52,6 +54,11 @@ const WizardRoute = WizardRouteImport.update({
 const WhatsappRoute = WhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RelatoriosRoute = RelatoriosRouteImport.update({
@@ -107,6 +114,11 @@ const ContratosRoute = ContratosRouteImport.update({
 const ConstrutorRoute = ConstrutorRouteImport.update({
   id: '/construtor',
   path: '/construtor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConhecimentoRoute = ConhecimentoRouteImport.update({
+  id: '/conhecimento',
+  path: '/conhecimento',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
@@ -191,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conhecimento': typeof ConhecimentoRoute
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
@@ -202,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/manual': typeof ManualRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
+  '/templates': typeof TemplatesRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
@@ -222,6 +236,7 @@ export interface FileRoutesByTo {
   '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conhecimento': typeof ConhecimentoRoute
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
@@ -233,6 +248,7 @@ export interface FileRoutesByTo {
   '/manual': typeof ManualRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
+  '/templates': typeof TemplatesRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
@@ -254,6 +270,7 @@ export interface FileRoutesById {
   '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conhecimento': typeof ConhecimentoRoute
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
@@ -265,6 +282,7 @@ export interface FileRoutesById {
   '/manual': typeof ManualRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
+  '/templates': typeof TemplatesRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
@@ -287,6 +305,7 @@ export interface FileRouteTypes {
     | '/agentes'
     | '/clientes'
     | '/configuracoes'
+    | '/conhecimento'
     | '/construtor'
     | '/contratos'
     | '/dashboard'
@@ -298,6 +317,7 @@ export interface FileRouteTypes {
     | '/manual'
     | '/processos'
     | '/relatorios'
+    | '/templates'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
@@ -318,6 +338,7 @@ export interface FileRouteTypes {
     | '/agentes'
     | '/clientes'
     | '/configuracoes'
+    | '/conhecimento'
     | '/construtor'
     | '/contratos'
     | '/dashboard'
@@ -329,6 +350,7 @@ export interface FileRouteTypes {
     | '/manual'
     | '/processos'
     | '/relatorios'
+    | '/templates'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
@@ -349,6 +371,7 @@ export interface FileRouteTypes {
     | '/agentes'
     | '/clientes'
     | '/configuracoes'
+    | '/conhecimento'
     | '/construtor'
     | '/contratos'
     | '/dashboard'
@@ -360,6 +383,7 @@ export interface FileRouteTypes {
     | '/manual'
     | '/processos'
     | '/relatorios'
+    | '/templates'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
@@ -381,6 +405,7 @@ export interface RootRouteChildren {
   AgentesRoute: typeof AgentesRoute
   ClientesRoute: typeof ClientesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ConhecimentoRoute: typeof ConhecimentoRoute
   ConstrutorRoute: typeof ConstrutorRoute
   ContratosRoute: typeof ContratosRoute
   DashboardRoute: typeof DashboardRoute
@@ -392,6 +417,7 @@ export interface RootRouteChildren {
   ManualRoute: typeof ManualRoute
   ProcessosRoute: typeof ProcessosRoute
   RelatoriosRoute: typeof RelatoriosRoute
+  TemplatesRoute: typeof TemplatesRoute
   WhatsappRoute: typeof WhatsappRoute
   WizardRoute: typeof WizardRoute
   WorkflowsRoute: typeof WorkflowsRouteWithChildren
@@ -428,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/whatsapp'
       fullPath: '/whatsapp'
       preLoaderRoute: typeof WhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/relatorios': {
@@ -505,6 +538,13 @@ declare module '@tanstack/react-router' {
       path: '/construtor'
       fullPath: '/construtor'
       preLoaderRoute: typeof ConstrutorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conhecimento': {
+      id: '/conhecimento'
+      path: '/conhecimento'
+      fullPath: '/conhecimento'
+      preLoaderRoute: typeof ConhecimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracoes': {
@@ -632,6 +672,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgentesRoute: AgentesRoute,
   ClientesRoute: ClientesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
+  ConhecimentoRoute: ConhecimentoRoute,
   ConstrutorRoute: ConstrutorRoute,
   ContratosRoute: ContratosRoute,
   DashboardRoute: DashboardRoute,
@@ -643,6 +684,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManualRoute: ManualRoute,
   ProcessosRoute: ProcessosRoute,
   RelatoriosRoute: RelatoriosRoute,
+  TemplatesRoute: TemplatesRoute,
   WhatsappRoute: WhatsappRoute,
   WizardRoute: WizardRoute,
   WorkflowsRoute: WorkflowsRouteWithChildren,
@@ -660,3 +702,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
