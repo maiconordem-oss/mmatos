@@ -298,6 +298,39 @@ export type Database = {
         }
         Relationships: []
       }
+      client_memory: {
+        Row: {
+          client_id: string | null
+          conversation_id: string | null
+          created_at: string
+          facts: Json
+          id: string
+          summary: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          facts?: Json
+          id?: string
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          facts?: Json
+          id?: string
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
@@ -418,6 +451,39 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_summaries: {
+        Row: {
+          conversation_id: string
+          generated_at: string
+          id: string
+          legal_area: string | null
+          message_count: number
+          next_step: string | null
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          generated_at?: string
+          id?: string
+          legal_area?: string | null
+          message_count?: number
+          next_step?: string | null
+          summary: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          generated_at?: string
+          id?: string
+          legal_area?: string | null
+          message_count?: number
+          next_step?: string | null
+          summary?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       conversation_tags: {
         Row: {
           color: string
@@ -455,7 +521,9 @@ export type Database = {
           last_message_preview: string | null
           phone: string
           photo_url: string | null
+          priority_flag: string | null
           resolved_at: string | null
+          sentiment: string | null
           status: Database["public"]["Enums"]["conversation_status"]
           tags: string[]
           ticket_status: string
@@ -478,7 +546,9 @@ export type Database = {
           last_message_preview?: string | null
           phone: string
           photo_url?: string | null
+          priority_flag?: string | null
           resolved_at?: string | null
+          sentiment?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
           tags?: string[]
           ticket_status?: string
@@ -501,7 +571,9 @@ export type Database = {
           last_message_preview?: string | null
           phone?: string
           photo_url?: string | null
+          priority_flag?: string | null
           resolved_at?: string | null
+          sentiment?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
           tags?: string[]
           ticket_status?: string
@@ -781,6 +853,33 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_notes: {
+        Row: {
+          author_name: string | null
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string | null
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kanban_stages: {
         Row: {
           color: string
@@ -815,6 +914,39 @@ export type Database = {
           key?: string
           label?: string
           position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      kb_documents: {
+        Row: {
+          active: boolean
+          content: string
+          created_at: string
+          id: string
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          content: string
+          created_at?: string
+          id?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          content?: string
+          created_at?: string
+          id?: string
+          tags?: string[]
+          title?: string
           updated_at?: string
           user_id?: string
         }
@@ -1159,6 +1291,45 @@ export type Database = {
           id?: string
           message?: string
           shortcut?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      scheduled_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          error: string | null
+          id: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

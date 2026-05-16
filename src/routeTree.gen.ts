@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as WizardRouteImport } from './routes/wizard'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
+import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ProcessosRouteImport } from './routes/processos'
 import { Route as ManualRouteImport } from './routes/manual'
@@ -23,6 +24,7 @@ import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ConstrutorRouteImport } from './routes/construtor'
+import { Route as ConhecimentoRouteImport } from './routes/conhecimento'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AgentesRouteImport } from './routes/agentes'
@@ -36,6 +38,7 @@ import { Route as ApiDebugWebhookRouteImport } from './routes/api/debug-webhook'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
+import { Route as ApiPublicCronScheduledRouteImport } from './routes/api/public/cron-scheduled'
 import { Route as ApiPublicCronDatajudRouteImport } from './routes/api/public/cron-datajud'
 
 const WorkflowsRoute = WorkflowsRouteImport.update({
@@ -51,6 +54,11 @@ const WizardRoute = WizardRouteImport.update({
 const WhatsappRoute = WhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RelatoriosRoute = RelatoriosRouteImport.update({
@@ -106,6 +114,11 @@ const ContratosRoute = ContratosRouteImport.update({
 const ConstrutorRoute = ConstrutorRouteImport.update({
   id: '/construtor',
   path: '/construtor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConhecimentoRoute = ConhecimentoRouteImport.update({
+  id: '/conhecimento',
+  path: '/conhecimento',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
@@ -174,6 +187,11 @@ const ApiPublicWhatsappWebhookRoute =
     path: '/api/public/whatsapp-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronScheduledRoute = ApiPublicCronScheduledRouteImport.update({
+  id: '/api/public/cron-scheduled',
+  path: '/api/public/cron-scheduled',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronDatajudRoute = ApiPublicCronDatajudRouteImport.update({
   id: '/api/public/cron-datajud',
   path: '/api/public/cron-datajud',
@@ -185,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conhecimento': typeof ConhecimentoRoute
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
@@ -196,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/manual': typeof ManualRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
+  '/templates': typeof TemplatesRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
@@ -206,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
+  '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -215,6 +236,7 @@ export interface FileRoutesByTo {
   '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conhecimento': typeof ConhecimentoRoute
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
@@ -226,6 +248,7 @@ export interface FileRoutesByTo {
   '/manual': typeof ManualRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
+  '/templates': typeof TemplatesRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
@@ -236,6 +259,7 @@ export interface FileRoutesByTo {
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
+  '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -246,6 +270,7 @@ export interface FileRoutesById {
   '/agentes': typeof AgentesRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conhecimento': typeof ConhecimentoRoute
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
@@ -257,6 +282,7 @@ export interface FileRoutesById {
   '/manual': typeof ManualRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
+  '/templates': typeof TemplatesRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
@@ -267,6 +293,7 @@ export interface FileRoutesById {
   '/api/simulate': typeof ApiSimulateRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
+  '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -278,6 +305,7 @@ export interface FileRouteTypes {
     | '/agentes'
     | '/clientes'
     | '/configuracoes'
+    | '/conhecimento'
     | '/construtor'
     | '/contratos'
     | '/dashboard'
@@ -289,6 +317,7 @@ export interface FileRouteTypes {
     | '/manual'
     | '/processos'
     | '/relatorios'
+    | '/templates'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
@@ -299,6 +328,7 @@ export interface FileRouteTypes {
     | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/cron-datajud'
+    | '/api/public/cron-scheduled'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -308,6 +338,7 @@ export interface FileRouteTypes {
     | '/agentes'
     | '/clientes'
     | '/configuracoes'
+    | '/conhecimento'
     | '/construtor'
     | '/contratos'
     | '/dashboard'
@@ -319,6 +350,7 @@ export interface FileRouteTypes {
     | '/manual'
     | '/processos'
     | '/relatorios'
+    | '/templates'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
@@ -329,6 +361,7 @@ export interface FileRouteTypes {
     | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/cron-datajud'
+    | '/api/public/cron-scheduled'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -338,6 +371,7 @@ export interface FileRouteTypes {
     | '/agentes'
     | '/clientes'
     | '/configuracoes'
+    | '/conhecimento'
     | '/construtor'
     | '/contratos'
     | '/dashboard'
@@ -349,6 +383,7 @@ export interface FileRouteTypes {
     | '/manual'
     | '/processos'
     | '/relatorios'
+    | '/templates'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
@@ -359,6 +394,7 @@ export interface FileRouteTypes {
     | '/api/simulate'
     | '/workflows/$id'
     | '/api/public/cron-datajud'
+    | '/api/public/cron-scheduled'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -369,6 +405,7 @@ export interface RootRouteChildren {
   AgentesRoute: typeof AgentesRoute
   ClientesRoute: typeof ClientesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ConhecimentoRoute: typeof ConhecimentoRoute
   ConstrutorRoute: typeof ConstrutorRoute
   ContratosRoute: typeof ContratosRoute
   DashboardRoute: typeof DashboardRoute
@@ -380,6 +417,7 @@ export interface RootRouteChildren {
   ManualRoute: typeof ManualRoute
   ProcessosRoute: typeof ProcessosRoute
   RelatoriosRoute: typeof RelatoriosRoute
+  TemplatesRoute: typeof TemplatesRoute
   WhatsappRoute: typeof WhatsappRoute
   WizardRoute: typeof WizardRoute
   WorkflowsRoute: typeof WorkflowsRouteWithChildren
@@ -389,6 +427,7 @@ export interface RootRouteChildren {
   ApiMediaProxyRoute: typeof ApiMediaProxyRoute
   ApiSimulateRoute: typeof ApiSimulateRoute
   ApiPublicCronDatajudRoute: typeof ApiPublicCronDatajudRoute
+  ApiPublicCronScheduledRoute: typeof ApiPublicCronScheduledRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicWorkflowTickRoute: typeof ApiPublicWorkflowTickRoute
   ApiPublicZapsignWebhookRoute: typeof ApiPublicZapsignWebhookRoute
@@ -415,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/whatsapp'
       fullPath: '/whatsapp'
       preLoaderRoute: typeof WhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/relatorios': {
@@ -492,6 +538,13 @@ declare module '@tanstack/react-router' {
       path: '/construtor'
       fullPath: '/construtor'
       preLoaderRoute: typeof ConstrutorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conhecimento': {
+      id: '/conhecimento'
+      path: '/conhecimento'
+      fullPath: '/conhecimento'
+      preLoaderRoute: typeof ConhecimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracoes': {
@@ -585,6 +638,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron-scheduled': {
+      id: '/api/public/cron-scheduled'
+      path: '/api/public/cron-scheduled'
+      fullPath: '/api/public/cron-scheduled'
+      preLoaderRoute: typeof ApiPublicCronScheduledRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron-datajud': {
       id: '/api/public/cron-datajud'
       path: '/api/public/cron-datajud'
@@ -612,6 +672,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgentesRoute: AgentesRoute,
   ClientesRoute: ClientesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
+  ConhecimentoRoute: ConhecimentoRoute,
   ConstrutorRoute: ConstrutorRoute,
   ContratosRoute: ContratosRoute,
   DashboardRoute: DashboardRoute,
@@ -623,6 +684,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManualRoute: ManualRoute,
   ProcessosRoute: ProcessosRoute,
   RelatoriosRoute: RelatoriosRoute,
+  TemplatesRoute: TemplatesRoute,
   WhatsappRoute: WhatsappRoute,
   WizardRoute: WizardRoute,
   WorkflowsRoute: WorkflowsRouteWithChildren,
@@ -632,6 +694,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMediaProxyRoute: ApiMediaProxyRoute,
   ApiSimulateRoute: ApiSimulateRoute,
   ApiPublicCronDatajudRoute: ApiPublicCronDatajudRoute,
+  ApiPublicCronScheduledRoute: ApiPublicCronScheduledRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicWorkflowTickRoute: ApiPublicWorkflowTickRoute,
   ApiPublicZapsignWebhookRoute: ApiPublicZapsignWebhookRoute,
