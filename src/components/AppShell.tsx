@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Kanban, MessageSquare, Users, LogOut,
   FileSignature, Smartphone, Bot, BookOpen, Wand2, Settings,
   Zap, ChevronLeft, ChevronRight, BarChart2, ChevronDown,
-  Scale, Stethoscope,
+  Scale, Stethoscope, BookOpen as BookOpenIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
