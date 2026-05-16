@@ -75,7 +75,7 @@ export const qualifierReply = createServerFn({ method: "POST" })
         const ranked = (kb as any[])
           .map(d => {
             const t = `${d.title} ${d.content}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            const score = terms.reduce((s, term) => s + (t.includes(term) ? 1 : 0), 0);
+            const score = terms.reduce((s: number, term: string) => s + (t.includes(term) ? 1 : 0), 0);
             return { d, score };
           })
           .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 4);
