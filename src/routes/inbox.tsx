@@ -1938,7 +1938,7 @@ function InboxPage() {
       {/* Modal histórico do contato */}
       {showHistory && active && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowHistory(false)}>
-          <div className="w-96 max-h-[80vh] rounded-2xl border border-[#2a3942] overflow-hidden flex flex-col" className="bg-white"
+          <div className="w-96 max-h-[80vh] rounded-2xl border border-[#2a3942] overflow-hidden flex flex-col bg-white"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a3942]">
               <p className="text-[#111b21] font-medium">Histórico — {active.contact_name || active.phone}</p>
