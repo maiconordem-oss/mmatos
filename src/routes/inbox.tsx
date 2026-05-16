@@ -1109,6 +1109,7 @@ function InboxPage() {
       // Salvar mensagem no banco com campos corretos
       const mediaLabel = isImage ? "image" : isVideo ? "video" : isAudio ? "audio" : "document";
       const { data: newMsg } = await supabase.from("messages").insert({
+        user_id: user!.id,
         conversation_id: active.id,
         content: file.name,
         direction: "outbound",
