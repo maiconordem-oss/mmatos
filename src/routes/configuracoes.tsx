@@ -11,11 +11,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound, Scale } from "lucide-react";
+import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound, Scale, ShieldAlert, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { checkElevenlabsToken, saveElevenlabsToken, deleteElevenlabsToken } from "@/server/elevenlabs.functions";
+import { listForbiddenWords, addForbiddenWord, deleteForbiddenWord } from "@/server/intelligence.functions";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Lex CRM" }] }),
@@ -33,7 +34,34 @@ const TAG_COLORS = ["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6","#ef4444",
 
 function ConfigPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<"quick"|"tags"|"horario"|"integracoes">("quick");
+  const [tab, setTab] = useState<"quick"|"tags"|"horario"|"ia"|"integracoes">("quick");
+
+  // Forbidden words / IA segurança
+  const listFwFn = useAuthServerFn(listForbiddenWords);
+  const addFwFn = useAuthServerFn(addForbiddenWord);
+  const delFwFn = useAuthServerFn(deleteForbiddenWord);
+  const [fws, setFws] = useState<Array<{ id: string; word: string; severity: string }>>([]);
+  const [newFw, setNewFw] = useState("");
+  const loadFw = useCallback(async () => {
+    try {
+      const r = await listFwFn({ data: {} } as any);
+      setFws(r.items as any);
+    } catch {}
+  }, [listFwFn]);
+  useEffect(() => { if (tab === "ia") loadFw(); }, [tab, loadFw]);
+  const addFw = async () => {
+    const w = newFw.trim();
+    if (w.length < 2) return;
+    try {
+      await addFwFn({ data: { word: w } } as any);
+      setNewFw("");
+      toast.success("Adicionada");
+      loadFw();
+    } catch (e: any) { toast.error(e.message); }
+  };
+  const removeFw = async (id: string) => {
+    try { await delFwFn({ data: { id } } as any); loadFw(); } catch {}
+  };
 
   // ElevenLabs token
   const checkElevenFn  = useAuthServerFn(checkElevenlabsToken);
@@ -164,6 +192,7 @@ function ConfigPage() {
     { id: "quick",       label: "Respostas rápidas", icon: Zap },
     { id: "tags",        label: "Tags",              icon: Tag },
     { id: "horario",     label: "Horário",           icon: Clock },
+    { id: "ia",          label: "IA & Segurança",    icon: Bot },
     { id: "integracoes", label: "Integrações",       icon: KeyRound },
   ] as const;
 
@@ -353,6 +382,50 @@ function ConfigPage() {
                 <Button onClick={saveBH} className="gap-2">
                   <Save className="h-4 w-4" /> Salvar horário
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* IA & SEGURANÇA */}
+          {tab === "ia" && (
+            <div className="space-y-5">
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-red-500" />
+                  <p className="font-medium text-foreground">Palavras proibidas / críticas</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Quando uma destas palavras aparecer na mensagem do cliente, a IA é desligada e a conversa marcada como "Precisa de humano".
+                </p>
+                <div className="flex gap-2">
+                  <Input value={newFw} onChange={(e) => setNewFw(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addFw()}
+                    placeholder="Ex.: processar, procon, denúncia" />
+                  <Button onClick={addFw} disabled={newFw.trim().length < 2}>
+                    <Plus className="h-4 w-4" /> Adicionar
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {fws.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">Palavras padrão (processar, procon, denunciar, justiça...) já são detectadas automaticamente.</p>
+                  )}
+                  {fws.map((f) => (
+                    <span key={f.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-red-500/10 text-red-600 border border-red-500/30">
+                      {f.word}
+                      <button onClick={() => removeFw(f.id)} className="hover:text-red-800"><Trash2 className="h-3 w-3" /></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+                <p className="font-medium text-foreground">Proteções automáticas (ativas)</p>
+                <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-5">
+                  <li>Anti-loop: IA não responde mais de 6 mensagens seguidas sem intervenção humana.</li>
+                  <li>Pedido de humano detectado: frases como "falar com atendente" desligam a IA.</li>
+                  <li>Baixa confiança: respostas vagas marcam a conversa como "Precisa de humano".</li>
+                  <li>Fora do horário comercial: IA pausada e conversa marcada para retorno.</li>
+                </ul>
               </div>
             </div>
           )}

@@ -155,6 +155,10 @@ type Conversation = {
   instance_id: string | null;
   photo_url: string | null;
   blocked: boolean;
+  sentiment?: string | null;
+  priority_flag?: string | null;
+  needs_human?: boolean;
+  follow_up_required?: boolean;
 };
 
 type QuickReply = { id: string; shortcut: string; message: string };
@@ -1329,10 +1333,16 @@ function InboxPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className={cn("flex-1 min-w-0", (c.needs_human || c.priority_flag === "alta") && "pl-2 border-l-2 border-red-500")}>
                   <div className="flex justify-between items-center">
                     <span className="text-[#111b21] font-medium text-sm truncate">{c.contact_name || c.phone}</span>
                     <div className="flex items-center gap-1 shrink-0 ml-2">
+                      {c.needs_human && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-600 font-bold">⚠ HUMANO</span>
+                      )}
+                      {c.follow_up_required && !c.needs_human && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-600 font-bold">RETORNO</span>
+                      )}
                       {/* Badge de status */}
                       {(c.ticket_status ?? "pending") === "pending" && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold">NOVO</span>
