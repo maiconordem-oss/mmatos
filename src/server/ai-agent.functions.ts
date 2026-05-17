@@ -94,12 +94,52 @@ export const qualifierReply = createServerFn({ method: "POST" })
       if (mem?.summary) memoryContext = `\n\nO que sabemos deste cliente:\n${mem.summary}`;
     }
 
-    const aiRes = await callAI(model, [
+    // Última mensagem do usuário para checagem de segurança
+    const lastUserText = [...history].reverse().find((h) => h.role === "user")?.content ?? "";
+    const safety = await checkSafety(userId, data.conversationId, lastUserText);
+    if (safety.block) {
+      await logAIDebug({
+        userId,
+        conversationId: data.conversationId,
+        kind: "blocked",
+        model,
+        prompt: { reason: safety.reason },
+        response: null as any,
+      });
+      return { reply: null, blocked: true, reason: safety.reason };
+    }
+
+    const t0 = Date.now();
+    const messagesForAI = [
       { role: "system", content: qualifierPrompt + kbContext + memoryContext },
       ...history,
-    ]);
+    ];
+    let reply = "Desculpe, não consegui responder agora.";
+    let errorMsg: string | null = null;
+    try {
+      const aiRes = await callAI(model, messagesForAI);
+      reply = aiRes.choices?.[0]?.message?.content ?? reply;
+    } catch (e: any) {
+      errorMsg = e?.message ?? "erro IA";
+    }
+    const latencyMs = Date.now() - t0;
 
-    const reply: string = aiRes.choices?.[0]?.message?.content ?? "Desculpe, não consegui responder agora.";
+    await logAIDebug({
+      userId,
+      conversationId: data.conversationId,
+      kind: "reply",
+      model,
+      prompt: messagesForAI,
+      response: reply,
+      latencyMs,
+      error: errorMsg ?? undefined,
+    });
+
+    if (errorMsg) throw new Error(errorMsg);
+
+    // Detectar baixa confiança / pedido de handoff
+    const replyLow = reply.toLowerCase();
+    const lowConfidence = /\b(não sei|nao sei|não posso|consulte um advogado|encaminhar|equipe entrará|entrar.*contato)\b/.test(replyLow);
 
     // Salvar resposta como mensagem outbound
     await supabase.from("messages").insert({
@@ -114,9 +154,13 @@ export const qualifierReply = createServerFn({ method: "POST" })
       last_message_at: new Date().toISOString(),
       last_message_preview: reply.slice(0, 80),
       ai_handled: true,
+      ...(lowConfidence ? { needs_human: true } : {}),
     }).eq("id", data.conversationId);
 
-    return { reply };
+    // Incrementa contador anti-loop
+    await incrementAICounter(data.conversationId);
+
+    return { reply, lowConfidence };
   });
 
 /** Extrai dados estruturados da conversa para qualificar o lead */
