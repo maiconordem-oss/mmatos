@@ -155,6 +155,10 @@ type Conversation = {
   instance_id: string | null;
   photo_url: string | null;
   blocked: boolean;
+  sentiment?: string | null;
+  priority_flag?: string | null;
+  needs_human?: boolean;
+  follow_up_required?: boolean;
 };
 
 type QuickReply = { id: string; shortcut: string; message: string };
