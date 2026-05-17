@@ -34,7 +34,34 @@ const TAG_COLORS = ["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6","#ef4444",
 
 function ConfigPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<"quick"|"tags"|"horario"|"integracoes">("quick");
+  const [tab, setTab] = useState<"quick"|"tags"|"horario"|"ia"|"integracoes">("quick");
+
+  // Forbidden words / IA segurança
+  const listFwFn = useAuthServerFn(listForbiddenWords);
+  const addFwFn = useAuthServerFn(addForbiddenWord);
+  const delFwFn = useAuthServerFn(deleteForbiddenWord);
+  const [fws, setFws] = useState<Array<{ id: string; word: string; severity: string }>>([]);
+  const [newFw, setNewFw] = useState("");
+  const loadFw = useCallback(async () => {
+    try {
+      const r = await listFwFn({ data: {} } as any);
+      setFws(r.items as any);
+    } catch {}
+  }, [listFwFn]);
+  useEffect(() => { if (tab === "ia") loadFw(); }, [tab, loadFw]);
+  const addFw = async () => {
+    const w = newFw.trim();
+    if (w.length < 2) return;
+    try {
+      await addFwFn({ data: { word: w } } as any);
+      setNewFw("");
+      toast.success("Adicionada");
+      loadFw();
+    } catch (e: any) { toast.error(e.message); }
+  };
+  const removeFw = async (id: string) => {
+    try { await delFwFn({ data: { id } } as any); loadFw(); } catch {}
+  };
 
   // ElevenLabs token
   const checkElevenFn  = useAuthServerFn(checkElevenlabsToken);
