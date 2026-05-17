@@ -259,10 +259,51 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
                 ? `[O cliente enviou uma imagem${imageMsg?.caption ? `: "${imageMsg.caption}"` : ""}. Confirme o recebimento e continue o fluxo.]`
                 : `[O cliente enviou um documento${documentMsg?.fileName ? ` (${documentMsg.fileName})` : ""}. Confirme o recebimento e continue o fluxo.]`;
 
+          // ── Sentimento automático (fire-and-forget) ────────
+          const sentimentText = hasText ? text : (audioTranscription ?? "");
+          if (sentimentText) {
+            classifyAndPersistSentiment(conv.id, inst.user_id, sentimentText).catch(() => {});
+          }
+
+          // ── Horário comercial — fora do horário marca follow-up
+          const bh = await checkBusinessHours(inst.user_id);
+          if (!bh.insideHours) {
+            await supabaseAdmin.from("conversations").update({
+              follow_up_required: true,
+              ai_paused: true,
+            }).eq("id", conv.id);
+            // Enviar mensagem de ausência (apenas 1x por conversa por fora-de-horário)
+            try {
+              const { data: lastOut } = await supabaseAdmin
+                .from("messages")
+                .select("content, created_at")
+                .eq("conversation_id", conv.id)
+                .eq("direction", "outbound")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              const already = lastOut?.content && bh.awayMessage && lastOut.content.includes(bh.awayMessage.slice(0, 30));
+              if (!already && bh.awayMessage) {
+                await supabaseAdmin.from("messages").insert({
+                  user_id: inst.user_id,
+                  conversation_id: conv.id,
+                  direction: "outbound",
+                  content: bh.awayMessage,
+                  status: "sent",
+                });
+              }
+            } catch {}
+            return Response.json({ ok: true, off_hours: true });
+          }
+
           try {
             // Não processar se contato bloqueado
             if ((conv as any).blocked) {
               return Response.json({ ok: true, blocked: true });
+            }
+            // Não processar se IA pausada manualmente / por segurança
+            if ((conv as any).ai_paused) {
+              return Response.json({ ok: true, ai_paused: true });
             }
 
             await handleFunnelMessage(supabaseAdmin, inst.user_id, conv.id, messageForAI, inst.funnel_id ?? null);
