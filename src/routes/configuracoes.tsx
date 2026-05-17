@@ -386,6 +386,50 @@ function ConfigPage() {
             </div>
           )}
 
+          {/* IA & SEGURANÇA */}
+          {tab === "ia" && (
+            <div className="space-y-5">
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-red-500" />
+                  <p className="font-medium text-foreground">Palavras proibidas / críticas</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Quando uma destas palavras aparecer na mensagem do cliente, a IA é desligada e a conversa marcada como "Precisa de humano".
+                </p>
+                <div className="flex gap-2">
+                  <Input value={newFw} onChange={(e) => setNewFw(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addFw()}
+                    placeholder="Ex.: processar, procon, denúncia" />
+                  <Button onClick={addFw} disabled={newFw.trim().length < 2}>
+                    <Plus className="h-4 w-4" /> Adicionar
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {fws.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">Palavras padrão (processar, procon, denunciar, justiça...) já são detectadas automaticamente.</p>
+                  )}
+                  {fws.map((f) => (
+                    <span key={f.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-red-500/10 text-red-600 border border-red-500/30">
+                      {f.word}
+                      <button onClick={() => removeFw(f.id)} className="hover:text-red-800"><Trash2 className="h-3 w-3" /></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+                <p className="font-medium text-foreground">Proteções automáticas (ativas)</p>
+                <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-5">
+                  <li>Anti-loop: IA não responde mais de 6 mensagens seguidas sem intervenção humana.</li>
+                  <li>Pedido de humano detectado: frases como "falar com atendente" desligam a IA.</li>
+                  <li>Baixa confiança: respostas vagas marcam a conversa como "Precisa de humano".</li>
+                  <li>Fora do horário comercial: IA pausada e conversa marcada para retorno.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
           {/* INTEGRAÇÕES */}
           {tab === "integracoes" && (
             <div className="space-y-5">
