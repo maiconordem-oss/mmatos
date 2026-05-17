@@ -50,6 +50,48 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_debug_logs: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          error: string | null
+          estimated_cost: number | null
+          id: string
+          kind: string
+          latency_ms: number | null
+          model: string | null
+          prompt: Json | null
+          response: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          error?: string | null
+          estimated_cost?: number | null
+          id?: string
+          kind?: string
+          latency_ms?: number | null
+          model?: string | null
+          prompt?: Json | null
+          response?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          error?: string | null
+          estimated_cost?: number | null
+          id?: string
+          kind?: string
+          latency_ms?: number | null
+          model?: string | null
+          prompt?: Json | null
+          response?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           client_id: string | null
@@ -508,6 +550,7 @@ export type Database = {
       conversations: {
         Row: {
           accepted_at: string | null
+          ai_consecutive_count: number
           ai_handled: boolean
           ai_paused: boolean
           assigned_to: string | null
@@ -515,10 +558,12 @@ export type Database = {
           client_id: string | null
           contact_name: string | null
           created_at: string
+          follow_up_required: boolean
           id: string
           instance_id: string | null
           last_message_at: string | null
           last_message_preview: string | null
+          needs_human: boolean
           phone: string
           photo_url: string | null
           priority_flag: string | null
@@ -533,6 +578,7 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          ai_consecutive_count?: number
           ai_handled?: boolean
           ai_paused?: boolean
           assigned_to?: string | null
@@ -540,10 +586,12 @@ export type Database = {
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
+          follow_up_required?: boolean
           id?: string
           instance_id?: string | null
           last_message_at?: string | null
           last_message_preview?: string | null
+          needs_human?: boolean
           phone: string
           photo_url?: string | null
           priority_flag?: string | null
@@ -558,6 +606,7 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          ai_consecutive_count?: number
           ai_handled?: boolean
           ai_paused?: boolean
           assigned_to?: string | null
@@ -565,10 +614,12 @@ export type Database = {
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
+          follow_up_required?: boolean
           id?: string
           instance_id?: string | null
           last_message_at?: string | null
           last_message_preview?: string | null
+          needs_human?: boolean
           phone?: string
           photo_url?: string | null
           priority_flag?: string | null
@@ -597,6 +648,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      forbidden_words: {
+        Row: {
+          created_at: string
+          id: string
+          severity: string
+          user_id: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          severity?: string
+          user_id: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          severity?: string
+          user_id?: string
+          word?: string
+        }
+        Relationships: []
       }
       funnel_ab_events: {
         Row: {
@@ -922,8 +997,10 @@ export type Database = {
       kb_documents: {
         Row: {
           active: boolean
+          category: string | null
           content: string
           created_at: string
+          embedding_ready: boolean
           id: string
           tags: string[]
           title: string
@@ -932,8 +1009,10 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          category?: string | null
           content: string
           created_at?: string
+          embedding_ready?: boolean
           id?: string
           tags?: string[]
           title: string
@@ -942,8 +1021,10 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          category?: string | null
           content?: string
           created_at?: string
+          embedding_ready?: boolean
           id?: string
           tags?: string[]
           title?: string
