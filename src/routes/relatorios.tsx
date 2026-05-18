@@ -177,7 +177,13 @@ function RelatoriosPage() {
     { id: "leads",   label: "Onde perdem leads",  icon: TrendingUp },
     { id: "agenda",  label: "Agenda",             icon: Calendar },
     { id: "retencao",label: "Horários de pico",   icon: Clock },
+    { id: "ia",      label: "IA & Atendimento",   icon: Bot },
   ] as const;
+
+  useEffect(() => {
+    if (tab !== "ia") return;
+    fetchAI({ data: { days: period } }).then(r => setAiData(r)).catch(() => setAiData(null));
+  }, [tab, period, fetchAI]);
 
   return (
     <div className="flex flex-col h-full">
