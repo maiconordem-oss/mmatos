@@ -139,6 +139,7 @@ export const qualifierReply = createServerFn({ method: "POST" })
       response: reply,
       latencyMs,
       error: errorMsg ?? undefined,
+      variant,
     });
 
     if (errorMsg) throw new Error(errorMsg);
