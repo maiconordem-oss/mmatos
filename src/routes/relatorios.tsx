@@ -42,7 +42,9 @@ function Tendencia({ v }: { v: number }) {
 
 function RelatoriosPage() {
   const [period, setPeriod]           = useState(30);
-  const [tab, setTab]                 = useState<"funis"|"leads"|"agenda"|"retencao">("funis");
+  const [tab, setTab]                 = useState<"funis"|"leads"|"agenda"|"retencao"|"ia">("funis");
+  const [aiData, setAiData]           = useState<any>(null);
+  const fetchAI                       = useAuthServerFn(aiMetrics);
   const [loading, setLoading]         = useState(true);
 
   // Dados por funil
