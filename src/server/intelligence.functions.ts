@@ -179,9 +179,10 @@ export async function logAIDebug(params: {
   kind?: string;
   model?: string;
   prompt?: any;
-  response?: string;
+  response?: string | null;
   latencyMs?: number;
   error?: string;
+  variant?: string | null;
 }) {
   try {
     await supabaseAdmin.from("ai_debug_logs").insert({
@@ -193,6 +194,7 @@ export async function logAIDebug(params: {
       response: params.response ?? null,
       latency_ms: params.latencyMs ?? null,
       error: params.error ?? null,
+      variant: params.variant ?? null,
     });
   } catch (e) {
     console.error("logAIDebug error:", e);
