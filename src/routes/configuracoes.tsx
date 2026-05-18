@@ -63,6 +63,43 @@ function ConfigPage() {
     try { await delFwFn({ data: { id } } as any); loadFw(); } catch {}
   };
 
+  // A/B prompts (qualifier)
+  const [abLoading, setAbLoading] = useState(false);
+  const [promptA, setPromptA] = useState("");
+  const [promptB, setPromptB] = useState("");
+  const [abEnabled, setAbEnabled] = useState(false);
+  const [abSplit, setAbSplit] = useState(50);
+  const loadAB = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from("ai_agent_settings")
+      .select("qualifier_prompt, qualifier_prompt_b, ab_enabled, ab_split_pct")
+      .eq("user_id", user.id).maybeSingle();
+    if (data) {
+      setPromptA(data.qualifier_prompt ?? "");
+      setPromptB(data.qualifier_prompt_b ?? "");
+      setAbEnabled(!!data.ab_enabled);
+      setAbSplit(data.ab_split_pct ?? 50);
+    }
+  }, [user]);
+  useEffect(() => { if (tab === "ia") loadAB(); }, [tab, loadAB]);
+  const saveAB = async () => {
+    if (!user) return;
+    setAbLoading(true);
+    try {
+      const { error } = await supabase.from("ai_agent_settings").upsert({
+        user_id: user.id,
+        qualifier_prompt: promptA || "Você é um assistente jurídico. Qualifique o lead.",
+        qualifier_prompt_b: promptB || null,
+        ab_enabled: abEnabled,
+        ab_split_pct: abSplit,
+      }, { onConflict: "user_id" });
+      if (error) throw error;
+      toast.success("Prompts salvos");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally { setAbLoading(false); }
+  };
+
   // ElevenLabs token
   const checkElevenFn  = useAuthServerFn(checkElevenlabsToken);
   const saveElevenFn   = useAuthServerFn(saveElevenlabsToken);
