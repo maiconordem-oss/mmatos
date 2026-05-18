@@ -86,13 +86,17 @@ function ConfigPage() {
     if (!user) return;
     setAbLoading(true);
     try {
-      const { error } = await supabase.from("ai_agent_settings").upsert({
-        user_id: user.id,
+      const { data: existing } = await supabase.from("ai_agent_settings")
+        .select("id").eq("user_id", user.id).maybeSingle();
+      const payload = {
         qualifier_prompt: promptA || "Você é um assistente jurídico. Qualifique o lead.",
         qualifier_prompt_b: promptB || null,
         ab_enabled: abEnabled,
         ab_split_pct: abSplit,
-      }, { onConflict: "user_id" });
+      };
+      const { error } = existing
+        ? await supabase.from("ai_agent_settings").update(payload).eq("id", existing.id)
+        : await supabase.from("ai_agent_settings").insert({ user_id: user.id, ...payload });
       if (error) throw error;
       toast.success("Prompts salvos");
     } catch (e: any) {
