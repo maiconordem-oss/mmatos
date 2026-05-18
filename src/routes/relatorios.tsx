@@ -446,6 +446,72 @@ function RelatoriosPage() {
             </>
           )}
 
+          {/* ── IA & ATENDIMENTO ── */}
+          {tab === "ia" && (
+            <>
+              {!aiData && <p className="text-sm text-muted-foreground">Carregando métricas…</p>}
+              {aiData && (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { label: "Conversas no período", value: aiData.totals.conversations, hint: "" },
+                      { label: "% respondidas pela IA", value: aiData.totals.ai_pct + "%", hint: `${aiData.totals.ai_handled} conversas` },
+                      { label: "Precisam de humano", value: aiData.totals.needs_human, hint: "marcadas como handoff" },
+                      { label: "Retornos pendentes", value: aiData.totals.follow_ups, hint: "fora do horário" },
+                    ].map((k) => (
+                      <div key={k.label} className="rounded-xl border border-border bg-card p-4">
+                        <p className="text-[11px] text-muted-foreground">{k.label}</p>
+                        <p className="text-2xl font-bold text-foreground mt-1">{k.value}</p>
+                        {k.hint && <p className="text-[10px] text-muted-foreground mt-0.5">{k.hint}</p>}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="rounded-xl border border-border bg-card p-5">
+                      <p className="font-semibold text-foreground mb-1">Tempo de 1ª resposta</p>
+                      <p className="text-xs text-muted-foreground mb-3">Da chegada da mensagem até a primeira resposta enviada</p>
+                      <div className="space-y-1.5 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Média</span><strong>{fmtMs(aiData.response.avg_ms)}</strong></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Mediana</span><strong>{fmtMs(aiData.response.median_ms)}</strong></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Amostra</span><strong>{aiData.response.sample} conversas</strong></div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-card p-5">
+                      <p className="font-semibold text-foreground mb-1">Saúde do agente IA</p>
+                      <p className="text-xs text-muted-foreground mb-3">Logs de chamadas ao modelo no período</p>
+                      <div className="space-y-1.5 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Respostas geradas</span><strong>{aiData.ai.replies}</strong></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Erros</span><strong className={aiData.ai.errors ? "text-red-600" : ""}>{aiData.ai.errors}</strong></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Latência média</span><strong>{aiData.ai.avg_latency_ms} ms</strong></div>
+                        {(aiData.ai.variant_a + aiData.ai.variant_b) > 0 && (
+                          <div className="flex justify-between"><span className="text-muted-foreground">A/B (A · B)</span><strong>{aiData.ai.variant_a} · {aiData.ai.variant_b}</strong></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-card p-5">
+                    <p className="font-semibold text-foreground mb-3">Sentimento das conversas</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(aiData.sentiment as Record<string, number>).map(([s, n]) => (
+                        <div key={s} className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-medium border",
+                          s === "negativo" || s === "urgente" ? "border-red-300 bg-red-50 text-red-700"
+                            : s === "positivo" ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                            : "border-border bg-muted/40 text-muted-foreground"
+                        )}>
+                          {s}: {n}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
         </div>
       </div>
     </div>
