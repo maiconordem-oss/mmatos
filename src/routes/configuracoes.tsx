@@ -63,6 +63,47 @@ function ConfigPage() {
     try { await delFwFn({ data: { id } } as any); loadFw(); } catch {}
   };
 
+  // A/B prompts (qualifier)
+  const [abLoading, setAbLoading] = useState(false);
+  const [promptA, setPromptA] = useState("");
+  const [promptB, setPromptB] = useState("");
+  const [abEnabled, setAbEnabled] = useState(false);
+  const [abSplit, setAbSplit] = useState(50);
+  const loadAB = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from("ai_agent_settings")
+      .select("qualifier_prompt, qualifier_prompt_b, ab_enabled, ab_split_pct")
+      .eq("user_id", user.id).maybeSingle();
+    if (data) {
+      setPromptA(data.qualifier_prompt ?? "");
+      setPromptB(data.qualifier_prompt_b ?? "");
+      setAbEnabled(!!data.ab_enabled);
+      setAbSplit(data.ab_split_pct ?? 50);
+    }
+  }, [user]);
+  useEffect(() => { if (tab === "ia") loadAB(); }, [tab, loadAB]);
+  const saveAB = async () => {
+    if (!user) return;
+    setAbLoading(true);
+    try {
+      const { data: existing } = await supabase.from("ai_agent_settings")
+        .select("id").eq("user_id", user.id).maybeSingle();
+      const payload = {
+        qualifier_prompt: promptA || "Você é um assistente jurídico. Qualifique o lead.",
+        qualifier_prompt_b: promptB || null,
+        ab_enabled: abEnabled,
+        ab_split_pct: abSplit,
+      };
+      const { error } = existing
+        ? await supabase.from("ai_agent_settings").update(payload).eq("id", existing.id)
+        : await supabase.from("ai_agent_settings").insert({ user_id: user.id, ...payload });
+      if (error) throw error;
+      toast.success("Prompts salvos");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally { setAbLoading(false); }
+  };
+
   // ElevenLabs token
   const checkElevenFn  = useAuthServerFn(checkElevenlabsToken);
   const saveElevenFn   = useAuthServerFn(saveElevenlabsToken);
@@ -416,6 +457,43 @@ function ConfigPage() {
                     </span>
                   ))}
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground flex items-center gap-2">
+                      <Bot className="h-4 w-4 text-primary" /> Prompts do qualificador (A/B)
+                    </p>
+                    <p className="text-xs text-muted-foreground">Quando A/B está ativo, novas respostas alternam entre A e B conforme o split. Veja a performance em Debug IA / Relatórios.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">A/B</span>
+                    <Switch checked={abEnabled} onCheckedChange={setAbEnabled} />
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Prompt A (padrão)</Label>
+                    <Textarea value={promptA} onChange={(e) => setPromptA(e.target.value)} rows={6} className="text-xs font-mono" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Prompt B {abEnabled && <span className="text-primary">(ativo)</span>}</Label>
+                    <Textarea value={promptB} onChange={(e) => setPromptB(e.target.value)} rows={6} className="text-xs font-mono" placeholder="Variante para teste A/B (deixe vazio para desativar)" />
+                  </div>
+                </div>
+                {abEnabled && (
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs whitespace-nowrap">% para B:</Label>
+                    <Input type="number" min={0} max={100} value={abSplit}
+                      onChange={(e) => setAbSplit(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                      className="w-24" />
+                    <span className="text-xs text-muted-foreground">{100 - abSplit}% A · {abSplit}% B</span>
+                  </div>
+                )}
+                <Button onClick={saveAB} disabled={abLoading}>
+                  {abLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar prompts
+                </Button>
               </div>
 
               <div className="rounded-xl border border-border bg-card p-5 space-y-2">

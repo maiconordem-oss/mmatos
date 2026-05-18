@@ -44,8 +44,14 @@ export const qualifierReply = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
 
-    const qualifierPrompt = settings?.qualifier_prompt ??
+    const qualifierPromptA = settings?.qualifier_prompt ??
       "Você é um assistente de um escritório de advocacia. Qualifique o lead descobrindo área jurídica, urgência e descrição do caso. Seja cordial e objetivo.";
+    const qualifierPromptB = settings?.qualifier_prompt_b ?? null;
+    const abEnabled = !!settings?.ab_enabled && !!qualifierPromptB;
+    const abSplit = Math.min(100, Math.max(0, settings?.ab_split_pct ?? 50));
+    const useB = abEnabled && Math.random() * 100 < abSplit;
+    const qualifierPrompt = useB ? (qualifierPromptB as string) : qualifierPromptA;
+    const variant: string | null = abEnabled ? (useB ? "B" : "A") : null;
     const model = settings?.ai_model ?? "google/gemini-3-flash-preview";
 
     const { data: msgs } = await supabase
@@ -133,6 +139,7 @@ export const qualifierReply = createServerFn({ method: "POST" })
       response: reply,
       latencyMs,
       error: errorMsg ?? undefined,
+      variant,
     });
 
     if (errorMsg) throw new Error(errorMsg);

@@ -16,6 +16,8 @@ export type Database = {
     Tables: {
       ai_agent_settings: {
         Row: {
+          ab_enabled: boolean
+          ab_split_pct: number
           ai_model: string
           auto_send_proposal: boolean
           created_at: string
@@ -23,10 +25,13 @@ export type Database = {
           proposal_prompt: string
           qualifier_enabled: boolean
           qualifier_prompt: string
+          qualifier_prompt_b: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          ab_enabled?: boolean
+          ab_split_pct?: number
           ai_model?: string
           auto_send_proposal?: boolean
           created_at?: string
@@ -34,10 +39,13 @@ export type Database = {
           proposal_prompt?: string
           qualifier_enabled?: boolean
           qualifier_prompt?: string
+          qualifier_prompt_b?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          ab_enabled?: boolean
+          ab_split_pct?: number
           ai_model?: string
           auto_send_proposal?: boolean
           created_at?: string
@@ -45,6 +53,7 @@ export type Database = {
           proposal_prompt?: string
           qualifier_enabled?: boolean
           qualifier_prompt?: string
+          qualifier_prompt_b?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -63,6 +72,7 @@ export type Database = {
           prompt: Json | null
           response: string | null
           user_id: string
+          variant: string | null
         }
         Insert: {
           conversation_id: string
@@ -76,6 +86,7 @@ export type Database = {
           prompt?: Json | null
           response?: string | null
           user_id: string
+          variant?: string | null
         }
         Update: {
           conversation_id?: string
@@ -89,6 +100,7 @@ export type Database = {
           prompt?: Json | null
           response?: string | null
           user_id?: string
+          variant?: string | null
         }
         Relationships: []
       }

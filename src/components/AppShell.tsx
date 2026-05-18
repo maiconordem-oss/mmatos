@@ -139,6 +139,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
         { to: "/contratos",  label: "Contratos",   icon: FileSignature },
         { to: "/processos",  label: "Processos",   icon: Scale },
         { to: "/relatorios", label: "Relatórios",  icon: BarChart2 },
+        { to: "/ia-debug",   label: "Debug IA",    icon: Bot },
       ],
     },
     {

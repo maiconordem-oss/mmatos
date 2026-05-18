@@ -19,6 +19,7 @@ import { Route as ManualRouteImport } from './routes/manual'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
 import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as IaDebugRouteImport } from './routes/ia-debug'
 import { Route as FunisRouteImport } from './routes/funis'
 import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -89,6 +90,11 @@ const KanbanRoute = KanbanRouteImport.update({
 const InboxRoute = InboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IaDebugRoute = IaDebugRouteImport.update({
+  id: '/ia-debug',
+  path: '/ia-debug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FunisRoute = FunisRouteImport.update({
@@ -209,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/funis': typeof FunisRoute
+  '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/funis': typeof FunisRoute
+  '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/funis': typeof FunisRoute
+  '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
@@ -311,6 +320,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/funis'
+    | '/ia-debug'
     | '/inbox'
     | '/kanban'
     | '/login'
@@ -344,6 +354,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/funis'
+    | '/ia-debug'
     | '/inbox'
     | '/kanban'
     | '/login'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/funis'
+    | '/ia-debug'
     | '/inbox'
     | '/kanban'
     | '/login'
@@ -411,6 +423,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   DiagnosticoRoute: typeof DiagnosticoRoute
   FunisRoute: typeof FunisRoute
+  IaDebugRoute: typeof IaDebugRoute
   InboxRoute: typeof InboxRoute
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
@@ -503,6 +516,13 @@ declare module '@tanstack/react-router' {
       path: '/inbox'
       fullPath: '/inbox'
       preLoaderRoute: typeof InboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ia-debug': {
+      id: '/ia-debug'
+      path: '/ia-debug'
+      fullPath: '/ia-debug'
+      preLoaderRoute: typeof IaDebugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/funis': {
@@ -678,6 +698,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DiagnosticoRoute: DiagnosticoRoute,
   FunisRoute: FunisRoute,
+  IaDebugRoute: IaDebugRoute,
   InboxRoute: InboxRoute,
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
