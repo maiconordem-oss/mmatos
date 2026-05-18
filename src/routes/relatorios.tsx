@@ -11,8 +11,10 @@ import {
 import {
   TrendingUp, Clock, FileSignature, Users, Calendar,
   ChevronRight, MessageSquare, Zap, Star, Download,
-  AlertTriangle, ArrowUp, ArrowDown, Minus,
+  AlertTriangle, ArrowUp, ArrowDown, Minus, Bot,
 } from "lucide-react";
+import { useAuthServerFn } from "@/hooks/use-server-fn";
+import { aiMetrics } from "@/server/ai-debug.functions";
 
 export const Route = createFileRoute("/relatorios")({
   head: () => ({ meta: [{ title: "Relatórios — Lex CRM" }] }),
