@@ -459,6 +459,43 @@ function ConfigPage() {
                 </div>
               </div>
 
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground flex items-center gap-2">
+                      <Bot className="h-4 w-4 text-primary" /> Prompts do qualificador (A/B)
+                    </p>
+                    <p className="text-xs text-muted-foreground">Quando A/B está ativo, novas respostas alternam entre A e B conforme o split. Veja a performance em Debug IA / Relatórios.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">A/B</span>
+                    <Switch checked={abEnabled} onCheckedChange={setAbEnabled} />
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Prompt A (padrão)</Label>
+                    <Textarea value={promptA} onChange={(e) => setPromptA(e.target.value)} rows={6} className="text-xs font-mono" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Prompt B {abEnabled && <span className="text-primary">(ativo)</span>}</Label>
+                    <Textarea value={promptB} onChange={(e) => setPromptB(e.target.value)} rows={6} className="text-xs font-mono" placeholder="Variante para teste A/B (deixe vazio para desativar)" />
+                  </div>
+                </div>
+                {abEnabled && (
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs whitespace-nowrap">% para B:</Label>
+                    <Input type="number" min={0} max={100} value={abSplit}
+                      onChange={(e) => setAbSplit(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                      className="w-24" />
+                    <span className="text-xs text-muted-foreground">{100 - abSplit}% A · {abSplit}% B</span>
+                  </div>
+                )}
+                <Button onClick={saveAB} disabled={abLoading}>
+                  {abLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar prompts
+                </Button>
+              </div>
+
               <div className="rounded-xl border border-border bg-card p-5 space-y-2">
                 <p className="font-medium text-foreground">Proteções automáticas (ativas)</p>
                 <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-5">
