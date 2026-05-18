@@ -34,6 +34,13 @@ const PERIOD_OPTIONS = [
   { label: "90 dias", days: 90 },
 ];
 
+function fmtMs(ms: number) {
+  if (!ms) return "—";
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+  if (ms < 3600000) return `${Math.round(ms / 60000)}min`;
+  return `${(ms / 3600000).toFixed(1)}h`;
+}
+
 function Tendencia({ v }: { v: number }) {
   if (v > 0) return <span className="text-emerald-500 text-xs flex items-center gap-0.5"><ArrowUp className="h-3 w-3" />+{v}%</span>;
   if (v < 0) return <span className="text-red-500 text-xs flex items-center gap-0.5"><ArrowDown className="h-3 w-3" />{v}%</span>;
