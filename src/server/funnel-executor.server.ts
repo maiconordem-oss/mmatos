@@ -171,7 +171,8 @@ async function syncCRM(
   convId: string,
   dados: Record<string, any>,
   fase: string,
-  funnelName: string
+  funnelName: string,
+  legalArea?: string | null
 ) {
   try {
     // 1. Upsert cliente
@@ -250,7 +251,7 @@ async function syncCRM(
         client_id:   clientId,
         title:       caseTitle,
         stage:       stage,
-        area:        dados.municipio ? "outro" : "outro",
+        area:        (legalArea as any) ?? "outro",
         priority:    "media",
         description: JSON.stringify(dados, null, 2),
       });
@@ -627,9 +628,17 @@ async function createWhatsAppGroup(
   try {
     const { data: conv } = await admin
       .from("conversations").select("phone, contact_name").eq("id", convId).single();
-    const { data: inst } = await admin
-      .from("whatsapp_instances")
-      .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+
+    // Preferir o número oficial do escritório para criar o grupo
+    let inst: any = null;
+    const { data: officeInst } = await admin.from("whatsapp_instances")
+      .select("*").eq("user_id", userId).eq("is_office", true).eq("status", "connected").limit(1).maybeSingle();
+    inst = officeInst;
+    if (!inst) {
+      const { data: anyInst } = await admin.from("whatsapp_instances")
+        .select("*").eq("user_id", userId).eq("status", "connected").limit(1).maybeSingle();
+      inst = anyInst;
+    }
 
     if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
 
@@ -711,6 +720,47 @@ async function createWhatsAppGroup(
     console.log("Grupo criado:", groupName, groupId);
   } catch (e) {
     console.error("createWhatsAppGroup error:", e);
+  }
+}
+
+// ── Marcar caso como pronto para ajuizamento ──────────────────
+async function markCaseReadyToFile(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  convId: string,
+  funnel: any
+) {
+  const AREA_LABELS: Record<string, string> = {
+    civel: "Cível", trabalhista: "Trabalhista", criminal: "Criminal",
+    tributario: "Tributário", familia: "Família", empresarial: "Empresarial",
+    consumidor: "Consumidor", previdenciario: "Previdenciário", outro: "Outro",
+  };
+  try {
+    const { data: conv } = await admin.from("conversations").select("client_id").eq("id", convId).single();
+    if (!conv?.client_id) return;
+
+    const { data: caso } = await admin.from("cases")
+      .select("id, stage").eq("user_id", userId).eq("client_id", conv.client_id)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (!caso) return;
+
+    const area = funnel.legal_area ?? "outro";
+    const areaLabel = AREA_LABELS[area] ?? "Outro";
+
+    // Avança para em_andamento e atualiza a área jurídica
+    await admin.from("cases").update({
+      stage: "em_andamento",
+      area: area as any,
+    }).eq("id", caso.id);
+
+    // Registra nota para o advogado
+    await admin.from("case_notes").insert({
+      user_id: userId,
+      case_id:  caso.id,
+      content:  `✅ Cliente qualificado e contrato assinado via funil "${funnel.name}" (${areaLabel}).\n\nPróximo passo: ajuizar a ação.`,
+    });
+  } catch (e) {
+    console.error("markCaseReadyToFile error:", e);
   }
 }
 
@@ -1080,7 +1130,7 @@ async function handleFunnelMessageInner(
 
   // 9. Sincronizar CRM
   if (Object.keys(reply.dados_extraidos).length > 0 || reply.nova_fase) {
-    await syncCRM(admin, userId, convId, novosDados, novaFase, funnel.name);
+    await syncCRM(admin, userId, convId, novosDados, novaFase, funnel.name, funnel.legal_area);
   }
 
   // 10. Calcular score do lead baseado nos dados coletados
@@ -1122,13 +1172,14 @@ async function handleFunnelMessageInner(
     await notifyFaseChange(admin, userId, funnel.notify_phone, reply.nova_fase, novosDados, convId, funnel.name);
   }
 
-  // 11. Criar grupo WhatsApp quando chegar na fase de assinatura
+  // 11. Criar grupo WhatsApp e marcar caso pronto para ajuizamento ao chegar na fase de assinatura
   if (
     reply.nova_fase === "assinatura" &&
     state.fase !== "assinatura" &&
     state.fase !== "encerrado"
   ) {
     await createWhatsAppGroup(admin, userId, convId, funnel, novosDados);
+    await markCaseReadyToFile(admin, userId, convId, funnel);
   }
 
   // 12. Notificar quando novo lead entra (primeira mensagem)
