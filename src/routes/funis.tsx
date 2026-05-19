@@ -172,7 +172,6 @@ function FunisPage() {
     return () => { supabase.removeChannel(ch); };
   }, [simConvId]);
 
-  const openNew = () => { setEditing(null); setForm({ ...EMPTY }); setOpen(true); };
   const openEdit = (f: Funil) => {
     setEditing(f);
     // Migrar colunas antigas para medias se necessário
@@ -264,14 +263,14 @@ function FunisPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Configure o atendimento automático via WhatsApp — do primeiro contato ao contrato assinado.</p>
         </div>
-        <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Novo funil</Button>
+        <Button onClick={() => navigate({ to: "/construtor" })} className="gap-2"><Plus className="h-4 w-4" /> Novo funil</Button>
       </header>
 
       {funis.length === 0 && (
         <div className="border-2 border-dashed rounded-xl p-12 text-center text-muted-foreground">
           <Bot className="h-12 w-12 mx-auto mb-4 opacity-30" />
           <p className="font-medium">Nenhum funil configurado</p>
-          <Button onClick={openNew} className="mt-4 gap-2"><Plus className="h-4 w-4" /> Criar funil</Button>
+          <Button onClick={() => navigate({ to: "/construtor" })} className="mt-4 gap-2"><Plus className="h-4 w-4" /> Criar funil</Button>
         </div>
       )}
 

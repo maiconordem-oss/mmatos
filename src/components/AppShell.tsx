@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Kanban, MessageSquare, Users, LogOut,
-  FileSignature, Smartphone, Bot, BookOpen, Wand2, Settings,
+  FileSignature, Smartphone, Bot, BookOpen, Settings,
   Zap, ChevronLeft, ChevronRight, BarChart2, ChevronDown,
   Scale, Stethoscope, BookOpen as BookOpenIcon,
 } from "lucide-react";
@@ -94,7 +94,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     const path = location.pathname;
     if (["/inbox", "/kanban", "/clientes", "/dashboard"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, atendimento: true }));
-    } else if (["/construtor", "/funis", "/wizard", "/manual"].some(p => path.startsWith(p))) {
+    } else if (["/construtor", "/funis", "/manual"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, automacao: true }));
     } else if (["/contratos", "/relatorios"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, juridico: true }));
@@ -126,7 +126,6 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
         { to: "/funis",        label: "Meus Funis",         icon: Bot },
         { to: "/templates",    label: "Respostas Rápidas",  icon: Zap },
         { to: "/conhecimento", label: "Base de Conhecimento", icon: BookOpenIcon },
-        { to: "/wizard",       label: "Wizard (avançado)",  icon: Wand2 },
         { to: "/manual",       label: "Manual de Prompts",  icon: BookOpen },
       ],
     },
