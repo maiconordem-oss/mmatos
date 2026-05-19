@@ -115,9 +115,21 @@
   --gold-foreground: oklch(0.22 0.04 260);
   --destructive: oklch(0.62 0.22 27);
   --destructive-foreground: oklch(0.98 0 0);
+  --success: oklch(0.55 0.18 150);
+  --warning: oklch(0.70 0.17 70);
   --border: oklch(0.30 0.06 260);
   --input: oklch(0.30 0.06 260);
   --ring: oklch(0.78 0.13 85);
+
+  /* Sidebar dark */
+  --sidebar: oklch(0.20 0.04 260);
+  --sidebar-foreground: oklch(0.90 0.01 250);
+  --sidebar-primary: oklch(0.78 0.13 85);
+  --sidebar-primary-foreground: oklch(0.22 0.04 260);
+  --sidebar-accent: oklch(0.27 0.05 260);
+  --sidebar-accent-foreground: oklch(0.90 0.01 250);
+  --sidebar-border: oklch(0.28 0.05 260);
+  --sidebar-ring: oklch(0.78 0.13 85);
 }
 
 @layer base {

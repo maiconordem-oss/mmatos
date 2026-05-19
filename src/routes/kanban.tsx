@@ -49,11 +49,11 @@ function ScoreBar({ score }: { score?: number | null }) {
   if (score == null) return null;
   const color = score >= 80 ? "#22c55e" : score >= 50 ? "#f59e0b" : "#ef4444";
   return (
-    <div className="flex items-center gap-2 mt-1">
-      <div className="flex-1 h-1 rounded-full bg-muted">
+    <div className="flex items-center gap-2 mt-1.5">
+      <div className="flex-1 h-1.5 rounded-full bg-muted">
         <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: color }} />
       </div>
-      <span className="text-[10px] font-mono" style={{ color }}>{score}%</span>
+      <span className="text-[10px] font-mono font-semibold" style={{ color }}>{score}%</span>
     </div>
   );
 }
@@ -70,10 +70,10 @@ function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, onClic
     <div draggable onDragStart={() => onDragStart(card.id)}
       onClick={() => onClick(card)}
       className={cn(
-        "rounded-xl border p-4 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-lg group",
-        isUrgent ? "border-red-500/40 bg-red-500/5 hover:bg-red-500/8" :
-        isStuck  ? "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/8" :
-                   "border-border hover:border-foreground/20",
+        "rounded-xl border p-3.5 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md group bg-card",
+        isUrgent ? "border-red-500/40 bg-red-500/5 hover:bg-red-500/10" :
+        isStuck  ? "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10" :
+                   "border-border hover:border-border/80 hover:shadow-sm",
       )}
 >
 
@@ -85,8 +85,8 @@ function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, onClic
             {(card.client_name || card.title || "?")[0].toUpperCase()}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{card.client_name || "Sem nome"}</p>
-            <p className="text-[10px] text-slate-500 truncate">{card.funnel_name || card.area || ""}</p>
+            <p className="text-sm font-semibold text-foreground truncate">{card.client_name || "Sem nome"}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{card.funnel_name || card.area || ""}</p>
           </div>
         </div>
         {variant && variant !== "a" && (
@@ -99,7 +99,7 @@ function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, onClic
 
       {/* Preview */}
       {card.title && (
-        <p className="text-xs text-slate-500 mt-2 line-clamp-1">{card.title}</p>
+        <p className="text-xs text-muted-foreground mt-2 line-clamp-1">{card.title}</p>
       )}
 
       {/* Footer */}
@@ -218,7 +218,7 @@ function KanbanPage() {
       <Toaster />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/8 shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-3">
           <Layers className="h-5 w-5 text-muted-foreground" />
           <h1 className="text-lg font-bold text-foreground">Kanban</h1>
@@ -247,7 +247,7 @@ function KanbanPage() {
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 rounded-full" style={{ background: stage.color }} />
                     <span className="text-sm font-semibold text-foreground">{stage.label}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/10 text-muted-foreground">{stageCards.length}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">{stageCards.length}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {totalValue > 0 && (
@@ -256,7 +256,7 @@ function KanbanPage() {
                       </span>
                     )}
                     <button onClick={() => { setForm(f => ({ ...f, stage: stage.id })); setOpen(true); }}
-                      className="h-5 w-5 rounded flex items-center justify-center hover:bg-white/10 text-slate-600 hover:text-white transition-colors">
+                      className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                       <Plus className="h-3 w-3" />
                     </button>
                   </div>
@@ -271,7 +271,7 @@ function KanbanPage() {
                       onClick={setSelectedCard} />
                   ))}
                   {stageCards.length === 0 && (
-                    <div className="border-2 border-dashed border-white/5 rounded-xl p-6 text-center text-slate-600 text-xs">
+                    <div className="border-2 border-dashed border-border/50 rounded-xl p-6 text-center text-muted-foreground/50 text-xs">
                       Solte um card aqui
                     </div>
                   )}
@@ -288,49 +288,49 @@ function KanbanPage() {
           <DialogHeader><DialogTitle>Novo lead</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label className="text-slate-400 text-xs">Título *</Label>
-              <Input className="bg-white/5 border-white/10 text-white mt-1" value={form.title}
+              <Label className="text-muted-foreground text-xs">Título *</Label>
+              <Input className="mt-1" value={form.title}
                 onChange={e => setForm({...form, title: e.target.value})} />
             </div>
             <div>
-              <Label className="text-slate-400 text-xs">Cliente *</Label>
+              <Label className="text-muted-foreground text-xs">Cliente *</Label>
               <Select value={form.client_id} onValueChange={v => setForm({...form, client_id: v})}>
-                <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1">
+                <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
-                <SelectContent className="bg-[#1e293b] border-border">
+                <SelectContent>
                   {clients.map(c => (
-                    <SelectItem key={c.id} value={c.id} className="text-white hover:bg-muted">{c.full_name}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-slate-400 text-xs">Coluna</Label>
+                <Label className="text-muted-foreground text-xs">Coluna</Label>
                 <Select value={form.stage} onValueChange={v => setForm({...form, stage: v})}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1">
+                  <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1e293b] border-border">
-                    {STAGES.map(s => <SelectItem key={s.id} value={s.id} className="text-foreground">{s.label}</SelectItem>)}
+                  <SelectContent>
+                    {STAGES.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="text-slate-400 text-xs">Valor (R$)</Label>
-                <Input type="number" className="bg-white/5 border-white/10 text-white mt-1"
+                <Label className="text-muted-foreground text-xs">Valor (R$)</Label>
+                <Input type="number" className="mt-1"
                   value={form.value} onChange={e => setForm({...form, value: e.target.value})} />
               </div>
             </div>
             <div>
-              <Label className="text-slate-400 text-xs">Descrição</Label>
-              <Textarea className="bg-white/5 border-white/10 text-white mt-1" rows={3}
+              <Label className="text-muted-foreground text-xs">Descrição</Label>
+              <Textarea className="mt-1" rows={3}
                 value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} className="border-white/10 text-muted-foreground">Cancelar</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} className="bg-emerald-600 hover:bg-emerald-500 text-white border-0">Criar</Button>
           </DialogFooter>
         </DialogContent>
@@ -340,18 +340,18 @@ function KanbanPage() {
       {selectedCard && (
         <div className="fixed inset-0 z-50 flex" onClick={() => setSelectedCard(null)}>
           <div className="flex-1" />
-          <div className="w-96 h-full border-l border-white/10 bg-card p-6 overflow-y-auto"
+          <div className="w-96 h-full border-l border-border bg-card p-6 overflow-y-auto shadow-xl"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-bold text-foreground">{selectedCard.client_name || "Lead"}</h2>
-              <button onClick={() => setSelectedCard(null)} className="text-slate-500 hover:text-white text-sm">✕</button>
+              <button onClick={() => setSelectedCard(null)} className="text-muted-foreground hover:text-foreground text-sm transition-colors">✕</button>
             </div>
             <div className="space-y-4">
-              <div><p className="text-xs text-slate-500 mb-1">Título</p><p className="text-sm text-foreground">{selectedCard.title}</p></div>
-              <div><p className="text-xs text-slate-500 mb-1">Área</p><p className="text-sm text-white capitalize">{selectedCard.area}</p></div>
-              <div><p className="text-xs text-slate-500 mb-1">Prioridade</p><p className="text-sm text-white capitalize">{selectedCard.priority}</p></div>
-              {selectedCard.value && <div><p className="text-xs text-slate-500 mb-1">Valor</p><p className="text-sm text-emerald-400 font-bold">R$ {Number(selectedCard.value).toLocaleString("pt-BR")}</p></div>}
-              {selectedCard.description && <div><p className="text-xs text-slate-500 mb-1">Descrição</p><p className="text-sm text-slate-300 whitespace-pre-wrap">{selectedCard.description}</p></div>}
+              <div><p className="text-xs text-muted-foreground mb-1">Título</p><p className="text-sm text-foreground">{selectedCard.title}</p></div>
+              <div><p className="text-xs text-muted-foreground mb-1">Área</p><p className="text-sm text-foreground capitalize">{selectedCard.area}</p></div>
+              <div><p className="text-xs text-muted-foreground mb-1">Prioridade</p><p className="text-sm text-foreground capitalize">{selectedCard.priority}</p></div>
+              {selectedCard.value && <div><p className="text-xs text-muted-foreground mb-1">Valor</p><p className="text-sm text-emerald-600 dark:text-emerald-400 font-bold">R$ {Number(selectedCard.value).toLocaleString("pt-BR")}</p></div>}
+              {selectedCard.description && <div><p className="text-xs text-muted-foreground mb-1">Descrição</p><p className="text-sm text-foreground/70 whitespace-pre-wrap">{selectedCard.description}</p></div>}
               <div className="pt-4">
                 <Button onClick={() => { setSelectedCard(null); navigate({ to: "/inbox" }); }}
                   className="w-full gap-2 bg-emerald-600 hover:bg-emerald-500 text-white border-0">

@@ -44,7 +44,7 @@ const STAGE_LABELS: Record<string, string> = {
 function KpiCard({ label, value, sub, trend, icon: Icon, color }: any) {
   const up = trend >= 0;
   return (
-    <div className="rounded-xl border border-white/8 bg-card p-5 flex flex-col gap-3">
+    <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-xs uppercase tracking-widest text-muted-foreground">{label}</span>
         <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
@@ -52,11 +52,11 @@ function KpiCard({ label, value, sub, trend, icon: Icon, color }: any) {
         </div>
       </div>
       <div>
-        <p className="text-3xl font-bold text-white tracking-tight">{value}</p>
-        {sub && <p className="text-xs text-slate-500 mt-0.5">{sub}</p>}
+        <p className="text-3xl font-bold text-foreground tracking-tight">{value}</p>
+        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
       </div>
       {trend !== undefined && (
-        <div className={cn("flex items-center gap-1 text-xs font-medium", up ? "text-emerald-400" : "text-red-400")}>
+        <div className={cn("flex items-center gap-1 text-xs font-medium", up ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400")}>
           {up ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
           {Math.abs(trend)}% vs ontem
         </div>
@@ -178,7 +178,7 @@ function DashboardPage() {
   }, [load]);
 
   const Skeleton = () => (
-    <div className="animate-pulse h-8 rounded bg-white/5 w-16" />
+    <div className="animate-pulse h-8 rounded bg-muted w-16" />
   );
 
   return (
@@ -186,8 +186,8 @@ function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Dashboard</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">
             {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
           </p>
         </div>
@@ -213,7 +213,7 @@ function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Gráfico de área */}
-        <div className="lg:col-span-2 rounded-xl border border-white/8 bg-card p-5">
+        <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-semibold text-foreground">Leads por dia</p>
@@ -238,8 +238,8 @@ function DashboardPage() {
         </div>
 
         {/* Kanban mini */}
-        <div className="rounded-xl border border-white/8 bg-card p-5">
-          <p className="text-sm font-semibold text-white mb-4">Pipeline</p>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-sm font-semibold text-foreground mb-4">Pipeline</p>
           <div className="space-y-3">
             {Object.entries(STAGE_LABELS).map(([stage, label]) => {
               const count = kanban[stage] || 0;
@@ -263,8 +263,8 @@ function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Funil de conversão */}
-        <div className="rounded-xl border border-white/8 bg-card p-5">
-          <p className="text-sm font-semibold text-white mb-4">Funil de conversão</p>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-sm font-semibold text-foreground mb-4">Funil de conversão</p>
           <div className="space-y-2">
             {funil.map(({ fase, count }) => {
               const max   = funil[0]?.count || 1;
@@ -272,12 +272,12 @@ function DashboardPage() {
               const color = FASE_COLORS[fase] || "#64748b";
               return (
                 <div key={fase} className="flex items-center gap-3">
-                  <span className="text-xs text-slate-500 w-20 text-right capitalize shrink-0">{fase}</span>
-                  <div className="flex-1 h-6 rounded-md bg-white/5 relative overflow-hidden">
-                    <div className="h-full rounded-md transition-all" style={{ width: `${pct}%`, background: color + "60" }} />
+                  <span className="text-xs text-muted-foreground w-20 text-right capitalize shrink-0">{fase}</span>
+                  <div className="flex-1 h-6 rounded-md bg-muted/40 relative overflow-hidden">
+                    <div className="h-full rounded-md transition-all" style={{ width: `${pct}%`, background: color + "55" }} />
                     <span className="absolute inset-0 flex items-center px-2 text-xs font-medium text-foreground">{count}</span>
                   </div>
-                  <span className="text-xs text-slate-500 w-10 shrink-0">{pct}%</span>
+                  <span className="text-xs text-muted-foreground w-10 shrink-0">{pct}%</span>
                 </div>
               );
             })}
@@ -285,16 +285,16 @@ function DashboardPage() {
         </div>
 
         {/* Leads quentes */}
-        <div className="rounded-xl border border-white/8 bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              <AlertTriangle className="h-4 w-4 text-amber-500 dark:text-amber-400" />
               <p className="text-sm font-semibold text-foreground">Precisam de atenção</p>
             </div>
             <span className="text-xs text-muted-foreground">parados &gt; 2h</span>
           </div>
           {quentes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/70">
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/60">
               <CheckCircle2 className="h-8 w-8 mb-2" />
               <p className="text-sm">Todos os leads estão em dia!</p>
             </div>
@@ -302,17 +302,17 @@ function DashboardPage() {
             <div className="space-y-2">
               {quentes.map((q, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 group">
-                  <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-400 font-bold text-sm">
+                  <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400 font-bold text-sm">
                     {(q.conv?.contact_name || q.conv?.phone || "?")[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white font-medium truncate">{q.conv?.contact_name || q.conv?.phone}</p>
-                    <p className="text-xs text-amber-400">
+                    <p className="text-sm text-foreground font-medium truncate">{q.conv?.contact_name || q.conv?.phone}</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
                       {q.fase} • parado há {q.horasParado}h
                     </p>
                   </div>
                   <button onClick={() => navigate({ to: "/inbox" })}
-                    className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30">
+                    className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30">
                     <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -323,24 +323,24 @@ function DashboardPage() {
       </div>
 
       {/* Atividade recente */}
-      <div className="rounded-xl border border-white/8 bg-card p-5">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
-          <Zap className="h-4 w-4 text-emerald-400" />
+          <Zap className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
           <p className="text-sm font-semibold text-foreground">Atividade recente</p>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1">
           {atividade.length === 0 && (
-            <p className="text-sm text-slate-600 text-center py-4">Nenhuma atividade ainda.</p>
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhuma atividade ainda.</p>
           )}
           {atividade.map((a, i) => (
-            <div key={i} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
+            <div key={i} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
               <div className="h-2 w-2 rounded-full shrink-0" style={{ background: FASE_COLORS[a.fase] || "#64748b" }} />
-              <p className="text-sm text-slate-300 flex-1">
+              <p className="text-sm text-foreground/70 flex-1">
                 <span className="font-medium text-foreground">{a.nome}</span>
                 {" "}entrou na fase{" "}
                 <span className="font-medium" style={{ color: FASE_COLORS[a.fase] }}>{a.fase}</span>
               </p>
-              <span className="text-xs text-slate-600 shrink-0">
+              <span className="text-xs text-muted-foreground shrink-0">
                 {a.mins < 60 ? `${a.mins}min` : `${Math.round(a.mins/60)}h`} atrás
               </span>
             </div>

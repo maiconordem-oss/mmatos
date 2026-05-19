@@ -184,9 +184,9 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
 
         {/* Status WhatsApp */}
         {!collapsed && (
-          <div className="mx-3 mt-3 px-3 py-1.5 rounded-lg bg-sidebar-accent/60 flex items-center gap-2">
-            <div className={cn("h-1.5 w-1.5 rounded-full shrink-0",
-              badges.waStatus === "connected" ? "bg-green-400 animate-pulse" : "bg-red-400")} />
+          <div className="mx-3 mt-3 px-3 py-1.5 rounded-lg bg-sidebar-accent flex items-center gap-2">
+            <div className={cn("h-1.5 w-1.5 rounded-full shrink-0 flex-none",
+              badges.waStatus === "connected" ? "bg-emerald-500 animate-pulse" : "bg-red-500")} />
             <span className="text-[11px] text-sidebar-foreground/60 truncate">
               {badges.waStatus === "connected"
                 ? `${badges.activeLeads} leads ativos`
