@@ -23,6 +23,8 @@ type AiReply = {
   nova_fase: string | null;
   acao: string | null;
   dados_extraidos: Record<string, any>;
+  botoes?: Array<{ id?: string; titulo?: string; title?: string; label?: string } | string> | null;
+  opcoes?: string[] | null;
 };
 
 type FunnelState = {
@@ -333,6 +335,104 @@ async function sendText(
   }
 }
 
+function normalizeButtons(reply: Pick<AiReply, "botoes" | "opcoes">): Array<{ id: string; title: string }> {
+  const raw = reply.botoes?.length ? reply.botoes : reply.opcoes;
+  if (!raw?.length) return [];
+  return raw
+    .map((b, idx) => {
+      const title = typeof b === "string" ? b : (b.titulo ?? b.title ?? b.label ?? b.id ?? "");
+      const id = typeof b === "string" ? b : (b.id ?? title);
+      return { id: String(id || idx + 1).slice(0, 80), title: String(title || id || idx + 1).slice(0, 20) };
+    })
+    .filter(b => b.title.trim())
+    .slice(0, 3);
+}
+
+async function sendChoiceMessage(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  convId: string,
+  text: string,
+  buttons: Array<{ id: string; title: string }>,
+) {
+  if (!text?.trim() || buttons.length === 0) {
+    await sendText(admin, userId, convId, text);
+    return;
+  }
+
+  const fallbackText = `${text}\n\n${buttons.map((b, i) => `${i + 1} - ${b.title}`).join("\n")}`;
+  const { data: conv } = await admin.from("conversations").select("phone, instance_id").eq("id", convId).single();
+
+  let inst: any = null;
+  if (conv?.instance_id) {
+    const { data } = await admin.from("whatsapp_instances").select("*").eq("id", conv.instance_id).maybeSingle();
+    inst = data;
+  }
+  if (!inst?.api_url || inst?.is_office) {
+    const { data } = await admin.from("whatsapp_instances").select("*")
+      .eq("user_id", userId).eq("status", "connected")
+      .eq("is_office", false)
+      .not("api_url", "is", null)
+      .limit(1).maybeSingle();
+    inst = data;
+  }
+
+  await admin.from("messages").insert({
+    user_id: userId, conversation_id: convId,
+    direction: "outbound", content: fallbackText,
+    status: "sent",
+  });
+  await admin.from("conversations").update({
+    last_message_at:      new Date().toISOString(),
+    last_message_preview: text.slice(0, 80),
+    ai_handled:           true,
+  }).eq("id", convId);
+
+  if (!conv?.phone || conv.phone.startsWith("SIM_") || !inst?.api_url || !inst?.api_key) return;
+
+  const base    = inst.api_url.replace(/\/$/, "");
+  const headers = { "Content-Type": "application/json", apikey: inst.api_key };
+  const number  = conv.phone.replace(/\D/g, "");
+
+  const payloads = [
+    {
+      number,
+      title: text,
+      description: "",
+      footer: "",
+      buttons: buttons.map(b => ({ type: "reply", displayText: b.title, id: b.id })),
+    },
+    {
+      number,
+      text,
+      footer: "",
+      buttons: buttons.map(b => ({ buttonId: b.id, buttonText: { displayText: b.title }, type: 1 })),
+    },
+  ];
+
+  for (const payload of payloads) {
+    try {
+      const res = await fetch(`${base}/message/sendButtons/${inst.instance_name}`, {
+        method: "POST", headers,
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) return;
+      console.error(`Evolution sendButtons [${res.status}]:`, await res.text().catch(() => ""));
+    } catch (e) {
+      console.error("sendButtons network error:", e);
+    }
+  }
+
+  try {
+    await fetch(`${base}/message/sendText/${inst.instance_name}`, {
+      method: "POST", headers,
+      body: JSON.stringify({ number, text: fallbackText, options: { delay: 500 } }),
+    });
+  } catch (e) {
+    console.error("sendChoice fallback sendText error:", e);
+  }
+}
+
 // ── Enviar mídia via Evolution API ─────────────────────────────
 async function sendMedia(
   admin: SupabaseClient<any, any, any>,
@@ -455,7 +555,8 @@ REGRAS CRÍTICAS ANTI-TRAVAMENTO
 4. Colete UM dado por vez. Nunca peça dois campos na mesma mensagem.
 5. Se o lead não respondeu o que você precisava, reformule a pergunta de outro jeito.
 6. Se o lead fizer uma pergunta fora do fluxo, responda brevemente e VOLTE para a próxima pergunta do fluxo.
-7. Responda APENAS com JSON válido no formato especificado. Nenhum texto fora do JSON.`;
+7. Para perguntas objetivas de triagem, você pode retornar "botoes":[{"id":"sim","titulo":"Sim"},{"id":"nao","titulo":"Não"}]. Use no máximo 3 botões curtos.
+8. Responda APENAS com JSON válido no formato: {"texto":"...","midias":[],"texto_pos_midia":null,"nova_fase":null,"acao":null,"dados_extraidos":{},"botoes":null}. Nenhum texto fora do JSON.`;
 
   const messages = [
     { role: "system", content: personaPrompt + "\n\n" + contextBlock },
@@ -502,10 +603,12 @@ REGRAS CRÍTICAS ANTI-TRAVAMENTO
       nova_fase:       p.nova_fase ?? null,
       acao:            p.acao ?? null,
       dados_extraidos: p.dados_extraidos ?? {},
+      botoes:          p.botoes ?? null,
+      opcoes:          p.opcoes ?? null,
     };
   } catch {
     // Se a IA retornou texto puro (não JSON), tratar como texto simples
-    return { texto: raw, midias: [], texto_pos_midia: null, nova_fase: null, acao: null, dados_extraidos: {} };
+    return { texto: raw, midias: [], texto_pos_midia: null, nova_fase: null, acao: null, dados_extraidos: {}, botoes: null, opcoes: null };
   }
 }
 
@@ -1047,6 +1150,7 @@ async function handleFunnelMessageInner(
   //    outras fases → texto primeiro, mídia depois
   const isAbertura = state.fase === "abertura";
   const novasMidias: string[] = [];
+  const replyButtons = normalizeButtons(reply);
 
   if (isAbertura) {
     // Fase abertura: vídeo ANTES do texto de boas-vindas
@@ -1058,12 +1162,14 @@ async function handleFunnelMessageInner(
       }
     }
     if (reply.texto?.trim()) {
-      await sendText(admin, userId, convId, reply.texto);
+      if (replyButtons.length) await sendChoiceMessage(admin, userId, convId, reply.texto, replyButtons);
+      else await sendText(admin, userId, convId, reply.texto);
     }
   } else {
     // Outras fases: texto ANTES das mídias
     if (reply.texto?.trim()) {
-      await sendText(admin, userId, convId, reply.texto);
+      if (replyButtons.length) await sendChoiceMessage(admin, userId, convId, reply.texto, replyButtons);
+      else await sendText(admin, userId, convId, reply.texto);
     }
     for (const key of reply.midias) {
       if (!state.midias_enviadas.includes(key)) {
@@ -1123,7 +1229,7 @@ async function handleFunnelMessageInner(
     historico: [
       ...state.historico,
       { role: "user",      content: userMessage },
-      { role: "assistant", content: reply.texto + (reply.texto_pos_midia ? "\n" + reply.texto_pos_midia : "") },
+      { role: "assistant", content: reply.texto + (replyButtons.length ? `\nOpções: ${replyButtons.map(b => b.title).join(" / ")}` : "") + (reply.texto_pos_midia ? "\n" + reply.texto_pos_midia : "") },
     ].slice(-60),
     updated_at: new Date().toISOString(),
   }).eq("id", state.id);

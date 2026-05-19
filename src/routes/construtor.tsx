@@ -31,6 +31,7 @@ type AcaoTipo = "contrato" | "agendamento" | "handoff" | "criar_grupo" | "nenhum
 type Fase = {
   id: string; label: string; emoji: string; cor: string;
   perguntas: string[];
+  opcoesPergunta?: Record<number, string[]>;
   exclusoes: { condicao: string; motivo: string }[];
   midias: { chave: string; script: string; momento: string }[];
   textoAposMidia: string;
@@ -578,11 +579,45 @@ function FaseConfig({ fase, onChange }: { fase: Fase; onChange: (f: Fase) => voi
             className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="h-3 w-3" />Adicionar</button>
         </div>
         {fase.perguntas.map((p, i) => (
-          <div key={i} className="flex items-center gap-2 mb-2">
-            <span className="text-xs text-muted-foreground w-5 shrink-0 font-mono text-center">{i+1}.</span>
-            <Input value={p} onChange={e => { const a = [...fase.perguntas]; a[i] = e.target.value; patch({ perguntas: a }); }}
-              className="flex-1 text-xs h-8" placeholder="Ex: Qual o nome da criança?" />
-            <button onClick={() => patch({ perguntas: fase.perguntas.filter((_,j) => j !== i) })} className="text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
+          <div key={i} className="mb-2 rounded-xl border border-border p-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-5 shrink-0 font-mono text-center">{i+1}.</span>
+              <Input value={p} onChange={e => { const a = [...fase.perguntas]; a[i] = e.target.value; patch({ perguntas: a }); }}
+                className="flex-1 text-xs h-8" placeholder="Ex: Qual o nome da criança?" />
+              <button onClick={() => {
+                const nextOpts = { ...(fase.opcoesPergunta ?? {}) };
+                delete nextOpts[i];
+                patch({ perguntas: fase.perguntas.filter((_,j) => j !== i), opcoesPergunta: nextOpts });
+              }} className="text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+            <div className="mt-2 pl-7 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase">Respostas rápidas no WhatsApp</p>
+                <button onClick={() => patch({ opcoesPergunta: { ...(fase.opcoesPergunta ?? {}), [i]: [...(fase.opcoesPergunta?.[i] ?? []), ""] } })}
+                  className="text-[10px] text-primary hover:underline flex items-center gap-1"><Plus className="h-3 w-3" />Opção</button>
+              </div>
+              {(fase.opcoesPergunta?.[i] ?? []).map((op, oi) => (
+                <div key={oi} className="flex items-center gap-2">
+                  <Input value={op} onChange={e => {
+                    const opts = [...(fase.opcoesPergunta?.[i] ?? [])];
+                    opts[oi] = e.target.value;
+                    patch({ opcoesPergunta: { ...(fase.opcoesPergunta ?? {}), [i]: opts } });
+                  }} className="text-xs h-7" placeholder={oi === 0 ? "Sim" : oi === 1 ? "Não" : "Outra opção"} />
+                  <button onClick={() => {
+                    const opts = (fase.opcoesPergunta?.[i] ?? []).filter((_, idx) => idx !== oi);
+                    patch({ opcoesPergunta: { ...(fase.opcoesPergunta ?? {}), [i]: opts } });
+                  }} className="text-muted-foreground hover:text-destructive shrink-0"><X className="h-3.5 w-3.5" /></button>
+                </div>
+              ))}
+              {(fase.opcoesPergunta?.[i]?.length ?? 0) === 0 && (
+                <div className="flex gap-1.5">
+                  <button onClick={() => patch({ opcoesPergunta: { ...(fase.opcoesPergunta ?? {}), [i]: ["Sim", "Não"] } })}
+                    className="text-[10px] px-2 py-1 rounded-md bg-muted hover:bg-muted/80">Sim / Não</button>
+                  <button onClick={() => patch({ opcoesPergunta: { ...(fase.opcoesPergunta ?? {}), [i]: ["Tenho tudo", "Tenho parte", "Não tenho"] } })}
+                    className="text-[10px] px-2 py-1 rounded-md bg-muted hover:bg-muted/80">Documentos</button>
+                </div>
+              )}
+            </div>
           </div>
         ))}
         {sugestoes.length > 0 && (
@@ -763,7 +798,7 @@ function ConstrutorPage() {
       setFases(p => p.map(fase => {
         const g = data.fases.find((f: any) => f.id === fase.id);
         if (!g) return fase;
-        return { ...fase, perguntas: g.perguntas ?? [], exclusoes: g.exclusoes ?? [],
+        return { ...fase, perguntas: g.perguntas ?? [], opcoesPergunta: g.opcoesPergunta ?? g.opcoes_pergunta ?? {}, exclusoes: g.exclusoes ?? [],
           midias: g.midias ?? [], textoAposMidia: g.textoAposMidia ?? "",
           acao: g.acao ?? "nenhuma", camposColeta: g.camposColeta ?? [] };
       }));
@@ -779,8 +814,8 @@ function ConstrutorPage() {
         body: JSON.stringify({
           systemPrompt: `Você é especialista em funis de atendimento jurídico via WhatsApp.
 Retorne APENAS JSON válido (sem markdown):
-{"nome":"string","fases":[{"id":"abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado","perguntas":[],"exclusoes":[{"condicao":"","motivo":""}],"midias":[{"chave":"","script":"","momento":""}],"textoAposMidia":"","acao":"nenhuma|contrato|agendamento|criar_grupo|handoff","camposColeta":[]}]}
-REGRAS: video_abertura na abertura, video_conexao na conexão, audio_fechamento no fechamento, video_documentos na assinatura. acao contrato só na coleta. criar_grupo só na assinatura. Inclua todas as 7 fases.`,
+{"nome":"string","fases":[{"id":"abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado","perguntas":[],"opcoesPergunta":{"0":["Sim","Não"]},"exclusoes":[{"condicao":"","motivo":""}],"midias":[{"chave":"","script":"","momento":""}],"textoAposMidia":"","acao":"nenhuma|contrato|agendamento|criar_grupo|handoff","camposColeta":[]}]}
+REGRAS: video_abertura na abertura, video_conexao na conexão, audio_fechamento no fechamento, video_documentos na assinatura. acao contrato só na coleta. criar_grupo só na assinatura. Inclua todas as 7 fases. Use opcoesPergunta nas perguntas objetivas de triagem, com 2 ou 3 opções curtas.`,
           userMsg: `BRIEFING E REGRAS:\n${briefingTexto()}\n\nDESCRICAO LIVRE COMPLEMENTAR:\n${descLivre || "sem complemento"}`,
         }),
       });
@@ -791,7 +826,7 @@ REGRAS: video_abertura na abertura, video_conexao na conexão, audio_fechamento 
         setFases(p => p.map(fase => {
           const g = data.fases.find((f: any) => f.id === fase.id);
           if (!g) return fase;
-          return { ...fase, perguntas: g.perguntas ?? [], exclusoes: g.exclusoes ?? [],
+          return { ...fase, perguntas: g.perguntas ?? [], opcoesPergunta: g.opcoesPergunta ?? g.opcoes_pergunta ?? {}, exclusoes: g.exclusoes ?? [],
             midias: g.midias ?? [], textoAposMidia: g.textoAposMidia ?? "",
             acao: g.acao ?? "nenhuma", camposColeta: g.camposColeta ?? [] };
         }));
@@ -861,8 +896,8 @@ Notas de 0 a 100. Problemas e sugestoes devem ser praticos, curtos e acionaveis.
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           systemPrompt: `Melhore um funil juridico de WhatsApp. Retorne APENAS JSON valido:
-{"nome":"string","descricao":"string","fases":[{"id":"abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado","perguntas":[],"exclusoes":[{"condicao":"","motivo":""}],"midias":[{"chave":"","script":"","momento":""}],"textoAposMidia":"","acao":"nenhuma|contrato|agendamento|criar_grupo|handoff","camposColeta":[]}]}
-Mantenha todas as 7 fases. Corrija riscos juridicos, adicione criterios de exclusao, perguntas melhores, scripts de midia e handoff humano quando necessario. Nao prometa resultado.`,
+{"nome":"string","descricao":"string","fases":[{"id":"abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado","perguntas":[],"opcoesPergunta":{"0":["Sim","Não"]},"exclusoes":[{"condicao":"","motivo":""}],"midias":[{"chave":"","script":"","momento":""}],"textoAposMidia":"","acao":"nenhuma|contrato|agendamento|criar_grupo|handoff","camposColeta":[]}]}
+Mantenha todas as 7 fases. Corrija riscos juridicos, adicione criterios de exclusao, perguntas melhores, scripts de midia e handoff humano quando necessario. Use opcoesPergunta em perguntas objetivas de triagem. Nao prometa resultado.`,
           userMsg: `BRIEFING:\n${briefingTexto()}\n\nANALISE ATUAL:\n${analise || "sem analise"}\n\nFUNIL ATUAL:\n${JSON.stringify(fases)}`,
         }),
       });
@@ -886,7 +921,10 @@ Mantenha todas as 7 fases. Corrija riscos juridicos, adicione criterios de exclu
         const p = [];
         f.midias.forEach(m => p.push(`Enviar ${m.chave}`));
         if (f.textoAposMidia) p.push(`Após: "${f.textoAposMidia}"`);
-        f.perguntas.forEach(q => p.push(`Perguntar: "${q}"`));
+        f.perguntas.forEach((q, i) => {
+          const opcoes = f.opcoesPergunta?.[i]?.filter(Boolean) ?? [];
+          p.push(`Perguntar: "${q}"${opcoes.length ? ` | Respostas rápidas: ${opcoes.join(" / ")}` : ""}`);
+        });
         f.exclusoes.forEach(e => p.push(`Excluir se ${e.condicao}: ${e.motivo}`));
         if (f.camposColeta.length) p.push(`Coletar: ${f.camposColeta.join(", ")}`);
         if (f.acao !== "nenhuma") p.push(`Ação: ${f.acao}`);
@@ -898,6 +936,7 @@ Mantenha todas as 7 fases. Corrija riscos juridicos, adicione criterios de exclu
         body: JSON.stringify({
           systemPrompt: `Crie prompt operacional para agente IA de advocacia WhatsApp.
 REGRA CRÍTICA: campo "texto" SEMPRE termina com pergunta ou call-to-action. Nunca "Entendido." sem continuar.
+Quando fizer uma pergunta com "Respostas rápidas", retorne também "botoes":[{"id":"valor","titulo":"Texto"}] no JSON da resposta. Use no máximo 3 botões curtos. Para perguntas sem opções, use "botoes":null.
 Retorne APENAS o texto do prompt, sem markdown.`,
           userMsg: `Advogado: ${nomeDr}\nFunil: ${nomeFunil}\n${descricao}\n\nBRIEFING E REGRAS:\n${briefingTexto()}\n\nChecklist de qualidade: ${scoreLocal()}%\n\nFluxo:\n${fasesDesc}`,
         }),
