@@ -11,11 +11,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound } from "lucide-react";
+import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound, Scale, ShieldAlert, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { checkElevenlabsToken, saveElevenlabsToken, deleteElevenlabsToken } from "@/server/elevenlabs.functions";
+import { listForbiddenWords, addForbiddenWord, deleteForbiddenWord } from "@/server/intelligence.functions";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Lex CRM" }] }),
@@ -33,7 +34,75 @@ const TAG_COLORS = ["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6","#ef4444",
 
 function ConfigPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<"quick"|"tags"|"horario"|"integracoes">("quick");
+  const [tab, setTab] = useState<"quick"|"tags"|"horario"|"ia"|"integracoes">("quick");
+
+  // Forbidden words / IA segurança
+  const listFwFn = useAuthServerFn(listForbiddenWords);
+  const addFwFn = useAuthServerFn(addForbiddenWord);
+  const delFwFn = useAuthServerFn(deleteForbiddenWord);
+  const [fws, setFws] = useState<Array<{ id: string; word: string; severity: string }>>([]);
+  const [newFw, setNewFw] = useState("");
+  const loadFw = useCallback(async () => {
+    try {
+      const r = await listFwFn({ data: {} } as any);
+      setFws(r.items as any);
+    } catch {}
+  }, [listFwFn]);
+  useEffect(() => { if (tab === "ia") loadFw(); }, [tab, loadFw]);
+  const addFw = async () => {
+    const w = newFw.trim();
+    if (w.length < 2) return;
+    try {
+      await addFwFn({ data: { word: w } } as any);
+      setNewFw("");
+      toast.success("Adicionada");
+      loadFw();
+    } catch (e: any) { toast.error(e.message); }
+  };
+  const removeFw = async (id: string) => {
+    try { await delFwFn({ data: { id } } as any); loadFw(); } catch {}
+  };
+
+  // A/B prompts (qualifier)
+  const [abLoading, setAbLoading] = useState(false);
+  const [promptA, setPromptA] = useState("");
+  const [promptB, setPromptB] = useState("");
+  const [abEnabled, setAbEnabled] = useState(false);
+  const [abSplit, setAbSplit] = useState(50);
+  const loadAB = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from("ai_agent_settings")
+      .select("qualifier_prompt, qualifier_prompt_b, ab_enabled, ab_split_pct")
+      .eq("user_id", user.id).maybeSingle();
+    if (data) {
+      setPromptA(data.qualifier_prompt ?? "");
+      setPromptB(data.qualifier_prompt_b ?? "");
+      setAbEnabled(!!data.ab_enabled);
+      setAbSplit(data.ab_split_pct ?? 50);
+    }
+  }, [user]);
+  useEffect(() => { if (tab === "ia") loadAB(); }, [tab, loadAB]);
+  const saveAB = async () => {
+    if (!user) return;
+    setAbLoading(true);
+    try {
+      const { data: existing } = await supabase.from("ai_agent_settings")
+        .select("id").eq("user_id", user.id).maybeSingle();
+      const payload = {
+        qualifier_prompt: promptA || "Você é um assistente jurídico. Qualifique o lead.",
+        qualifier_prompt_b: promptB || null,
+        ab_enabled: abEnabled,
+        ab_split_pct: abSplit,
+      };
+      const { error } = existing
+        ? await supabase.from("ai_agent_settings").update(payload).eq("id", existing.id)
+        : await supabase.from("ai_agent_settings").insert({ user_id: user.id, ...payload });
+      if (error) throw error;
+      toast.success("Prompts salvos");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally { setAbLoading(false); }
+  };
 
   // ElevenLabs token
   const checkElevenFn  = useAuthServerFn(checkElevenlabsToken);
@@ -47,6 +116,20 @@ function ConfigPage() {
     try { setElevenInfo(await checkElevenFn({ data: {} } as any)); } catch {}
   }, [checkElevenFn]);
   useEffect(() => { loadElevenInfo(); }, [loadElevenInfo]);
+
+  // DataJud API Key
+  const [datajudKey, setDatajudKey]       = useState("");
+  const [datajudSaved, setDatajudSaved]   = useState(false);
+  const [datajudOpen, setDatajudOpen]     = useState(false);
+  const [datajudInput, setDatajudInput]   = useState("");
+  const [savingDatajud, setSavingDatajud] = useState(false);
+  const loadDatajudKey = useCallback(async () => {
+    const { data } = await supabase.from("user_integrations")
+      .select("config").eq("provider", "datajud").maybeSingle();
+    const k = (data?.config as any)?.api_key;
+    if (k) { setDatajudKey(k); setDatajudSaved(true); }
+  }, []);
+  useEffect(() => { loadDatajudKey(); }, [loadDatajudKey]);
 
   // Quick Replies
   const [replies, setReplies]   = useState<any[]>([]);
@@ -150,6 +233,7 @@ function ConfigPage() {
     { id: "quick",       label: "Respostas rápidas", icon: Zap },
     { id: "tags",        label: "Tags",              icon: Tag },
     { id: "horario",     label: "Horário",           icon: Clock },
+    { id: "ia",          label: "IA & Segurança",    icon: Bot },
     { id: "integracoes", label: "Integrações",       icon: KeyRound },
   ] as const;
 
@@ -343,6 +427,87 @@ function ConfigPage() {
             </div>
           )}
 
+          {/* IA & SEGURANÇA */}
+          {tab === "ia" && (
+            <div className="space-y-5">
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-red-500" />
+                  <p className="font-medium text-foreground">Palavras proibidas / críticas</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Quando uma destas palavras aparecer na mensagem do cliente, a IA é desligada e a conversa marcada como "Precisa de humano".
+                </p>
+                <div className="flex gap-2">
+                  <Input value={newFw} onChange={(e) => setNewFw(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addFw()}
+                    placeholder="Ex.: processar, procon, denúncia" />
+                  <Button onClick={addFw} disabled={newFw.trim().length < 2}>
+                    <Plus className="h-4 w-4" /> Adicionar
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {fws.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">Palavras padrão (processar, procon, denunciar, justiça...) já são detectadas automaticamente.</p>
+                  )}
+                  {fws.map((f) => (
+                    <span key={f.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-red-500/10 text-red-600 border border-red-500/30">
+                      {f.word}
+                      <button onClick={() => removeFw(f.id)} className="hover:text-red-800"><Trash2 className="h-3 w-3" /></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground flex items-center gap-2">
+                      <Bot className="h-4 w-4 text-primary" /> Prompts do qualificador (A/B)
+                    </p>
+                    <p className="text-xs text-muted-foreground">Quando A/B está ativo, novas respostas alternam entre A e B conforme o split. Veja a performance em Debug IA / Relatórios.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">A/B</span>
+                    <Switch checked={abEnabled} onCheckedChange={setAbEnabled} />
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Prompt A (padrão)</Label>
+                    <Textarea value={promptA} onChange={(e) => setPromptA(e.target.value)} rows={6} className="text-xs font-mono" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Prompt B {abEnabled && <span className="text-primary">(ativo)</span>}</Label>
+                    <Textarea value={promptB} onChange={(e) => setPromptB(e.target.value)} rows={6} className="text-xs font-mono" placeholder="Variante para teste A/B (deixe vazio para desativar)" />
+                  </div>
+                </div>
+                {abEnabled && (
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs whitespace-nowrap">% para B:</Label>
+                    <Input type="number" min={0} max={100} value={abSplit}
+                      onChange={(e) => setAbSplit(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                      className="w-24" />
+                    <span className="text-xs text-muted-foreground">{100 - abSplit}% A · {abSplit}% B</span>
+                  </div>
+                )}
+                <Button onClick={saveAB} disabled={abLoading}>
+                  {abLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar prompts
+                </Button>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+                <p className="font-medium text-foreground">Proteções automáticas (ativas)</p>
+                <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-5">
+                  <li>Anti-loop: IA não responde mais de 6 mensagens seguidas sem intervenção humana.</li>
+                  <li>Pedido de humano detectado: frases como "falar com atendente" desligam a IA.</li>
+                  <li>Baixa confiança: respostas vagas marcam a conversa como "Precisa de humano".</li>
+                  <li>Fora do horário comercial: IA pausada e conversa marcada para retorno.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
           {/* INTEGRAÇÕES */}
           {tab === "integracoes" && (
             <div className="space-y-5">
@@ -384,6 +549,75 @@ function ConfigPage() {
                   </div>
                 </div>
               </div>
+
+              {/* DataJud */}
+              <div className={cn(
+                "rounded-xl border-l-4 border border-border bg-card p-5",
+                datajudSaved ? "border-l-emerald-500" : "border-l-amber-500"
+              )}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground flex items-center gap-2">
+                      <Scale className="h-4 w-4 text-blue-500" /> DataJud CNJ (busca de processos)
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {datajudSaved
+                        ? `Chave configurada — ${datajudKey.slice(0,8)}...${datajudKey.slice(-4)}`
+                        : "Não configurado. A chave padrão pode ter expirado. Gere uma nova no portal DataJud."}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/70 mt-2">
+                      Acesse <code className="bg-muted px-1 rounded">datajud.cnj.jus.br</code> → Login → Meu Perfil → API Key → Gerar Nova Chave
+                    </p>
+                  </div>
+                  <Button size="sm" variant={datajudSaved ? "outline" : "default"}
+                    onClick={() => { setDatajudInput(datajudKey); setDatajudOpen(true); }}>
+                    {datajudSaved ? "Atualizar" : "Configurar"}
+                  </Button>
+                </div>
+              </div>
+
+              <Dialog open={datajudOpen} onOpenChange={setDatajudOpen}>
+                <DialogContent>
+                  <DialogHeader><DialogTitle className="flex items-center gap-2"><Scale className="h-4 w-4" />API Key DataJud CNJ</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700">
+                      <p className="font-semibold mb-1">Como obter a chave:</p>
+                      <ol className="list-decimal pl-4 space-y-1">
+                        <li>Acesse <strong>datajud.cnj.jus.br</strong> e faça login</li>
+                        <li>Clique em <strong>Meu Perfil</strong></li>
+                        <li>Clique em <strong>API Key</strong></li>
+                        <li>Clique em <strong>Gerar Nova Chave</strong></li>
+                        <li>Copie e cole aqui abaixo</li>
+                      </ol>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Chave DataJud</Label>
+                      <Input className="mt-1 font-mono text-xs" placeholder="cDQH..." value={datajudInput}
+                        onChange={e => setDatajudInput(e.target.value)} autoFocus />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setDatajudOpen(false)}>Cancelar</Button>
+                    <Button disabled={datajudInput.trim().length < 10 || savingDatajud}
+                      onClick={async () => {
+                        setSavingDatajud(true);
+                        try {
+                          await supabase.from("user_integrations").upsert(
+                            { user_id: user?.id!, provider: "datajud", config: { api_key: datajudInput.trim() } },
+                            { onConflict: "user_id,provider" }
+                          );
+                          setDatajudKey(datajudInput.trim());
+                          setDatajudSaved(true);
+                          setDatajudOpen(false);
+                          toast.success("Chave DataJud salva!");
+                        } catch (e: any) { toast.error(e.message); }
+                        finally { setSavingDatajud(false); }
+                      }}>
+                      {savingDatajud ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <Dialog open={elevenOpen} onOpenChange={setElevenOpen}>
                 <DialogContent>

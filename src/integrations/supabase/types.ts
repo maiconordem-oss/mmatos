@@ -16,6 +16,8 @@ export type Database = {
     Tables: {
       ai_agent_settings: {
         Row: {
+          ab_enabled: boolean
+          ab_split_pct: number
           ai_model: string
           auto_send_proposal: boolean
           created_at: string
@@ -23,10 +25,13 @@ export type Database = {
           proposal_prompt: string
           qualifier_enabled: boolean
           qualifier_prompt: string
+          qualifier_prompt_b: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          ab_enabled?: boolean
+          ab_split_pct?: number
           ai_model?: string
           auto_send_proposal?: boolean
           created_at?: string
@@ -34,10 +39,13 @@ export type Database = {
           proposal_prompt?: string
           qualifier_enabled?: boolean
           qualifier_prompt?: string
+          qualifier_prompt_b?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          ab_enabled?: boolean
+          ab_split_pct?: number
           ai_model?: string
           auto_send_proposal?: boolean
           created_at?: string
@@ -45,8 +53,54 @@ export type Database = {
           proposal_prompt?: string
           qualifier_enabled?: boolean
           qualifier_prompt?: string
+          qualifier_prompt_b?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      ai_debug_logs: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          error: string | null
+          estimated_cost: number | null
+          id: string
+          kind: string
+          latency_ms: number | null
+          model: string | null
+          prompt: Json | null
+          response: string | null
+          user_id: string
+          variant: string | null
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          error?: string | null
+          estimated_cost?: number | null
+          id?: string
+          kind?: string
+          latency_ms?: number | null
+          model?: string | null
+          prompt?: Json | null
+          response?: string | null
+          user_id: string
+          variant?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          error?: string | null
+          estimated_cost?: number | null
+          id?: string
+          kind?: string
+          latency_ms?: number | null
+          model?: string | null
+          prompt?: Json | null
+          response?: string | null
+          user_id?: string
+          variant?: string | null
         }
         Relationships: []
       }
@@ -298,6 +352,39 @@ export type Database = {
         }
         Relationships: []
       }
+      client_memory: {
+        Row: {
+          client_id: string | null
+          conversation_id: string | null
+          created_at: string
+          facts: Json
+          id: string
+          summary: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          facts?: Json
+          id?: string
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          facts?: Json
+          id?: string
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
@@ -418,6 +505,39 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_summaries: {
+        Row: {
+          conversation_id: string
+          generated_at: string
+          id: string
+          legal_area: string | null
+          message_count: number
+          next_step: string | null
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          generated_at?: string
+          id?: string
+          legal_area?: string | null
+          message_count?: number
+          next_step?: string | null
+          summary: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          generated_at?: string
+          id?: string
+          legal_area?: string | null
+          message_count?: number
+          next_step?: string | null
+          summary?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       conversation_tags: {
         Row: {
           color: string
@@ -442,6 +562,7 @@ export type Database = {
       conversations: {
         Row: {
           accepted_at: string | null
+          ai_consecutive_count: number
           ai_handled: boolean
           ai_paused: boolean
           assigned_to: string | null
@@ -449,13 +570,17 @@ export type Database = {
           client_id: string | null
           contact_name: string | null
           created_at: string
+          follow_up_required: boolean
           id: string
           instance_id: string | null
           last_message_at: string | null
           last_message_preview: string | null
+          needs_human: boolean
           phone: string
           photo_url: string | null
+          priority_flag: string | null
           resolved_at: string | null
+          sentiment: string | null
           status: Database["public"]["Enums"]["conversation_status"]
           tags: string[]
           ticket_status: string
@@ -465,6 +590,7 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          ai_consecutive_count?: number
           ai_handled?: boolean
           ai_paused?: boolean
           assigned_to?: string | null
@@ -472,13 +598,17 @@ export type Database = {
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
+          follow_up_required?: boolean
           id?: string
           instance_id?: string | null
           last_message_at?: string | null
           last_message_preview?: string | null
+          needs_human?: boolean
           phone: string
           photo_url?: string | null
+          priority_flag?: string | null
           resolved_at?: string | null
+          sentiment?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
           tags?: string[]
           ticket_status?: string
@@ -488,6 +618,7 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          ai_consecutive_count?: number
           ai_handled?: boolean
           ai_paused?: boolean
           assigned_to?: string | null
@@ -495,13 +626,17 @@ export type Database = {
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
+          follow_up_required?: boolean
           id?: string
           instance_id?: string | null
           last_message_at?: string | null
           last_message_preview?: string | null
+          needs_human?: boolean
           phone?: string
           photo_url?: string | null
+          priority_flag?: string | null
           resolved_at?: string | null
+          sentiment?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
           tags?: string[]
           ticket_status?: string
@@ -525,6 +660,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      forbidden_words: {
+        Row: {
+          created_at: string
+          id: string
+          severity: string
+          user_id: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          severity?: string
+          user_id: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          severity?: string
+          user_id?: string
+          word?: string
+        }
+        Relationships: []
       }
       funnel_ab_events: {
         Row: {
@@ -781,6 +940,33 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_notes: {
+        Row: {
+          author_name: string | null
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string | null
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kanban_stages: {
         Row: {
           color: string
@@ -815,6 +1001,45 @@ export type Database = {
           key?: string
           label?: string
           position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      kb_documents: {
+        Row: {
+          active: boolean
+          category: string | null
+          content: string
+          created_at: string
+          embedding_ready: boolean
+          id: string
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string | null
+          content: string
+          created_at?: string
+          embedding_ready?: boolean
+          id?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          category?: string | null
+          content?: string
+          created_at?: string
+          embedding_ready?: boolean
+          id?: string
+          tags?: string[]
+          title?: string
           updated_at?: string
           user_id?: string
         }
@@ -883,6 +1108,7 @@ export type Database = {
           media_type: string | null
           media_url: string | null
           status: Database["public"]["Enums"]["message_status"]
+          transcription: string | null
           user_id: string
         }
         Insert: {
@@ -896,6 +1122,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           status?: Database["public"]["Enums"]["message_status"]
+          transcription?: string | null
           user_id: string
         }
         Update: {
@@ -909,6 +1136,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           status?: Database["public"]["Enums"]["message_status"]
+          transcription?: string | null
           user_id?: string
         }
         Relationships: [
@@ -917,6 +1145,134 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processo_movimentacoes: {
+        Row: {
+          codigo: number | null
+          complemento: string | null
+          created_at: string
+          data_movimentacao: string | null
+          id: string
+          is_new: boolean
+          nome: string | null
+          processo_id: string
+          raw: Json | null
+          user_id: string
+        }
+        Insert: {
+          codigo?: number | null
+          complemento?: string | null
+          created_at?: string
+          data_movimentacao?: string | null
+          id?: string
+          is_new?: boolean
+          nome?: string | null
+          processo_id: string
+          raw?: Json | null
+          user_id: string
+        }
+        Update: {
+          codigo?: number | null
+          complemento?: string | null
+          created_at?: string
+          data_movimentacao?: string | null
+          id?: string
+          is_new?: boolean
+          nome?: string | null
+          processo_id?: string
+          raw?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_movimentacoes_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_monitorados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processos_monitorados: {
+        Row: {
+          assunto: string | null
+          ativo: boolean
+          case_id: string | null
+          classe: string | null
+          client_id: string | null
+          created_at: string
+          data_ajuizamento: string | null
+          grau: string | null
+          id: string
+          nivel_sigilo: number | null
+          notas: string | null
+          numero_processo: string
+          orgao_julgador: string | null
+          raw: Json | null
+          tribunal: string
+          ultima_consulta_em: string | null
+          ultima_movimentacao_em: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assunto?: string | null
+          ativo?: boolean
+          case_id?: string | null
+          classe?: string | null
+          client_id?: string | null
+          created_at?: string
+          data_ajuizamento?: string | null
+          grau?: string | null
+          id?: string
+          nivel_sigilo?: number | null
+          notas?: string | null
+          numero_processo: string
+          orgao_julgador?: string | null
+          raw?: Json | null
+          tribunal: string
+          ultima_consulta_em?: string | null
+          ultima_movimentacao_em?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assunto?: string | null
+          ativo?: boolean
+          case_id?: string | null
+          classe?: string | null
+          client_id?: string | null
+          created_at?: string
+          data_ajuizamento?: string | null
+          grau?: string | null
+          id?: string
+          nivel_sigilo?: number | null
+          notas?: string | null
+          numero_processo?: string
+          orgao_julgador?: string | null
+          raw?: Json | null
+          tribunal?: string
+          ultima_consulta_em?: string | null
+          ultima_movimentacao_em?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processos_monitorados_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_monitorados_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
@@ -1028,6 +1384,45 @@ export type Database = {
           id?: string
           message?: string
           shortcut?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      scheduled_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          error: string | null
+          id: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

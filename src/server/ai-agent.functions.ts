@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { checkSafety, logAIDebug, incrementAICounter } from "@/server/intelligence.functions";
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
@@ -43,28 +44,109 @@ export const qualifierReply = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
 
-    const qualifierPrompt = settings?.qualifier_prompt ??
+    const qualifierPromptA = settings?.qualifier_prompt ??
       "Você é um assistente de um escritório de advocacia. Qualifique o lead descobrindo área jurídica, urgência e descrição do caso. Seja cordial e objetivo.";
+    const qualifierPromptB = settings?.qualifier_prompt_b ?? null;
+    const abEnabled = !!settings?.ab_enabled && !!qualifierPromptB;
+    const abSplit = Math.min(100, Math.max(0, settings?.ab_split_pct ?? 50));
+    const useB = abEnabled && Math.random() * 100 < abSplit;
+    const qualifierPrompt = useB ? (qualifierPromptB as string) : qualifierPromptA;
+    const variant: string | null = abEnabled ? (useB ? "B" : "A") : null;
     const model = settings?.ai_model ?? "google/gemini-3-flash-preview";
 
     const { data: msgs } = await supabase
       .from("messages")
-      .select("direction, content")
+      .select("direction, content, transcription")
       .eq("conversation_id", data.conversationId)
       .order("created_at")
       .limit(30);
 
     const history = (msgs ?? []).map((m: any) => ({
       role: m.direction === "inbound" ? "user" : "assistant",
-      content: m.content ?? "",
+      content: m.transcription ? `[áudio transcrito] ${m.transcription}` : (m.content ?? ""),
     }));
 
-    const aiRes = await callAI(model, [
-      { role: "system", content: qualifierPrompt },
-      ...history,
-    ]);
+    // Enriquece com Base de Conhecimento + Memória do cliente
+    const { data: conv } = await supabase
+      .from("conversations").select("client_id").eq("id", data.conversationId).maybeSingle();
 
-    const reply: string = aiRes.choices?.[0]?.message?.content ?? "Desculpe, não consegui responder agora.";
+    let kbContext = "";
+    const lastUser = [...history].reverse().find(h => h.role === "user")?.content ?? "";
+    if (lastUser) {
+      const { data: kb } = await supabase
+        .from("kb_documents").select("title, content")
+        .eq("user_id", userId).eq("active", true).limit(30);
+      if (kb && kb.length) {
+        const q = lastUser.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const terms = q.split(/\s+/).filter((w: string) => w.length > 3);
+        const ranked = (kb as any[])
+          .map(d => {
+            const t = `${d.title} ${d.content}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const score = terms.reduce((s: number, term: string) => s + (t.includes(term) ? 1 : 0), 0);
+            return { d, score };
+          })
+          .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 4);
+        if (ranked.length) {
+          kbContext = "\n\nBase de conhecimento do escritório:\n" +
+            ranked.map(x => `- ${x.d.title}: ${x.d.content}`).join("\n");
+        }
+      }
+    }
+
+    let memoryContext = "";
+    if (conv?.client_id) {
+      const { data: mem } = await supabase
+        .from("client_memory").select("summary").eq("client_id", conv.client_id).maybeSingle();
+      if (mem?.summary) memoryContext = `\n\nO que sabemos deste cliente:\n${mem.summary}`;
+    }
+
+    // Última mensagem do usuário para checagem de segurança
+    const lastUserText = [...history].reverse().find((h) => h.role === "user")?.content ?? "";
+    const safety = await checkSafety(userId, data.conversationId, lastUserText);
+    if (safety.block) {
+      await logAIDebug({
+        userId,
+        conversationId: data.conversationId,
+        kind: "blocked",
+        model,
+        prompt: { reason: safety.reason },
+        response: null as any,
+      });
+      return { reply: null, blocked: true, reason: safety.reason };
+    }
+
+    const t0 = Date.now();
+    const messagesForAI = [
+      { role: "system", content: qualifierPrompt + kbContext + memoryContext },
+      ...history,
+    ];
+    let reply = "Desculpe, não consegui responder agora.";
+    let errorMsg: string | null = null;
+    try {
+      const aiRes = await callAI(model, messagesForAI);
+      reply = aiRes.choices?.[0]?.message?.content ?? reply;
+    } catch (e: any) {
+      errorMsg = e?.message ?? "erro IA";
+    }
+    const latencyMs = Date.now() - t0;
+
+    await logAIDebug({
+      userId,
+      conversationId: data.conversationId,
+      kind: "reply",
+      model,
+      prompt: messagesForAI,
+      response: reply,
+      latencyMs,
+      error: errorMsg ?? undefined,
+      variant,
+    });
+
+    if (errorMsg) throw new Error(errorMsg);
+
+    // Detectar baixa confiança / pedido de handoff
+    const replyLow = reply.toLowerCase();
+    const lowConfidence = /\b(não sei|nao sei|não posso|consulte um advogado|encaminhar|equipe entrará|entrar.*contato)\b/.test(replyLow);
 
     // Salvar resposta como mensagem outbound
     await supabase.from("messages").insert({
@@ -79,9 +161,13 @@ export const qualifierReply = createServerFn({ method: "POST" })
       last_message_at: new Date().toISOString(),
       last_message_preview: reply.slice(0, 80),
       ai_handled: true,
+      ...(lowConfidence ? { needs_human: true } : {}),
     }).eq("id", data.conversationId);
 
-    return { reply };
+    // Incrementa contador anti-loop
+    await incrementAICounter(data.conversationId);
+
+    return { reply, lowConfidence };
   });
 
 /** Extrai dados estruturados da conversa para qualificar o lead */

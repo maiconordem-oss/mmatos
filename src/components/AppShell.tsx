@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Kanban, MessageSquare, Users, LogOut,
   FileSignature, Smartphone, Bot, BookOpen, Wand2, Settings,
   Zap, ChevronLeft, ChevronRight, BarChart2, ChevronDown,
-  Scale, Stethoscope,
+  Scale, Stethoscope, BookOpen as BookOpenIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -122,10 +122,12 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
       emoji: "🤖",
       color: "#7c3aed",
       items: [
-        { to: "/construtor", label: "Construtor de Funil", icon: Zap },
-        { to: "/funis",      label: "Meus Funis",         icon: Bot },
-        { to: "/wizard",     label: "Wizard (avançado)",  icon: Wand2 },
-        { to: "/manual",     label: "Manual de Prompts",  icon: BookOpen },
+        { to: "/construtor",   label: "Construtor de Funil", icon: Zap },
+        { to: "/funis",        label: "Meus Funis",         icon: Bot },
+        { to: "/templates",    label: "Respostas Rápidas",  icon: Zap },
+        { to: "/conhecimento", label: "Base de Conhecimento", icon: BookOpenIcon },
+        { to: "/wizard",       label: "Wizard (avançado)",  icon: Wand2 },
+        { to: "/manual",       label: "Manual de Prompts",  icon: BookOpen },
       ],
     },
     {
@@ -135,7 +137,9 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
       color: "#d97706",
       items: [
         { to: "/contratos",  label: "Contratos",   icon: FileSignature },
+        { to: "/processos",  label: "Processos",   icon: Scale },
         { to: "/relatorios", label: "Relatórios",  icon: BarChart2 },
+        { to: "/ia-debug",   label: "Debug IA",    icon: Bot },
       ],
     },
     {

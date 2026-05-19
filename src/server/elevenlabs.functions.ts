@@ -59,14 +59,14 @@ export const deleteElevenlabsToken = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Transcreve uma mensagem de áudio (messageId) usando ElevenLabs Scribe v2 */
+/** Transcreve uma mensagem de áudio (messageId) usando Lovable AI (Gemini) */
 export const transcribeAudioMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ __token: z.string().optional(), messageId: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context as any;
-    const token = await resolveToken(supabase, userId);
-    if (!token) throw new Error("Token ElevenLabs não configurado. Salve em Configurações > Integrações.");
+    const { supabase } = context as any;
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
 
     const { data: msg, error: e1 } = await supabase
       .from("messages")
@@ -79,32 +79,41 @@ export const transcribeAudioMessage = createServerFn({ method: "POST" })
       return { transcript: msg.transcription, cached: true };
     }
 
-    // Baixa o áudio
     const audioRes = await fetch(msg.media_url);
     if (!audioRes.ok) throw new Error(`Falha ao baixar áudio (${audioRes.status})`);
     const audioBuf = await audioRes.arrayBuffer();
     const mime = msg.media_mime || audioRes.headers.get("content-type") || "audio/ogg";
-    const blob = new Blob([audioBuf], { type: mime });
+    const base64 = Buffer.from(audioBuf).toString("base64");
+    const format = mime.includes("mp3") || mime.includes("mpeg") ? "mp3"
+                  : mime.includes("wav") ? "wav"
+                  : mime.includes("mp4") || mime.includes("m4a") ? "mp4"
+                  : "ogg";
 
-    const fd = new FormData();
-    fd.append("file", blob, `audio.${mime.includes("mp3") ? "mp3" : mime.includes("mp4") ? "mp4" : "ogg"}`);
-    fd.append("model_id", "scribe_v2");
-    fd.append("tag_audio_events", "false");
-    fd.append("diarize", "false");
-
-    const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "xi-api-key": token },
-      body: fd,
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Transcreva integralmente o áudio para português do Brasil. Retorne APENAS a transcrição, sem comentários." },
+              { type: "input_audio", input_audio: { data: base64, format } },
+            ],
+          },
+        ],
+      }),
     });
+    if (res.status === 429) throw new Error("Limite de requisições. Aguarde um momento.");
+    if (res.status === 402) throw new Error("Créditos de IA esgotados. Adicione em Workspace > Usage.");
     if (!res.ok) {
       const err = await res.text();
-      throw new Error(`ElevenLabs [${res.status}]: ${err}`);
+      throw new Error(`IA [${res.status}]: ${err}`);
     }
     const json: any = await res.json();
-    const transcription = (json?.text ?? "").trim();
+    const transcription = (json?.choices?.[0]?.message?.content ?? "").trim();
 
-    // Persiste
     await supabase.from("messages").update({ transcription }).eq("id", data.messageId);
 
     return { transcript: transcription, cached: false };
