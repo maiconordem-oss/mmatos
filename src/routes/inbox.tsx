@@ -173,8 +173,8 @@ type Message = {
   transcription?: string | null;
 };
 
-const proxyUrl = (msg: Message) =>
-  msg.media_url ? `/api/media-proxy?msg=${msg.id}` : null;
+const proxyUrl = (msg: Message, token: string | null) =>
+  msg.media_url && token ? `/api/media-proxy?msg=${msg.id}&token=${encodeURIComponent(token)}` : null;
 
 type FunnelState = {
   fase: string;
@@ -624,9 +624,18 @@ function InboxPage() {
   const [ttsText, setTtsText] = useState("");
   const [sendingFile, setSendingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mediaToken, setMediaToken] = useState<string | null>(null);
   const [ttsBusy, setTtsBusy] = useState(false);
   const [ttsBlob, setTtsBlob] = useState<Blob | null>(null);
   const [ttsVoice, setTtsVoice] = useState("FGY2WhTYpPnrIDTdsKH5");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setMediaToken(data.session?.access_token ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setMediaToken(session?.access_token ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   // Reset ao trocar de conversa
   useEffect(() => {
@@ -1679,8 +1688,8 @@ function InboxPage() {
 
                         {/* IMAGEM */}
                         {m.media_type === "image" && m.media_url && (
-                          <a href={proxyUrl(m) ?? "#"} target="_blank" rel="noreferrer">
-                            <img src={proxyUrl(m) ?? ""} alt="imagem" className="max-w-full block" style={{ maxHeight: 280, minWidth: 160 }}
+                          <a href={proxyUrl(m, mediaToken) ?? "#"} target="_blank" rel="noreferrer">
+                            <img src={proxyUrl(m, mediaToken) ?? ""} alt="imagem" className="max-w-full block" style={{ maxHeight: 280, minWidth: 160 }}
                               onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                           </a>
                         )}
@@ -1694,7 +1703,7 @@ function InboxPage() {
                         {/* ÁUDIO — player nativo */}
                         {m.media_type === "audio" && m.media_url && (
                           <div className="px-2 py-2 space-y-1">
-                            <audio controls src={proxyUrl(m) ?? ""} className="h-8 w-48" style={{ filter: "invert(0.8)" }} />
+                            <audio controls src={proxyUrl(m, mediaToken) ?? ""} className="h-8 w-48" style={{ filter: "invert(0.8)" }} />
                             {m.transcription ? (
                               <p className="text-white/90 text-[12px] leading-snug bg-black/20 rounded p-2 whitespace-pre-wrap">
                                 <span className="text-white/40 text-[10px] block mb-0.5">Transcrição</span>
@@ -1736,7 +1745,7 @@ function InboxPage() {
 
                         {/* VÍDEO */}
                         {m.media_type === "video" && m.media_url && (
-                          <video controls src={proxyUrl(m) ?? ""} className="max-w-full block" style={{ maxHeight: 280, minWidth: 160 }} />
+                          <video controls src={proxyUrl(m, mediaToken) ?? ""} className="max-w-full block" style={{ maxHeight: 280, minWidth: 160 }} />
                         )}
                         {m.media_type === "video" && !m.media_url && (
                           <div className="flex items-center gap-2 px-3 py-2">
@@ -1756,7 +1765,7 @@ function InboxPage() {
                               <p className="text-white/40 text-[10px]">Documento</p>
                             </div>
                             {m.media_url && (
-                              <a href={proxyUrl(m) ?? "#"} target="_blank" rel="noreferrer"
+                              <a href={proxyUrl(m, mediaToken) ?? "#"} target="_blank" rel="noreferrer"
                                 className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors">
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </a>

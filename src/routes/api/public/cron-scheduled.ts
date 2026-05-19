@@ -4,12 +4,20 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireCronSecret } from "@/server/security.server";
+import { sendEvolutionText } from "@/server/whatsapp.functions";
 
 export const Route = createFileRoute("/api/public/cron-scheduled")({
   server: {
     handlers: {
-      GET: async () => runTick(),
-      POST: async () => runTick(),
+      GET: async ({ request }) => {
+        requireCronSecret(request);
+        return runTick();
+      },
+      POST: async ({ request }) => {
+        requireCronSecret(request);
+        return runTick();
+      },
     },
   },
 });
@@ -27,6 +35,7 @@ async function runTick() {
   let failed = 0;
 
   for (const job of pending ?? []) {
+    let messageId: string | null = null;
     try {
       const { data: conv } = await supabaseAdmin
         .from("conversations")
@@ -51,13 +60,14 @@ async function runTick() {
         .maybeSingle();
 
       // Insere no histórico
-      await supabaseAdmin.from("messages").insert({
+      const { data: msg } = await supabaseAdmin.from("messages").insert({
         user_id: job.user_id,
         conversation_id: job.conversation_id,
         direction: "outbound",
         content: job.content,
-        status: "sent",
-      });
+        status: "pending",
+      }).select("id").single();
+      messageId = msg?.id ?? null;
       await supabaseAdmin
         .from("conversations")
         .update({
@@ -66,13 +76,15 @@ async function runTick() {
         })
         .eq("id", job.conversation_id);
 
-      // Envia via WhatsApp
-      if (inst?.api_url && inst?.api_key && conv.phone) {
-        await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: inst.api_key },
-          body: JSON.stringify({ number: conv.phone, text: job.content }),
-        }).catch(() => {});
+      if (!inst?.api_url || !inst?.api_key || !conv.phone) {
+        throw new Error("no connected WhatsApp instance");
+      }
+      const externalId = await sendEvolutionText(inst.api_url, inst.api_key, inst.instance_name, conv.phone, job.content);
+      if (msg?.id) {
+        await supabaseAdmin.from("messages").update({
+          status: "sent",
+          external_id: externalId,
+        }).eq("id", msg.id);
       }
 
       await supabaseAdmin
@@ -81,6 +93,9 @@ async function runTick() {
         .eq("id", job.id);
       sent++;
     } catch (e: any) {
+      if (messageId) {
+        await supabaseAdmin.from("messages").update({ status: "failed" }).eq("id", messageId);
+      }
       await supabaseAdmin
         .from("scheduled_messages")
         .update({ status: "failed", error: e.message ?? "unknown" })

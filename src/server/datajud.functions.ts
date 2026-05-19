@@ -4,18 +4,22 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 
 // API pública CNJ Datajud — chave pública documentada
-const DATAJUD_API_KEY_DEFAULT =
-  process.env.DATAJUD_API_KEY ||
-  "cDQHYnYL7geSeKHsJpa2A2GBCvOsfRyAwcF6aJoH";
-
 async function getDatajudApiKey(userId?: string): Promise<string> {
-  if (!userId) return DATAJUD_API_KEY_DEFAULT;
+  const envKey = process.env.DATAJUD_API_KEY || "";
+  if (!userId) {
+    if (!envKey) throw new Error("DATAJUD_API_KEY não configurada");
+    return envKey;
+  }
   try {
     const { data } = await supabaseAdmin.from("user_integrations")
       .select("config").eq("user_id", userId).eq("provider", "datajud").maybeSingle();
     const key = (data?.config as any)?.api_key;
-    return key || DATAJUD_API_KEY_DEFAULT;
-  } catch { return DATAJUD_API_KEY_DEFAULT; }
+    if (key || envKey) return key || envKey;
+    throw new Error("DATAJUD_API_KEY não configurada");
+  } catch {
+    if (!envKey) throw new Error("DATAJUD_API_KEY não configurada");
+    return envKey;
+  }
 }
 
 // Mapeamento dos endpoints por tribunal (extraído da numeração CNJ)

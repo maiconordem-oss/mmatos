@@ -1,11 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
-
-function getAdmin() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
+import { createServiceClient, requireUserFromRequest } from "@/server/security.server";
 
 export const Route = createFileRoute("/api/media-proxy")({
   server: {
@@ -13,17 +7,23 @@ export const Route = createFileRoute("/api/media-proxy")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const msgId = url.searchParams.get("msg");
+        const token = url.searchParams.get("token");
 
         if (!msgId) return new Response("Missing msg param", { status: 400 });
+        const authRequest = token
+          ? new Request(request.url, { headers: { Authorization: `Bearer ${token}` } })
+          : request;
+        const { userId } = await requireUserFromRequest(authRequest);
 
-        const admin = getAdmin();
+        const admin = createServiceClient();
         const { data: msg } = await admin
           .from("messages")
-          .select("media_url, media_mime, external_id, conversation_id")
+          .select("media_url, media_mime, external_id, conversation_id, user_id")
           .eq("id", msgId)
           .single();
 
         if (!msg?.media_url) return new Response("Media not found", { status: 404 });
+        if (msg.user_id !== userId) return new Response("Forbidden", { status: 403 });
 
         // Se já é URL permanente do Supabase Storage — redirecionar direto
         if (msg.media_url.includes("supabase") || msg.media_url.includes("storage")) {

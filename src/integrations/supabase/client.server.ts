@@ -6,15 +6,12 @@ import type { Database } from './types';
 function createSupabaseAdminClient() {
   const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-  const key = SERVICE_KEY || ANON_KEY;
-
-  if (!SUPABASE_URL || !key) {
-    throw new Error('Missing Supabase environment variables (SUPABASE_URL + key).');
+  if (!SUPABASE_URL || !SERVICE_KEY) {
+    throw new Error('Missing Supabase admin environment variables (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY).');
   }
 
-  return createClient<Database>(SUPABASE_URL, key, {
+  return createClient<Database>(SUPABASE_URL, SERVICE_KEY, {
     auth: {
       storage: undefined,
       persistSession: false,

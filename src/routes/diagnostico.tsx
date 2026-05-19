@@ -136,8 +136,12 @@ function DiagnosticoPage() {
   const testar = async (acao: string, payload: any, setStatus: any, setRes: any) => {
     setStatus("loading");
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Não autenticado");
       const res = await fetch("/api/diagnostico", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ acao, payload }),
       });
       const data: Resultado = await res.json();

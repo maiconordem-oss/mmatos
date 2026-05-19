@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { handleFunnelMessage } from "@/server/funnel-executor.server";
+import { requireCronSecret } from "@/server/security.server";
+import { sendEvolutionText } from "@/server/whatsapp.functions";
 
 export const Route = createFileRoute("/api/public/workflow-tick")({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
+        requireCronSecret(request);
         const now = new Date().toISOString();
 
         // Buscar follow-ups vencidos
@@ -17,6 +19,7 @@ export const Route = createFileRoute("/api/public/workflow-tick")({
           .limit(20);
 
         for (const f of (followups ?? [])) {
+          let messageId: string | null = null;
           try {
             // Buscar dados da conversa para personalizar
             const { data: stateData } = await supabaseAdmin
@@ -45,13 +48,14 @@ export const Route = createFileRoute("/api/public/workflow-tick")({
                 : `Olá! Tudo bem? Vi que ficamos de continuar nossa conversa. Ainda posso te ajudar — é só me responder aqui.`);
 
             // Enviar como mensagem do sistema (sem chamar IA)
-            await supabaseAdmin.from("messages").insert({
+            const { data: msg } = await supabaseAdmin.from("messages").insert({
               user_id:         f.user_id,
               conversation_id: f.conversation_id,
               direction:       "outbound",
               content:         followupMsg,
               status:          "pending",
-            });
+            }).select("id").single();
+            messageId = msg?.id ?? null;
             await supabaseAdmin.from("conversations").update({
               last_message_at:      now,
               last_message_preview: followupMsg.slice(0, 80),
@@ -64,17 +68,23 @@ export const Route = createFileRoute("/api/public/workflow-tick")({
               .from("whatsapp_instances")
               .select("*").eq("user_id", f.user_id).eq("status", "connected").limit(1).maybeSingle();
 
-            if (conv?.phone && inst?.api_url && inst?.api_key) {
-              await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
-                method:  "POST",
-                headers: { "Content-Type": "application/json", apikey: inst.api_key },
-                body:    JSON.stringify({ number: conv.phone, text: followupMsg }),
-              }).catch(() => {});
+            if (!conv?.phone || !inst?.api_url || !inst?.api_key) {
+              throw new Error("no connected WhatsApp instance");
+            }
+            const externalId = await sendEvolutionText(inst.api_url, inst.api_key, inst.instance_name, conv.phone, followupMsg);
+            if (msg?.id) {
+              await supabaseAdmin.from("messages").update({
+                status: "sent",
+                external_id: externalId,
+              }).eq("id", msg.id);
             }
 
             // Marcar como enviado
             await supabaseAdmin.from("funnel_followups").update({ sent: true }).eq("id", f.id);
           } catch (e) {
+            if (messageId) {
+              await supabaseAdmin.from("messages").update({ status: "failed" }).eq("id", messageId);
+            }
             console.error("followup error:", f.id, e);
           }
         }

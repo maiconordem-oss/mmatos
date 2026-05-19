@@ -2,13 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { handleFunnelMessage } from "@/server/funnel-executor.server";
-import { createClient } from "@supabase/supabase-js";
-
-function getAdmin() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
+import { createServiceClient } from "@/server/security.server";
 
 export const simulateFunnel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -20,7 +14,7 @@ export const simulateFunnel = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context as any;
     const { funnel_id, message } = data;
-    const admin = getAdmin();
+    const admin = createServiceClient();
     const simPhone = `SIM_${userId.slice(0, 8)}`;
 
     let { data: conv } = await admin

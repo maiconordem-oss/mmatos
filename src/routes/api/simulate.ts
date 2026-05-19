@@ -1,14 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { handleFunnelMessage } from "@/server/funnel-executor.server";
 import { createClient } from "@supabase/supabase-js";
-
-function getAdmin() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-    || process.env.SUPABASE_PUBLISHABLE_KEY
-    || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
+import { createServiceClient } from "@/server/security.server";
 
 export const Route = createFileRoute("/api/simulate")({
   server: {
@@ -20,7 +13,7 @@ export const Route = createFileRoute("/api/simulate")({
 
           if (!token) return Response.json({ error: "No token" }, { status: 401 });
 
-          const admin = getAdmin();
+          const admin = createServiceClient();
 
           // Verificar usuário pelo token
           const anonUrl  = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";

@@ -1,17 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
-
-function getAdmin() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
+import { createServiceClient, requireUserFromRequest } from "@/server/security.server";
 
 export const Route = createFileRoute("/api/diagnostico")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const admin = getAdmin();
+        const { userId } = await requireUserFromRequest(request);
+        const admin = createServiceClient();
         const body  = await request.json();
         const { acao, payload } = body;
 
@@ -19,7 +14,7 @@ export const Route = createFileRoute("/api/diagnostico")({
         if (acao === "test-whatsapp") {
           const { instanceId, numero } = payload;
           const { data: inst } = await admin.from("whatsapp_instances")
-            .select("*").eq("id", instanceId).single();
+            .select("*").eq("id", instanceId).eq("user_id", userId).single();
           if (!inst) return Response.json({ ok: false, erro: "Instância não encontrada" });
           if (!inst.api_url) return Response.json({ ok: false, erro: "api_url não configurada na instância" });
 
@@ -51,7 +46,7 @@ export const Route = createFileRoute("/api/diagnostico")({
         if (acao === "test-grupo") {
           const { instanceId, numeros, nomeGrupo } = payload;
           const { data: inst } = await admin.from("whatsapp_instances")
-            .select("*").eq("id", instanceId).single();
+            .select("*").eq("id", instanceId).eq("user_id", userId).single();
           if (!inst?.api_url) return Response.json({ ok: false, erro: "Instância sem api_url" });
 
           // Evolution v2: participantes só com número limpo (sem @s.whatsapp.net)
@@ -146,7 +141,7 @@ export const Route = createFileRoute("/api/diagnostico")({
           const etapas: string[] = [];
           const tabelas = ["conversations", "messages", "funnels", "funnel_states", "whatsapp_instances", "quick_replies", "conversation_tags", "business_hours"];
           for (const tabela of tabelas) {
-            const { error, count } = await admin.from(tabela).select("*", { count: "exact", head: true });
+            const { error, count } = await (admin as any).from(tabela).select("*", { count: "exact", head: true }).eq("user_id", userId);
             etapas.push(error ? `❌ ${tabela}: ${error.message}` : `✅ ${tabela}: ${count ?? 0} registros`);
           }
           return Response.json({ ok: true, etapas });
@@ -175,7 +170,8 @@ export const Route = createFileRoute("/api/diagnostico")({
         // ── 7. Testar estrutura da API DataJud ─────────────────
         if (acao === "test-datajud-oab") {
           const { oabNumero, oabEstado } = payload;
-          const API_KEY = process.env.DATAJUD_API_KEY || "cDQHYnYL7geSeKHsJpa2A2GBCvOsfRyAwcF6aJoH";
+          const API_KEY = process.env.DATAJUD_API_KEY;
+          if (!API_KEY) return Response.json({ ok: false, erro: "DATAJUD_API_KEY não configurada" });
 
           // Buscar 1 processo para ver a estrutura do campo representante
           const resEstrutura = await fetch(

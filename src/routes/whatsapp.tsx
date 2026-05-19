@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import {
   connectInstance, disconnectInstance, refreshStatus,
-  upsertInstance, getUserSettings, saveUserSettings,
+  upsertInstance, getUserSettings, saveUserSettings, setWebhook,
 } from "@/server/whatsapp.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { cn } from "@/lib/utils";
@@ -90,6 +90,7 @@ function WhatsappPage() {
   const upsertFn     = useAuthServerFn(upsertInstance);
   const getFn        = useAuthServerFn(getUserSettings);
   const saveFn       = useAuthServerFn(saveUserSettings);
+  const setWebhookFn = useAuthServerFn(setWebhook);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -263,10 +264,6 @@ function WhatsappPage() {
               const status = STATUS_CONFIG[inst.status] || STATUS_CONFIG.disconnected;
               const StatusIcon = status.icon;
               const funil = funis.find(f => f.id === inst.funnel_id);
-              const webhookUrl = typeof window !== "undefined"
-                ? `${window.location.origin}/api/public/whatsapp-webhook?id=${inst.id}&secret=${inst.webhook_secret}`
-                : "";
-
               return (
                 <div key={inst.id} className="rounded-2xl border border-white/8 bg-card overflow-hidden">
                   {/* Card header */}
@@ -320,15 +317,9 @@ function WhatsappPage() {
                         <RefreshCw className="h-4 w-4" />
                       </button>
                       <button onClick={async () => {
-                        const debugUrl = `/api/debug-webhook?id=${inst.id}&action=set-webhook`;
                         try {
-                          const res = await fetch(debugUrl);
-                          const data = await res.json();
-                          if (data.ok) {
-                            toast.success("Webhook configurado automaticamente!");
-                          } else {
-                            toast.error("Erro: " + JSON.stringify(data.response ?? data.error));
-                          }
+                          await setWebhookFn({ data: { id: inst.id } });
+                          toast.success("Webhook configurado automaticamente!");
                         } catch (e: any) { toast.error(e.message); }
                       }} className="p-2 rounded-lg hover:bg-amber-500/10 text-slate-600 hover:text-amber-400 transition-colors" title="Configurar webhook automaticamente">
                         <Zap className="h-4 w-4" />
@@ -361,16 +352,12 @@ function WhatsappPage() {
                     </div>
                   )}
 
-                  {/* Webhook URL */}
+                  {/* Webhook status */}
                   <div className="border-t border-white/5 bg-muted/50 px-5 py-3">
-                    <p className="text-[10px] text-slate-600 uppercase tracking-wide mb-1">URL do Webhook (configure na Evolution API)</p>
-                    <div className="flex items-center gap-2">
-                      <code className="text-[11px] text-slate-500 flex-1 truncate">{webhookUrl}</code>
-                      <button onClick={() => { navigator.clipboard.writeText(webhookUrl); toast.success("Copiado!"); }}
-                        className="shrink-0 text-xs px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-colors">
-                        Copiar
-                      </button>
-                    </div>
+                    <p className="text-[10px] text-slate-600 uppercase tracking-wide mb-1">Webhook</p>
+                    <p className="text-[11px] text-slate-500">
+                      Use o botão de raio para configurar automaticamente sem expor o segredo da instância.
+                    </p>
                   </div>
                 </div>
               );

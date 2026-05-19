@@ -1,15 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
-function getAdmin() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
+import { createServiceClient, requireUserFromRequest } from "@/server/security.server";
 
 export const Route = createFileRoute("/api/debug-webhook")({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const { userId } = await requireUserFromRequest(request);
         const url    = new URL(request.url);
         const id     = url.searchParams.get("id");
         const action = url.searchParams.get("action") ?? "status";
@@ -18,8 +14,9 @@ export const Route = createFileRoute("/api/debug-webhook")({
           return Response.json({ error: "Passe ?id=ID_DA_INSTANCIA" }, { status: 400 });
         }
 
-        const { data: inst } = await getAdmin()
-          .from("whatsapp_instances").select("*").eq("id", id).single();
+        const admin = createServiceClient();
+        const { data: inst } = await admin
+          .from("whatsapp_instances").select("*").eq("id", id).eq("user_id", userId).single();
 
         if (!inst) return Response.json({ error: "Instância não encontrada" }, { status: 404 });
 
@@ -44,12 +41,10 @@ export const Route = createFileRoute("/api/debug-webhook")({
               name:          inst.instance_name,
               status:        inst.status,
               phone:         inst.phone_number,
-              api_url:       inst.api_url,
               funnel_id:     inst.funnel_id,
-              webhook_secret: inst.webhook_secret,
             },
             evolution_api: evoStatus ?? { error: evoError },
-            webhook_url: `${new URL(request.url).origin}/api/public/whatsapp-webhook?id=${inst.id}&secret=${inst.webhook_secret}`,
+            webhook_configured: Boolean(inst.webhook_secret),
           });
         }
 
@@ -80,7 +75,7 @@ export const Route = createFileRoute("/api/debug-webhook")({
               }
             );
             const data = await res.json();
-            return Response.json({ ok: res.ok, webhook_url: webhookUrl, response: data });
+            return Response.json({ ok: res.ok, webhook_configured: res.ok, response: data });
           } catch (e: any) {
             return Response.json({ error: e.message }, { status: 500 });
           }
@@ -126,7 +121,6 @@ export const Route = createFileRoute("/api/debug-webhook")({
 
         // ── 5. Buscar fotos de todos os contatos ─────────────
         if (action === "fetch-photos") {
-          const admin = getAdmin();
           const { data: convs } = await admin
             .from("conversations")
             .select("id, phone, instance_id")
@@ -177,9 +171,9 @@ export const Route = createFileRoute("/api/debug-webhook")({
 
       // Aceitar qualquer POST (para testar se o webhook chega)
       POST: async ({ request }) => {
+        await requireUserFromRequest(request);
         const body = await request.json().catch(() => ({}));
-        console.log("DEBUG WEBHOOK RECEIVED:", JSON.stringify(body, null, 2));
-        return Response.json({ received: true, body });
+        return Response.json({ received: true, event: body?.event || body?.type || null });
       },
     },
   },
