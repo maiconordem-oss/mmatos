@@ -16,6 +16,7 @@ import {
   extractTasks, translateText, analyzeSentiment, semanticSearch,
 } from "@/server/inbox-ai.functions";
 import { transcribeAudioMessage, generateTTS } from "@/server/elevenlabs.functions";
+import { sendWhatsappMessage } from "@/server/whatsapp.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -617,6 +618,7 @@ function InboxPage() {
   const searchFn              = useAuthServerFn(semanticSearch);
   const transcribeFn          = useAuthServerFn(transcribeAudioMessage);
   const generateTTSFn         = useAuthServerFn(generateTTS);
+  const sendTextFn            = useAuthServerFn(sendWhatsappMessage);
   const [transcribingId, setTranscribingId] = useState<string | null>(null);
   const [ttsOpen, setTtsOpen] = useState(false);
   const [ttsText, setTtsText] = useState("");
@@ -1014,11 +1016,16 @@ function InboxPage() {
       await supabase.from("conversations").update({ ticket_status: "open", accepted_at: new Date().toISOString(), assigned_to: user?.id ?? null }).eq("id", activeId ?? "");
     }
 
-    // Salvar no banco
-    await supabase.from("messages").insert({
+    // Salvar no banco como pendente para refletir falha/envio real.
+    const { data: insertedMsg, error: insertErr } = await supabase.from("messages").insert({
       user_id: user.id, conversation_id: activeId,
-      direction: "outbound", content, status: "sent",
-    });
+      direction: "outbound", content, status: "pending",
+    }).select("id").single();
+    if (insertErr) {
+      toast.error("Erro ao salvar mensagem: " + insertErr.message);
+      setText(content);
+      return;
+    }
     await supabase.from("conversations").update({
       last_message_at: new Date().toISOString(),
       last_message_preview: content.slice(0, 80),
@@ -1031,28 +1038,34 @@ function InboxPage() {
     let inst: any = null;
     if (convRow?.instance_id) {
       const { data } = await supabase.from("whatsapp_instances")
-        .select("*").eq("id", convRow.instance_id).maybeSingle();
+        .select("id, status, is_office").eq("id", convRow.instance_id).maybeSingle();
       inst = data;
     }
     if (!inst) {
-      const { data } = await supabase.from("whatsapp_instances").select("*")
+      const { data } = await supabase.from("whatsapp_instances").select("id, status, is_office")
         .eq("user_id", user.id).eq("status", "connected").eq("is_office", false).limit(1).maybeSingle();
       inst = data ?? null;
       if (!inst) {
         // fallback: qualquer instância conectada
-        const { data: d2 } = await supabase.from("whatsapp_instances").select("*")
+        const { data: d2 } = await supabase.from("whatsapp_instances").select("id, status, is_office")
           .eq("user_id", user.id).eq("status", "connected").limit(1).maybeSingle();
         inst = d2;
       }
     }
 
-    if (conv?.phone && inst?.api_url && inst?.api_key) {
-      const number = conv.phone.replace(/\D/g, "");
-      fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: inst.api_key },
-        body: JSON.stringify({ number, text: content, options: { delay: 500 } }),
-      }).catch(e => console.error("send manual error:", e));
+    try {
+      const phone = convRow?.phone || conv?.phone || "";
+      if (!phone || !inst?.id) throw new Error("Nenhuma instância WhatsApp conectada");
+      const sent = await sendTextFn({ data: { instanceId: inst.id, phone, text: content } });
+      await supabase.from("messages").update({
+        status: "sent",
+        external_id: sent?.messageId ?? null,
+      }).eq("id", insertedMsg.id);
+    } catch (e: any) {
+      await supabase.from("messages").update({
+        status: "failed",
+      }).eq("id", insertedMsg.id);
+      toast.error("Mensagem não enviada: " + (e?.message ?? "falha desconhecida"));
     }
   };
 

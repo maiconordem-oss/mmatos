@@ -7,16 +7,16 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Página não encontrada</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          A página que você está procurando não existe ou foi movida.
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Ir para o início
           </Link>
         </div>
       </div>
@@ -29,18 +29,15 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Office Flow is a CRM and Kanban tool for law firms, integrating WhatsApp for client communication and AI agents." },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Office Flow is a CRM and Kanban tool for law firms, integrating WhatsApp for client communication and AI agents." },
+      { title: "Lex CRM" },
+      { name: "description", content: "CRM jurídico com atendimento por WhatsApp, Kanban, funis de IA e automação para escritórios de advocacia." },
+      { name: "author", content: "Lex CRM" },
+      { property: "og:title", content: "Lex CRM" },
+      { property: "og:description", content: "CRM jurídico com atendimento por WhatsApp, Kanban, funis de IA e automação para escritórios de advocacia." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "Office Flow is a CRM and Kanban tool for law firms, integrating WhatsApp for client communication and AI agents." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c905e62b-a51b-49b9-8c9a-d290763df068/id-preview-f209ed99--c2df6385-2cdf-486c-88ee-d00948ec7a3c.lovable.app-1776892215859.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c905e62b-a51b-49b9-8c9a-d290763df068/id-preview-f209ed99--c2df6385-2cdf-486c-88ee-d00948ec7a3c.lovable.app-1776892215859.png" },
+      { name: "twitter:title", content: "Lex CRM" },
+      { name: "twitter:description", content: "CRM jurídico com atendimento por WhatsApp, Kanban, funis de IA e automação para escritórios de advocacia." },
     ],
     links: [
       {
@@ -56,7 +53,7 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>

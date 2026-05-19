@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { handleFunnelMessage } from "@/server/funnel-executor.server";
 import { normalizeBRPhone, phoneVariants } from "@/lib/phone";
 import { classifyAndPersistSentiment, checkBusinessHours } from "@/server/intelligence.functions";
+import { sendEvolutionText, syncInstanceWebhookEvents, buildInstanceWebhookUrl } from "@/server/whatsapp.functions";
 
 export const Route = createFileRoute("/api/public/whatsapp-webhook")({
   server: {
@@ -33,6 +34,18 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
             qr_code:       status === "connected" ? null : inst.qr_code,
             last_event_at: new Date().toISOString(),
           }).eq("id", inst.id);
+          // Re-registra eventos do webhook para garantir MESSAGES_UPDATE nas instâncias existentes
+          if (status === "connected") {
+            const { data: userCreds } = await supabaseAdmin
+              .from("user_settings").select("evolution_api_url, evolution_api_key")
+              .eq("user_id", inst.user_id).maybeSingle();
+            const url = inst.api_url || userCreds?.evolution_api_url || null;
+            const key = inst.api_key || userCreds?.evolution_api_key || null;
+            if (url && key) {
+              const webhookUrl = buildInstanceWebhookUrl(inst.id, inst.webhook_secret);
+              syncInstanceWebhookEvents(url, key, inst.instance_name, webhookUrl).catch(() => {});
+            }
+          }
         }
 
         // ── Status de leitura ──────────────────────────────────
@@ -43,7 +56,10 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
             const status = upd?.update?.status;
             if (!msgId || !status) continue;
             const updateData: any = {};
-            if (status === "DELIVERY_ACK" || status === "DELIVERED") updateData.delivered_at = new Date().toISOString();
+            if (status === "DELIVERY_ACK" || status === "DELIVERED") {
+              updateData.delivered_at = new Date().toISOString();
+              updateData.status = "delivered";
+            }
             if (status === "READ" || status === "PLAYED") { updateData.read_at = new Date().toISOString(); updateData.status = "read"; }
             if (Object.keys(updateData).length) {
               await supabaseAdmin.from("messages").update(updateData).eq("external_id", msgId);
@@ -284,13 +300,26 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
                 .maybeSingle();
               const already = lastOut?.content && bh.awayMessage && lastOut.content.includes(bh.awayMessage.slice(0, 30));
               if (!already && bh.awayMessage) {
-                await supabaseAdmin.from("messages").insert({
+                const { data: msgRow } = await supabaseAdmin.from("messages").insert({
                   user_id: inst.user_id,
                   conversation_id: conv.id,
                   direction: "outbound",
                   content: bh.awayMessage,
-                  status: "sent",
-                });
+                  status: "pending",
+                }).select("id").single();
+                // Envia de fato via Evolution API
+                const { data: userCreds } = await supabaseAdmin
+                  .from("user_settings").select("evolution_api_url, evolution_api_key")
+                  .eq("user_id", inst.user_id).maybeSingle();
+                const evoUrl = inst.api_url || userCreds?.evolution_api_url || null;
+                const evoKey = inst.api_key || userCreds?.evolution_api_key || null;
+                if (evoUrl && evoKey && msgRow?.id) {
+                  const msgId = await sendEvolutionText(evoUrl, evoKey, inst.instance_name, phone, bh.awayMessage).catch(() => null);
+                  await supabaseAdmin.from("messages").update({
+                    status: msgId ? "sent" : "failed",
+                    external_id: msgId ?? null,
+                  }).eq("id", msgRow.id);
+                }
               }
             } catch {}
             return Response.json({ ok: true, off_hours: true });
@@ -306,7 +335,9 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               return Response.json({ ok: true, ai_paused: true });
             }
 
-            await handleFunnelMessage(supabaseAdmin, inst.user_id, conv.id, messageForAI, inst.funnel_id ?? null);
+            if (!inst.is_office) {
+              await handleFunnelMessage(supabaseAdmin, inst.user_id, conv.id, messageForAI, inst.funnel_id ?? null);
+            }
           } catch (e) {
             console.error("funnel executor error:", e);
           }

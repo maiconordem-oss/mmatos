@@ -25,6 +25,13 @@ function _publicWebhookUrl(instanceId: string, secret: string) {
   }
   return `${base.replace(/\/$/, "")}/api/public/whatsapp-webhook?id=${instanceId}&secret=${secret}`;
 }
+function _extractMessageId(result: any): string | null {
+  return result?.key?.id
+    || result?.message?.key?.id
+    || result?.data?.key?.id
+    || result?.id
+    || null;
+}
 async function _getEvoCreds(supabase: any, userId: string) {
   const { data } = await supabase.from("user_settings").select("evolution_api_url, evolution_api_key").eq("user_id", userId).maybeSingle();
   const url = data?.evolution_api_url;
@@ -96,7 +103,7 @@ export const connectInstance = createServerFn({ method: "POST" })
     if (!url || !key) throw new Error("Configure a URL e API Key da Evolution API na instância ou em Configurações.");
 
     const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
-    const events = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
+    const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
 
     // Try create instance (idempotent — Evolution returns 409 if exists)
     try {
@@ -141,7 +148,10 @@ export const refreshStatus = createServerFn({ method: "POST" })
     const { supabase, userId } = context as any;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
     if (!inst) throw new Error("Instância não encontrada");
-    const { url, key } = await getEvoCreds(supabase, userId);
+    const creds = await getEvoCreds(supabase, userId);
+    const url = inst.api_url || creds.url;
+    const key = inst.api_key || creds.key;
+    if (!url || !key) throw new Error("Configure a URL e API Key da Evolution API na instância ou em Configurações.");
     const state = await evo(url, key, `/instance/connectionState/${inst.instance_name}`);
     const s = state?.instance?.state || state?.state;
     const status = s === "open" ? "connected" : s === "connecting" ? "connecting" : "disconnected";
@@ -157,7 +167,10 @@ export const disconnectInstance = createServerFn({ method: "POST" })
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
     if (!inst) throw new Error("Não encontrada");
     try {
-      const { url, key } = await getEvoCreds(supabase, userId);
+      const creds = await getEvoCreds(supabase, userId);
+      const url = inst.api_url || creds.url;
+      const key = inst.api_key || creds.key;
+      if (!url || !key) throw new Error("Credenciais da Evolution API ausentes.");
       try { await evo(url, key, `/instance/logout/${inst.instance_name}`, "DELETE"); } catch {}
     } catch {}
     await supabase.from("whatsapp_instances").update({ status: "disconnected", qr_code: null }).eq("id", inst.id);
@@ -171,11 +184,14 @@ export const setWebhook = createServerFn({ method: "POST" })
     const { supabase, userId } = context as any;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
     if (!inst) throw new Error("Instância não encontrada");
-    const { url, key } = await getEvoCreds(supabase, userId);
+    const creds = await getEvoCreds(supabase, userId);
+    const url = inst.api_url || creds.url;
+    const key = inst.api_key || creds.key;
+    if (!url || !key) throw new Error("Configure a URL e API Key da Evolution API na instância ou em Configurações.");
     const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
 
     // Evolution API v2: POST /webhook/set/{instance}
-    const events = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
+    const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
     let ok = false;
     let lastErr: any = null;
     // Tentar v2 primeiro
@@ -209,13 +225,54 @@ export const sendWhatsappMessage = createServerFn({ method: "POST" })
     const { supabase, userId } = context as any;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.instanceId).single();
     if (!inst) throw new Error("Instância não encontrada");
-    const { url, key } = await getEvoCreds(supabase, userId);
+    const creds = await getEvoCreds(supabase, userId);
+    const url = inst.api_url || creds.url;
+    const key = inst.api_key || creds.key;
+    if (!url || !key) throw new Error("Configure a URL e API Key da Evolution API na instância ou em Configurações.");
     const result = await evo(url, key, `/message/sendText/${inst.instance_name}`, "POST", {
       number: data.phone.replace(/\D/g, ""),
       text: data.text,
     });
-    return { result };
+    return { result, messageId: _extractMessageId(result) };
   });
+
+// ---------- Shared Evolution helpers (usable in server routes) ----------
+
+export async function sendEvolutionText(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+  phone: string,
+  text: string,
+): Promise<string | null> {
+  const result = await _evo(apiUrl, apiKey, `/message/sendText/${instanceName}`, "POST", {
+    number: phone.replace(/\D/g, ""),
+    text,
+  });
+  return _extractMessageId(result);
+}
+
+export async function syncInstanceWebhookEvents(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+  webhookUrl: string,
+): Promise<void> {
+  const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
+  try {
+    await _evo(apiUrl, apiKey, `/webhook/set/${instanceName}`, "POST", {
+      webhook: { url: webhookUrl, enabled: true, webhookByEvents: false, webhookBase64: false, events },
+    });
+  } catch {
+    try {
+      await _evo(apiUrl, apiKey, `/webhook/set/${instanceName}`, "POST", {
+        url: webhookUrl, enabled: true, webhook_by_events: false, events,
+      });
+    } catch { /* não-fatal */ }
+  }
+}
+
+export { _publicWebhookUrl as buildInstanceWebhookUrl };
 
 // ---------- Settings ----------
 
