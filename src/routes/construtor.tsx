@@ -39,6 +39,79 @@ type Fase = {
 };
 type Versao = { ts: number; label: string; fases: Fase[]; nomeFunil: string };
 type SimMsg = { de: "ia" | "lead"; texto: string; tipo?: string };
+type BriefingFunil = {
+  area: string;
+  objetivo: string;
+  publico: string;
+  cidade: string;
+  documentos: string;
+  urgencias: string;
+  tom: string;
+  honorarios: string;
+  proibicoes: string;
+  chamarHumano: string;
+};
+type AuditResult = {
+  score: number;
+  clareza: number;
+  seguranca: number;
+  coleta: number;
+  conversao: number;
+  humanizacao: number;
+  problemas: string[];
+  sugestoes: string[];
+};
+
+const BRIEFING_PADRAO: BriefingFunil = {
+  area: "Direito previdenciario",
+  objetivo: "",
+  publico: "",
+  cidade: "",
+  documentos: "",
+  urgencias: "",
+  tom: "Humano, claro, seguro e sem juridiquês",
+  honorarios: "",
+  proibicoes: "Nao prometer resultado. Nao dar prazo garantido. Nao encerrar com mensagem fria.",
+  chamarHumano: "Duvida juridica complexa, cliente irritado, urgencia real, proposta de acordo, pedido fora do escopo ou risco de promessa.",
+};
+
+const AREAS_JURIDICAS = [
+  "Direito previdenciario",
+  "Direito de saude",
+  "Direito de familia",
+  "Direito do consumidor",
+  "Direito trabalhista",
+  "Direito civel",
+  "Direito criminal",
+  "Beneficio assistencial/BPC",
+  "Vaga em creche",
+  "Outro",
+];
+
+const REGRAS_GLOBAIS_PADRAO = [
+  "Sempre responder com uma pergunta ou proximo passo claro.",
+  "Coletar uma informacao por vez para nao cansar o lead.",
+  "Explicar o motivo de cada pergunta quando ela for sensivel.",
+  "Usar linguagem simples, sem juridiquês.",
+  "Chamar humano quando houver risco juridico, emocional ou comercial.",
+  "Nunca prometer ganho, prazo ou decisao judicial.",
+];
+
+const CHECKLIST_QUALIDADE = [
+  "Briefing tem area, objetivo e publico definidos",
+  "Triagem identifica qualificacao e exclusoes",
+  "Coleta pede dados suficientes para contrato",
+  "Existe regra de chamar humano",
+  "Mensagens terminam com pergunta ou CTA",
+  "Nao ha promessa de resultado juridico",
+];
+
+const TESTES_SIMULACAO = [
+  { id: "quente", label: "Lead quente", msg: "Tenho urgencia e quero comecar hoje. O que preciso mandar?" },
+  { id: "frio", label: "Lead frio", msg: "So queria saber como funciona, nao sei se vou contratar." },
+  { id: "fora", label: "Fora do perfil", msg: "Meu caso e de outra cidade e nao tenho nenhum documento ainda." },
+  { id: "risco", label: "Risco juridico", msg: "Voce garante que eu ganho? Quanto tempo demora exatamente?" },
+];
 
 // ── Templates prontos ──────────────────────────────────────────
 const TEMPLATES: { id: string; label: string; emoji: string; desc: string; fases: Partial<Fase>[] }[] = [
@@ -599,16 +672,21 @@ function ConstrutorPage() {
     try { const d = localStorage.getItem(DRAFT_KEY); return d ? JSON.parse(d).fases : FASES_PADRAO.map(f => ({ ...f })); } catch { return FASES_PADRAO.map(f => ({ ...f })); }
   });
   const [nomeFunil, setNomeFunil]     = useState(() => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}").nome || ""; } catch { return ""; } });
+  const [briefing, setBriefing]       = useState<BriefingFunil>(() => { try { return { ...BRIEFING_PADRAO, ...(JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}").briefing ?? {}) }; } catch { return BRIEFING_PADRAO; } });
+  const [regrasGlobais, setRegrasGlobais] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}").regrasGlobais ?? REGRAS_GLOBAIS_PADRAO; } catch { return REGRAS_GLOBAIS_PADRAO; } });
   const [nomeDr, setNomeDr]           = useState("Dr. Maicon Matos");
   const [descricao, setDescricao]     = useState("");
   const [descLivre, setDescLivre]     = useState("");
   const [activeId, setActiveId]       = useState<string | null>(null);
-  const [tab, setTab]                 = useState<"ia"|"visao"|"fase">("ia");
+  const [tab, setTab]                 = useState<"briefing"|"ia"|"visao"|"fase">("briefing");
   const [simOpen, setSimOpen]         = useState(false);
   const [gerandoFluxo, setGerandoFluxo]       = useState(false);
   const [gerandoScripts, setGerandoScripts]   = useState(false);
   const [analisando, setAnalisando]   = useState(false);
   const [analise, setAnalise]         = useState<string | null>(null);
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [melhorando, setMelhorando]   = useState(false);
+  const [simTeste, setSimTeste]       = useState(TESTES_SIMULACAO[0].id);
   const [salvando, setSalvando]       = useState(false);
   const [versoes, setVersoes]         = useState<Versao[]>(() => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY + "_hist") || "[]"); } catch { return []; } });
   const [showVersoes, setShowVersoes] = useState(false);
@@ -618,10 +696,40 @@ function ConstrutorPage() {
   // Autosave
   useEffect(() => {
     const t = setTimeout(() => {
-      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ fases, nome: nomeFunil, ts: Date.now() })); } catch {}
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ fases, nome: nomeFunil, briefing, regrasGlobais, ts: Date.now() })); } catch {}
     }, 1500);
     return () => clearTimeout(t);
-  }, [fases, nomeFunil]);
+  }, [fases, nomeFunil, briefing, regrasGlobais]);
+
+  const briefingTexto = () => [
+    `Area juridica: ${briefing.area}`,
+    `Objetivo do funil: ${briefing.objetivo || "nao informado"}`,
+    `Publico/cliente ideal: ${briefing.publico || "nao informado"}`,
+    `Cidade/regiao: ${briefing.cidade || "nao informado"}`,
+    `Documentos importantes: ${briefing.documentos || "nao informado"}`,
+    `Urgencias e gatilhos: ${briefing.urgencias || "nao informado"}`,
+    `Tom de voz: ${briefing.tom || "nao informado"}`,
+    `Honorarios/condicao comercial: ${briefing.honorarios || "nao informado"}`,
+    `Proibicoes: ${briefing.proibicoes || "nao informado"}`,
+    `Quando chamar humano: ${briefing.chamarHumano || "nao informado"}`,
+    `Regras globais:\n- ${regrasGlobais.join("\n- ")}`,
+  ].join("\n");
+
+  const checklistStatus = () => {
+    const textoFases = JSON.stringify(fases).toLowerCase();
+    return [
+      !!briefing.area && !!briefing.objetivo.trim() && !!briefing.publico.trim(),
+      fases.some(f => f.id === "triagem" && f.perguntas.length >= 2 && f.exclusoes.length >= 1),
+      fases.some(f => f.id === "coleta" && f.camposColeta.length >= 4),
+      !!briefing.chamarHumano.trim() || fases.some(f => f.acao === "handoff"),
+      fases.some(f => f.textoAposMidia.includes("?") || f.perguntas.some(q => q.includes("?"))),
+      !/(garant|certeza que ganha|100%|prazo garantido)/i.test(textoFases + briefing.proibicoes),
+    ];
+  };
+
+  const scoreLocal = () => Math.round((checklistStatus().filter(Boolean).length / CHECKLIST_QUALIDADE.length) * 100);
+
+  const patchBriefing = (fields: Partial<BriefingFunil>) => setBriefing(p => ({ ...p, ...fields }));
 
   const salvarVersao = (label: string) => {
     const v: Versao = { ts: Date.now(), label, fases: JSON.parse(JSON.stringify(fases)), nomeFunil };
@@ -648,8 +756,22 @@ function ConstrutorPage() {
     toast.success(`Template "${tpl.label}" aplicado!`);
   };
 
+  const aplicarFasesGeradas = (data: any) => {
+    if (data.nome) setNomeFunil(data.nome);
+    if (data.descricao) setDescricao(data.descricao);
+    if (data.fases?.length) {
+      setFases(p => p.map(fase => {
+        const g = data.fases.find((f: any) => f.id === fase.id);
+        if (!g) return fase;
+        return { ...fase, perguntas: g.perguntas ?? [], exclusoes: g.exclusoes ?? [],
+          midias: g.midias ?? [], textoAposMidia: g.textoAposMidia ?? "",
+          acao: g.acao ?? "nenhuma", camposColeta: g.camposColeta ?? [] };
+      }));
+    }
+  };
+
   const gerarFluxo = async () => {
-    if (!descLivre.trim()) { toast.error("Descreva o caso primeiro"); return; }
+    if (!descLivre.trim() && !briefing.objetivo.trim()) { toast.error("Preencha o briefing ou descreva o caso primeiro"); return; }
     setGerandoFluxo(true);
     try {
       const res = await fetch("/api/generate-prompt", {
@@ -659,7 +781,7 @@ function ConstrutorPage() {
 Retorne APENAS JSON válido (sem markdown):
 {"nome":"string","fases":[{"id":"abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado","perguntas":[],"exclusoes":[{"condicao":"","motivo":""}],"midias":[{"chave":"","script":"","momento":""}],"textoAposMidia":"","acao":"nenhuma|contrato|agendamento|criar_grupo|handoff","camposColeta":[]}]}
 REGRAS: video_abertura na abertura, video_conexao na conexão, audio_fechamento no fechamento, video_documentos na assinatura. acao contrato só na coleta. criar_grupo só na assinatura. Inclua todas as 7 fases.`,
-          userMsg: descLivre,
+          userMsg: `BRIEFING E REGRAS:\n${briefingTexto()}\n\nDESCRICAO LIVRE COMPLEMENTAR:\n${descLivre || "sem complemento"}`,
         }),
       });
       const { prompt: json } = await res.json();
@@ -704,20 +826,54 @@ REGRAS: video_abertura na abertura, video_conexao na conexão, audio_fechamento 
   };
 
   const analisarFunil = async () => {
-    setAnalisando(true); setAnalise(null);
+    setAnalisando(true); setAnalise(null); setAuditResult(null);
     try {
       const desc = fases.map(f => `${f.emoji} ${f.label}: perguntas=${f.perguntas.length}, exclusoes=${f.exclusoes.length}, midias=${f.midias.length}, campos=${f.camposColeta.length}, acao=${f.acao}`).join("\n");
       const res = await fetch("/api/generate-prompt", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemPrompt: `Analise o funil jurídico e aponte problemas. Seja direto e prático. Liste no máximo 5 problemas com sugestão de correção. Use emojis. Responda em português.`,
-          userMsg: `Funil: ${nomeFunil}\n\n${desc}`,
+          systemPrompt: `Analise o funil juridico e retorne APENAS JSON valido:
+{"score":0,"clareza":0,"seguranca":0,"coleta":0,"conversao":0,"humanizacao":0,"problemas":[""],"sugestoes":[""]}
+Notas de 0 a 100. Problemas e sugestoes devem ser praticos, curtos e acionaveis. Avalie risco de promessa juridica, falta de criterios, excesso de perguntas e falta de handoff humano.`,
+          userMsg: `BRIEFING:\n${briefingTexto()}\n\nFunil: ${nomeFunil}\n\n${desc}\n\nDetalhes completos:\n${JSON.stringify(fases)}`,
         }),
       });
       const { prompt } = await res.json();
-      setAnalise(prompt);
+      try {
+        const data = JSON.parse(prompt.replace(/```json|```/g, "").trim());
+        setAuditResult(data);
+        setAnalise([
+          `Nota geral: ${data.score ?? 0}/100`,
+          ...(data.problemas ?? []).map((p: string) => `Problema: ${p}`),
+          ...(data.sugestoes ?? []).map((s: string) => `Sugestao: ${s}`),
+        ].join("\n"));
+      } catch {
+        setAnalise(prompt);
+      }
     } catch (e: any) { toast.error("Erro: " + e.message); }
     finally { setAnalisando(false); }
+  };
+
+  const melhorarFunil = async () => {
+    setMelhorando(true);
+    try {
+      const res = await fetch("/api/generate-prompt", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemPrompt: `Melhore um funil juridico de WhatsApp. Retorne APENAS JSON valido:
+{"nome":"string","descricao":"string","fases":[{"id":"abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado","perguntas":[],"exclusoes":[{"condicao":"","motivo":""}],"midias":[{"chave":"","script":"","momento":""}],"textoAposMidia":"","acao":"nenhuma|contrato|agendamento|criar_grupo|handoff","camposColeta":[]}]}
+Mantenha todas as 7 fases. Corrija riscos juridicos, adicione criterios de exclusao, perguntas melhores, scripts de midia e handoff humano quando necessario. Nao prometa resultado.`,
+          userMsg: `BRIEFING:\n${briefingTexto()}\n\nANALISE ATUAL:\n${analise || "sem analise"}\n\nFUNIL ATUAL:\n${JSON.stringify(fases)}`,
+        }),
+      });
+      const { prompt: json } = await res.json();
+      const data = JSON.parse(json.replace(/```json|```/g, "").trim());
+      salvarVersao("Antes da melhoria IA");
+      aplicarFasesGeradas(data);
+      setTab("visao");
+      toast.success("Funil melhorado pela IA. Revise antes de salvar.");
+    } catch (e: any) { toast.error("Erro: " + e.message); }
+    finally { setMelhorando(false); }
   };
 
   const salvar = async () => {
@@ -743,12 +899,12 @@ REGRAS: video_abertura na abertura, video_conexao na conexão, audio_fechamento 
           systemPrompt: `Crie prompt operacional para agente IA de advocacia WhatsApp.
 REGRA CRÍTICA: campo "texto" SEMPRE termina com pergunta ou call-to-action. Nunca "Entendido." sem continuar.
 Retorne APENAS o texto do prompt, sem markdown.`,
-          userMsg: `Advogado: ${nomeDr}\nFunil: ${nomeFunil}\n${descricao}\n\nFluxo:\n${fasesDesc}`,
+          userMsg: `Advogado: ${nomeDr}\nFunil: ${nomeFunil}\n${descricao}\n\nBRIEFING E REGRAS:\n${briefingTexto()}\n\nChecklist de qualidade: ${scoreLocal()}%\n\nFluxo:\n${fasesDesc}`,
         }),
       });
       const { prompt } = await promptRes.json();
       const { error } = await supabase.from("funnels").insert({
-        user_id: user.id, name: nomeFunil, description: descricao,
+        user_id: user.id, name: nomeFunil, description: [descricao, "", "Briefing:", briefingTexto()].filter(Boolean).join("\n"),
         persona_prompt: prompt, is_active: true, medias: {},
       });
       if (error) throw error;
@@ -865,6 +1021,9 @@ Retorne APENAS o texto do prompt, sem markdown.`,
             <Button variant="outline" size="sm" onClick={analisarFunil} disabled={analisando} className="gap-1.5 text-xs h-8">
               <Sparkles className="h-3.5 w-3.5 text-violet-500" />{analisando ? "Analisando..." : "Analisar funil"}
             </Button>
+            <Button variant="outline" size="sm" onClick={melhorarFunil} disabled={melhorando} className="gap-1.5 text-xs h-8">
+              <Wand2 className="h-3.5 w-3.5 text-primary" />{melhorando ? "Melhorando..." : "Melhorar"}
+            </Button>
             <Button variant="outline" size="sm" onClick={gerarScripts} disabled={gerandoScripts} className="gap-1.5 text-xs h-8">
               <Mic className="h-3.5 w-3.5" />{gerandoScripts ? "Gerando..." : "Scripts IA"}
             </Button>
@@ -874,6 +1033,7 @@ Retorne APENAS o texto do prompt, sem markdown.`,
         {/* Tabs */}
         <div className="flex gap-1 px-6 py-2 border-b border-border shrink-0">
           {[
+            { id: "briefing", label: "Briefing",        icon: FileText },
             { id: "ia",    label: "IA gera tudo",    icon: Sparkles },
             { id: "visao", label: "Visão geral",      icon: LayoutGrid },
             { id: "fase",  label: activeId ? fases.find(f => f.id === activeId)?.label || "Fase" : "Configurar fase", icon: Settings },
@@ -905,7 +1065,154 @@ Retorne APENAS o texto do prompt, sem markdown.`,
                   <p className="font-semibold text-sm text-violet-800 flex items-center gap-2"><Sparkles className="h-4 w-4" />Análise do funil</p>
                   <button onClick={() => setAnalise(null)} className="text-violet-400 hover:text-violet-600"><X className="h-4 w-4" /></button>
                 </div>
+                {auditResult && (
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      ["Geral", auditResult.score],
+                      ["Segurança", auditResult.seguranca],
+                      ["Coleta", auditResult.coleta],
+                      ["Conversão", auditResult.conversao],
+                      ["Clareza", auditResult.clareza],
+                      ["Humano", auditResult.humanizacao],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-lg bg-white/70 border border-violet-100 px-2 py-1.5">
+                        <p className="text-[10px] text-violet-500">{label}</p>
+                        <p className="text-sm font-bold text-violet-800">{value ?? 0}%</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-violet-700 whitespace-pre-line leading-relaxed">{analise}</p>
+              </div>
+            )}
+
+            {/* Tab: Briefing */}
+            {tab === "briefing" && (
+              <div className="space-y-6">
+                <div className="rounded-xl border border-border p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="font-bold text-foreground">Briefing inteligente do funil</h3>
+                      <p className="text-xs text-muted-foreground mt-1">Essas respostas guiam a IA na criação, revisão e prompt final.</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold">Qualidade</p>
+                      <p className={cn("text-2xl font-bold", scoreLocal() >= 80 ? "text-emerald-600" : scoreLocal() >= 50 ? "text-amber-600" : "text-red-500")}>{scoreLocal()}%</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Área jurídica</Label>
+                      <select value={briefing.area} onChange={e => patchBriefing({ area: e.target.value })}
+                        className="mt-1.5 w-full h-9 rounded-md border border-input bg-background px-3 text-xs outline-none">
+                        {AREAS_JURIDICAS.map(area => <option key={area} value={area}>{area}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Cidade/região</Label>
+                      <Input value={briefing.cidade} onChange={e => patchBriefing({ cidade: e.target.value })} className="mt-1.5 text-xs h-9" placeholder="Ex: Porto Alegre e região" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Objetivo principal</Label>
+                    <Textarea value={briefing.objetivo} onChange={e => patchBriefing({ objetivo: e.target.value })} rows={2} className="mt-1.5 text-xs resize-none"
+                      placeholder="Ex: qualificar leads de BPC negado, coletar documentos e gerar contrato quando houver chance real." />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Cliente ideal / público</Label>
+                    <Textarea value={briefing.publico} onChange={e => patchBriefing({ publico: e.target.value })} rows={2} className="mt-1.5 text-xs resize-none"
+                      placeholder="Ex: mães com vaga em creche negada, idosos com BPC indeferido, pacientes com negativa do plano." />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Documentos e provas</Label>
+                      <Textarea value={briefing.documentos} onChange={e => patchBriefing({ documentos: e.target.value })} rows={3} className="mt-1.5 text-xs resize-none" placeholder="RG, CPF, protocolo, negativa, laudo, comprovante..." />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Urgências e sinais de lead quente</Label>
+                      <Textarea value={briefing.urgencias} onChange={e => patchBriefing({ urgencias: e.target.value })} rows={3} className="mt-1.5 text-xs resize-none" placeholder="Prazo curto, risco de saúde, audiência, criança sem vaga..." />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Tom de voz</Label>
+                      <Textarea value={briefing.tom} onChange={e => patchBriefing({ tom: e.target.value })} rows={3} className="mt-1.5 text-xs resize-none" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Honorários / condição comercial</Label>
+                      <Textarea value={briefing.honorarios} onChange={e => patchBriefing({ honorarios: e.target.value })} rows={3} className="mt-1.5 text-xs resize-none" placeholder="Ex: análise gratuita, só cobra ao final, entrada..." />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Proibições para a IA</Label>
+                      <Textarea value={briefing.proibicoes} onChange={e => patchBriefing({ proibicoes: e.target.value })} rows={3} className="mt-1.5 text-xs resize-none" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Quando chamar humano</Label>
+                      <Textarea value={briefing.chamarHumano} onChange={e => patchBriefing({ chamarHumano: e.target.value })} rows={3} className="mt-1.5 text-xs resize-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-border p-4">
+                    <p className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />Checklist de acerto</p>
+                    <div className="space-y-2">
+                      {CHECKLIST_QUALIDADE.map((item, i) => {
+                        const ok = checklistStatus()[i];
+                        return (
+                          <div key={item} className="flex items-start gap-2 text-xs">
+                            {ok ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />}
+                            <span className={ok ? "text-foreground" : "text-muted-foreground"}>{item}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border p-4">
+                    <p className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5"><Settings className="h-3.5 w-3.5 text-primary" />Regras globais</p>
+                    <div className="space-y-2">
+                      {REGRAS_GLOBAIS_PADRAO.map(regra => {
+                        const sel = regrasGlobais.includes(regra);
+                        return (
+                          <button key={regra} onClick={() => setRegrasGlobais(p => sel ? p.filter(r => r !== regra) : [...p, regra])}
+                            className="flex items-start gap-2 w-full text-left text-xs">
+                            {sel ? <CheckCheck className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />}
+                            <span className={sel ? "text-foreground" : "text-muted-foreground"}>{regra}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border p-4 space-y-3">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Play className="h-3.5 w-3.5 text-green-500" />Cenários para testar o atendimento</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TESTES_SIMULACAO.map(teste => (
+                      <button key={teste.id} onClick={() => { setSimTeste(teste.id); setDescLivre(teste.msg); }}
+                        className={cn("text-left rounded-lg border px-3 py-2 text-xs transition-all", simTeste === teste.id ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-muted/40")}>
+                        <span className="font-semibold block">{teste.label}</span>
+                        <span className="text-muted-foreground line-clamp-2">{teste.msg}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={gerarFluxo} disabled={gerandoFluxo || (!descLivre.trim() && !briefing.objetivo.trim())} className="flex-1 gap-2">
+                      <Sparkles className="h-4 w-4" />{gerandoFluxo ? "Gerando..." : "Gerar fluxo com briefing"}
+                    </Button>
+                    <Button onClick={melhorarFunil} disabled={melhorando} variant="outline" className="flex-1 gap-2">
+                      <Wand2 className="h-4 w-4" />{melhorando ? "Melhorando..." : "Melhorar este funil"}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
 
