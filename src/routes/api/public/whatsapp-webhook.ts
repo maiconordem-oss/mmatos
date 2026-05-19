@@ -165,12 +165,14 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               photo_url: photoUrl,
               last_message_at:      new Date().toISOString(),
               last_message_preview: preview,
+              sla_due_at: nextSlaDue(null, false, false),
             }).select().single();
             conv = created;
           } else {
             await supabaseAdmin.from("conversations").update({
               last_message_at:      new Date().toISOString(),
               last_message_preview: preview,
+              sla_due_at: nextSlaDue(conv.priority_flag, conv.needs_human, conv.follow_up_required),
               unread_count: (conv.unread_count || 0) + 1,
               instance_id: conv.instance_id ?? inst.id,
               // Atualizar nome se ainda não tem
@@ -350,6 +352,11 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
     },
   },
 });
+
+function nextSlaDue(priority?: string | null, needsHuman?: boolean | null, followUp?: boolean | null) {
+  const hours = priority === "alta" || needsHuman ? 1 : followUp ? 4 : 2;
+  return new Date(Date.now() + hours * 3600000).toISOString();
+}
 
 // ── Transcrever áudio via Gemini API ─────────────────────────
 async function transcribeAudio(

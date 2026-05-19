@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2, Image, ExternalLink, Zap } from "lucide-react";
+import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2, Image, ExternalLink, Zap, AlertTriangle, UserCheck, RotateCcw, HeartPulse, ClipboardList } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -160,10 +160,21 @@ type Conversation = {
   priority_flag?: string | null;
   needs_human?: boolean;
   follow_up_required?: boolean;
+  sla_due_at?: string | null;
+  first_response_at?: string | null;
+  ai_pause_reason?: string | null;
 };
 
 type QuickReply = { id: string; shortcut: string; message: string };
 type ConvTag    = { id: string; name: string; color: string };
+type QueueFilter = "all" | "novo" | "humano" | "followup" | "urgente" | "sla";
+type AssignmentEvent = {
+  id: string;
+  event_type: string;
+  note: string | null;
+  assigned_to: string | null;
+  created_at: string;
+};
 
 type Message = {
   id: string; direction: "inbound" | "outbound";
@@ -171,6 +182,8 @@ type Message = {
   media_type?: string | null; media_url?: string | null; media_mime?: string | null;
   delivered_at?: string | null; read_at?: string | null;
   transcription?: string | null;
+  external_id?: string | null;
+  last_error?: string | null;
 };
 
 const proxyUrl = (msg: Message, token: string | null) =>
@@ -239,6 +252,50 @@ function groupByDate(messages: Message[]) {
     groups[groups.length - 1].messages.push(m);
   }
   return groups;
+}
+
+function hoursUntil(iso?: string | null) {
+  if (!iso) return null;
+  return (new Date(iso).getTime() - Date.now()) / 3600000;
+}
+
+function calcSlaDue(conv: Conversation) {
+  if (conv.sla_due_at) return conv.sla_due_at;
+  if (!conv.last_message_at || conv.ticket_status === "resolved") return null;
+  const base = new Date(conv.last_message_at).getTime();
+  const hours = conv.priority_flag === "alta" || conv.needs_human ? 1 : conv.follow_up_required ? 4 : 2;
+  return new Date(base + hours * 3600000).toISOString();
+}
+
+function queueKind(conv: Conversation): Exclude<QueueFilter, "all"> {
+  if (conv.priority_flag === "alta") return "urgente";
+  if (conv.needs_human || conv.ai_paused) return "humano";
+  if (conv.follow_up_required) return "followup";
+  if ((conv.ticket_status ?? "pending") === "pending") return "novo";
+  const sla = hoursUntil(calcSlaDue(conv));
+  return sla !== null && sla <= 0 ? "sla" : "novo";
+}
+
+function slaLabel(conv: Conversation) {
+  const due = calcSlaDue(conv);
+  const hours = hoursUntil(due);
+  if (hours === null) return null;
+  if (hours <= 0) return "SLA vencido";
+  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}min`;
+  return `${Math.round(hours)}h`;
+}
+
+function playbookForPhase(phase?: string | null) {
+  const map: Record<string, string[]> = {
+    abertura: ["Cumprimente pelo nome", "Confirme o motivo do contato", "Evite pedir documentos cedo demais"],
+    triagem: ["Identifique urgência e cidade", "Colete dados mínimos", "Sinalize se precisa de humano"],
+    conexao: ["Demonstre entendimento do caso", "Explique próximos passos em linguagem simples"],
+    fechamento: ["Reforce valor e prazo", "Tire objeções antes de enviar contrato"],
+    coleta: ["Peça documentos em lista curta", "Confirme recebimento de cada mídia"],
+    assinatura: ["Oriente assinatura", "Confirme canal para dúvidas"],
+    encerrado: ["Confirme conclusão", "Ofereça acompanhamento futuro"],
+  };
+  return map[phase || ""] ?? ["Leia o histórico", "Responda com clareza", "Registre a próxima ação"];
 }
 
 const FASES = ["abertura","triagem","conexao","fechamento","coleta","assinatura","encerrado"];
@@ -579,12 +636,23 @@ function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId]           = useState<string | null>(null);
   const [ticketFilter, setTicketFilter]   = useState<"all"|"pending"|"open"|"resolved">("all");
+  const [queueFilter, setQueueFilter]     = useState<QueueFilter>("all");
   const [quickReplies, setQuickReplies]   = useState<QuickReply[]>([]);
   const [tags, setTags]                   = useState<ConvTag[]>([]);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [quickSearch, setQuickSearch]     = useState("");
   const [showTagMenu, setShowTagMenu]     = useState(false);
   const [businessHours, setBusinessHours] = useState<any>(null);
+  const [healthOpen, setHealthOpen]       = useState(false);
+  const [assignmentEvents, setAssignmentEvents] = useState<AssignmentEvent[]>([]);
+  const [activeFunnelState, setActiveFunnelState] = useState<FunnelState | null>(null);
+  const [metrics, setMetrics] = useState({
+    avgFirstResponseMin: 0,
+    unanswered: 0,
+    hotLeads: 0,
+    conversionRate: 0,
+    funnelConversions: [] as Array<{ name: string; total: number; converted: number; rate: number }>,
+  });
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
@@ -641,6 +709,8 @@ function InboxPage() {
   useEffect(() => {
     setSuggestions([]); setAiSummary(null); setAiTasks([]); setAiSentiment(null);
     setAiSearchQ(""); setAiSearchResults([]);
+    setAssignmentEvents([]);
+    setActiveFunnelState(null);
   }, [activeId]);
 
   // Helpers de IA
@@ -714,18 +784,96 @@ function InboxPage() {
     setBusinessHours(data);
   }, []);
 
+  const loadAssignmentEvents = useCallback(async (conversationId: string) => {
+    const { data } = await supabase.from("conversation_assignment_events" as any)
+      .select("id, event_type, note, assigned_to, created_at")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(8);
+    setAssignmentEvents((data ?? []) as AssignmentEvent[]);
+  }, []);
+
+  const logAssignmentEvent = async (conversationId: string, eventType: string, note?: string | null, assignedTo?: string | null) => {
+    if (!user) return;
+    await supabase.from("conversation_assignment_events" as any).insert({
+      user_id: user.id,
+      conversation_id: conversationId,
+      actor_id: user.id,
+      assigned_to: assignedTo ?? null,
+      event_type: eventType,
+      note: note ?? null,
+    });
+    if (activeId === conversationId) loadAssignmentEvents(conversationId);
+  };
+
+  const refreshMetrics = useCallback(async (items: Conversation[]) => {
+    if (!user) return;
+    const openItems = items.filter(c => (c.ticket_status ?? "pending") !== "resolved");
+    const hotLeads = items.filter(c => c.priority_flag === "alta" || c.needs_human).length;
+    const resolved = items.filter(c => (c.ticket_status ?? "pending") === "resolved").length;
+    const withFirstResponse = items.filter(c => c.first_response_at && c.created_at);
+    const avgFirstResponseMin = withFirstResponse.length
+      ? Math.round(withFirstResponse.reduce((sum, c) =>
+          sum + Math.max(0, new Date(c.first_response_at!).getTime() - new Date(c.created_at).getTime()) / 60000, 0) / withFirstResponse.length)
+      : 0;
+
+    const recentIds = openItems.map(c => c.id).slice(0, 100);
+    let unanswered = 0;
+    if (recentIds.length > 0) {
+      const { data: msgs } = await supabase.from("messages")
+        .select("conversation_id, direction, created_at")
+        .in("conversation_id", recentIds)
+        .order("created_at", { ascending: false });
+      const seen = new Set<string>();
+      for (const msg of msgs ?? []) {
+        if (seen.has(msg.conversation_id)) continue;
+        seen.add(msg.conversation_id);
+        if (msg.direction === "inbound") unanswered++;
+      }
+    }
+
+    const { data: funnelStates } = await supabase.from("funnel_states")
+      .select("fase, funnel_id, funnels(name)")
+      .eq("user_id", user.id);
+    const funnelMap = new Map<string, { name: string; total: number; converted: number }>();
+    for (const state of funnelStates ?? []) {
+      const key = state.funnel_id || "sem_funil";
+      const name = (state.funnels as any)?.name || "Sem funil";
+      const entry = funnelMap.get(key) ?? { name, total: 0, converted: 0 };
+      entry.total++;
+      if (state.fase === "encerrado") entry.converted++;
+      funnelMap.set(key, entry);
+    }
+    const funnelConversions = [...funnelMap.values()]
+      .map(f => ({ ...f, rate: f.total ? Math.round((f.converted / f.total) * 100) : 0 }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 4);
+
+    setMetrics({
+      avgFirstResponseMin,
+      unanswered,
+      hotLeads,
+      conversionRate: items.length ? Math.round((resolved / items.length) * 100) : 0,
+      funnelConversions,
+    });
+  }, [user]);
+
   const loadConvs = useCallback(async () => {
     let q = supabase.from("conversations").select("*")
       .order("last_message_at", { ascending: false, nullsFirst: false });
     if (activeInstance !== "all") q = q.eq("instance_id", activeInstance);
     const { data } = await q;
-    setConversations((data ?? []) as Conversation[]);
-  }, [activeInstance]);
+    const rows = (data ?? []) as Conversation[];
+    setConversations(rows);
+    refreshMetrics(rows);
+  }, [activeInstance, refreshMetrics]);
 
   // Filtrar conversas por status de ticket
   const filteredConvs = conversations.filter(c => {
-    if (ticketFilter === "all") return true;
-    return (c.ticket_status ?? "pending") === ticketFilter;
+    const ticketOk = ticketFilter === "all" || (c.ticket_status ?? "pending") === ticketFilter;
+    const queueOk = queueFilter === "all"
+      || (queueFilter === "sla" ? (hoursUntil(calcSlaDue(c)) ?? 1) <= 0 : queueKind(c) === queueFilter);
+    return ticketOk && queueOk;
   });
 
   useEffect(() => {
@@ -762,6 +910,12 @@ function InboxPage() {
   // Carregar mensagens + realtime quando troca de conversa
   useEffect(() => {
     if (!activeId) return;
+    loadAssignmentEvents(activeId);
+    supabase.from("funnel_states")
+      .select("fase, dados, midias_enviadas, funnels(name)")
+      .eq("conversation_id", activeId)
+      .maybeSingle()
+      .then(({ data }) => setActiveFunnelState(data as any));
     supabase.from("messages").select("*")
       .eq("conversation_id", activeId).order("created_at")
       .then(({ data }) => {
@@ -779,9 +933,14 @@ function InboxPage() {
           supabase.from("conversations").update({ unread_count: 0 }).eq("id", activeId);
           loadConvs(); // Atualiza preview na lista
         })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages",
+          filter: `conversation_id=eq.${activeId}` },
+        (payload) => {
+          setMessages(prev => prev.map(m => m.id === (payload.new as Message).id ? payload.new as Message : m));
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [activeId]);
+  }, [activeId, loadAssignmentEvents, loadConvs]);
 
   const handleNewConv = async () => {
     if (!user || !newConv.phone) return;
@@ -819,16 +978,20 @@ function InboxPage() {
 
   // Aceitar ticket (assume o atendimento)
   const acceptTicket = async (convId: string) => {
+    const now = new Date().toISOString();
     const { error } = await supabase.from("conversations").update({
       ticket_status: "open",
-      accepted_at:   new Date().toISOString(),
+      accepted_at:   now,
       assigned_to:   user?.id ?? null,
     }).eq("id", convId);
     if (error) { toast.error(`Erro: ${error.message}. Rode a migration no Supabase.`); return; }
+    await logAssignmentEvent(convId, "resolved", "Atendimento encerrado", user?.id ?? null);
+    await logAssignmentEvent(convId, "assigned", "Atendimento assumido", user?.id ?? null);
     // Atualizar estado local imediatamente
     setConversations(prev => prev.map(c =>
-      c.id === convId ? { ...c, ticket_status: "open" as const } : c
+      c.id === convId ? { ...c, ticket_status: "open" as const, accepted_at: now, assigned_to: user?.id ?? null } : c
     ));
+    if (activeId === convId && !aiSummary) doSummary();
     toast.success("Atendimento aceito!");
   };
 
@@ -853,6 +1016,7 @@ function InboxPage() {
       resolved_at:   null,
     }).eq("id", convId);
     if (error) { toast.error(`Erro: ${error.message}`); return; }
+    await logAssignmentEvent(convId, "reopened", "Atendimento reaberto", user?.id ?? null);
     setConversations(prev => prev.map(c =>
       c.id === convId ? { ...c, ticket_status: "open" as const } : c
     ));
@@ -1022,7 +1186,14 @@ function InboxPage() {
     // Verificar se marcou ticket como aceito ao enviar manualmente
     const conv = conversations.find(c => c.id === activeId);
     if (conv && (conv.ticket_status ?? "pending") === "pending") {
-      await supabase.from("conversations").update({ ticket_status: "open", accepted_at: new Date().toISOString(), assigned_to: user?.id ?? null }).eq("id", activeId ?? "");
+      const now = new Date().toISOString();
+      await supabase.from("conversations").update({
+        ticket_status: "open",
+        accepted_at: now,
+        assigned_to: user?.id ?? null,
+        first_response_at: conv.first_response_at ?? now,
+      }).eq("id", activeId ?? "");
+      await logAssignmentEvent(activeId, "assigned", "Atendimento assumido ao responder", user?.id ?? null);
     }
 
     // Salvar no banco como pendente para refletir falha/envio real.
@@ -1038,6 +1209,7 @@ function InboxPage() {
     await supabase.from("conversations").update({
       last_message_at: new Date().toISOString(),
       last_message_preview: content.slice(0, 80),
+      ...(conv?.first_response_at ? {} : { first_response_at: new Date().toISOString() }),
     }).eq("id", activeId);
 
     // Enviar via Evolution API — usar a instância vinculada à conversa
@@ -1073,8 +1245,46 @@ function InboxPage() {
     } catch (e: any) {
       await supabase.from("messages").update({
         status: "failed",
+        last_error: e?.message ?? "Falha ao enviar pelo WhatsApp",
       }).eq("id", insertedMsg.id);
       toast.error("Mensagem não enviada: " + (e?.message ?? "falha desconhecida"));
+    }
+  };
+
+  const retryMessage = async (message: Message) => {
+    if (!active || !user || !message.content?.trim()) return;
+    try {
+      await supabase.from("messages").update({ status: "pending", last_error: null }).eq("id", message.id);
+      setMessages(prev => prev.map(m => m.id === message.id ? { ...m, status: "pending", last_error: null } : m));
+
+      const { data: convRow } = await supabase.from("conversations")
+        .select("phone, instance_id").eq("id", active.id).single();
+      let inst: any = null;
+      if (convRow?.instance_id) {
+        const { data } = await supabase.from("whatsapp_instances")
+          .select("id, status, is_office").eq("id", convRow.instance_id).maybeSingle();
+        inst = data;
+      }
+      if (!inst) {
+        const { data } = await supabase.from("whatsapp_instances").select("id, status, is_office")
+          .eq("user_id", user.id).eq("status", "connected").eq("is_office", false).limit(1).maybeSingle();
+        inst = data ?? null;
+      }
+      if (!inst?.id) throw new Error("Nenhuma instância WhatsApp conectada");
+
+      const sent = await sendTextFn({ data: { instanceId: inst.id, phone: convRow?.phone || active.phone, text: message.content } });
+      await supabase.from("messages").update({
+        status: "sent",
+        external_id: sent?.messageId ?? null,
+        last_error: null,
+      }).eq("id", message.id);
+      toast.success("Mensagem reenviada");
+    } catch (e: any) {
+      await supabase.from("messages").update({
+        status: "failed",
+        last_error: e?.message ?? "Falha ao reenviar",
+      }).eq("id", message.id);
+      toast.error("Reenvio falhou: " + (e?.message ?? "erro desconhecido"));
     }
   };
 
@@ -1171,7 +1381,17 @@ function InboxPage() {
   };
 
   const toggleAiPause = async (conv: Conversation) => {
-    await supabase.from("conversations").update({ ai_paused: !conv.ai_paused }).eq("id", conv.id);
+    const pausing = !conv.ai_paused;
+    const reason = pausing
+      ? window.prompt("Motivo da pausa da IA", conv.ai_pause_reason || "Atendimento humano assumido")
+      : null;
+    if (pausing && reason === null) return;
+    await supabase.from("conversations").update({
+      ai_paused: pausing,
+      ai_pause_reason: pausing ? reason : null,
+      ...(pausing ? { needs_human: true } : { needs_human: false }),
+    }).eq("id", conv.id);
+    await logAssignmentEvent(conv.id, pausing ? "ai_paused" : "ai_resumed", pausing ? reason : "IA retomada", user?.id ?? null);
     loadConvs();
     toast.success(conv.ai_paused ? "IA reativada" : "IA pausada — você está no controle");
   };
@@ -1299,6 +1519,76 @@ function InboxPage() {
           })}
         </div>
 
+        {/* Fila operacional */}
+        <div className="px-3 py-2 border-b border-[#e9edef] bg-white">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] uppercase tracking-wide text-[#667781] font-semibold">Fila de atendimento</span>
+            <button onClick={() => setHealthOpen(!healthOpen)}
+              className="flex items-center gap-1 text-[10px] text-[#00a884] hover:underline">
+              <HeartPulse className="h-3 w-3" /> saúde
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {([
+              { key: "novo", label: "Novo" },
+              { key: "humano", label: "Humano" },
+              { key: "followup", label: "Follow-up" },
+              { key: "urgente", label: "Urgente" },
+              { key: "sla", label: "SLA" },
+              { key: "all", label: "Todos" },
+            ] as const).map(item => {
+              const count = item.key === "all"
+                ? conversations.length
+                : conversations.filter(c => item.key === "sla" ? (hoursUntil(calcSlaDue(c)) ?? 1) <= 0 : queueKind(c) === item.key).length;
+              return (
+                <button key={item.key} onClick={() => setQueueFilter(item.key)}
+                  className={cn("rounded-md border px-2 py-1.5 text-left transition-colors",
+                    queueFilter === item.key ? "border-[#00a884] bg-[#00a884]/10" : "border-[#e9edef] bg-[#f7f8fa] hover:bg-[#f0f2f5]")}>
+                  <span className="block text-[10px] font-semibold text-[#111b21]">{item.label}</span>
+                  <span className="text-[10px] text-[#667781]">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          {healthOpen && (
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              <div className="rounded-md bg-[#f7f8fa] border border-[#e9edef] px-2 py-1.5">
+                <p className="text-[9px] text-[#667781]">WhatsApp</p>
+                <p className="text-xs font-semibold text-[#111b21]">{instances.filter(i => i.status === "connected").length}/{instances.length} conectado(s)</p>
+              </div>
+              <div className="rounded-md bg-[#f7f8fa] border border-[#e9edef] px-2 py-1.5">
+                <p className="text-[9px] text-[#667781]">Sem resposta</p>
+                <p className="text-xs font-semibold text-[#111b21]">{metrics.unanswered}</p>
+              </div>
+              <div className="rounded-md bg-[#f7f8fa] border border-[#e9edef] px-2 py-1.5">
+                <p className="text-[9px] text-[#667781]">1ª resposta</p>
+                <p className="text-xs font-semibold text-[#111b21]">{metrics.avgFirstResponseMin || "-"} min</p>
+              </div>
+              <div className="rounded-md bg-[#f7f8fa] border border-[#e9edef] px-2 py-1.5">
+                <p className="text-[9px] text-[#667781]">Conversão</p>
+                <p className="text-xs font-semibold text-[#111b21]">{metrics.conversionRate}%</p>
+              </div>
+              <div className="rounded-md bg-[#f7f8fa] border border-[#e9edef] px-2 py-1.5">
+                <p className="text-[9px] text-[#667781]">Leads quentes</p>
+                <p className="text-xs font-semibold text-[#111b21]">{metrics.hotLeads}</p>
+              </div>
+              {metrics.funnelConversions.length > 0 && (
+                <div className="col-span-2 rounded-md bg-[#f7f8fa] border border-[#e9edef] px-2 py-1.5">
+                  <p className="text-[9px] text-[#667781] mb-1">Conversão por funil</p>
+                  <div className="space-y-1">
+                    {metrics.funnelConversions.map(f => (
+                      <div key={f.name} className="flex items-center justify-between gap-2 text-[10px]">
+                        <span className="truncate text-[#111b21]">{f.name}</span>
+                        <span className="shrink-0 text-[#667781]">{f.converted}/{f.total} · {f.rate}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Busca + Ordenar */}
         <div className="px-3 py-2 flex gap-2" style={{ background: "#f0f2f5" }}>
           <div className="flex items-center gap-2 rounded-lg px-3 py-2 flex-1" style={{ background: "#ffffff" }}>
@@ -1364,6 +1654,14 @@ function InboxPage() {
                       )}
                       {c.follow_up_required && !c.needs_human && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-600 font-bold">RETORNO</span>
+                      )}
+                      {slaLabel(c) && (
+                        <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-bold",
+                          (hoursUntil(calcSlaDue(c)) ?? 1) <= 0
+                            ? "bg-red-500/20 text-red-600"
+                            : "bg-blue-500/20 text-blue-600")}>
+                          {slaLabel(c)}
+                        </span>
                       )}
                       {/* Badge de status */}
                       {(c.ticket_status ?? "pending") === "pending" && (
@@ -1537,6 +1835,30 @@ function InboxPage() {
               </div>
             </div>
 
+            <div className="px-4 py-2 border-y border-[#e9edef] bg-white flex items-center gap-2 text-xs overflow-x-auto">
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#f0f2f5] px-2 py-1 text-[#54656f]">
+                <UserCheck className="h-3 w-3" />
+                {active.assigned_to ? "Assumido" : "Sem responsável"}
+              </span>
+              <span className={cn("shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-1",
+                (hoursUntil(calcSlaDue(active)) ?? 1) <= 0 ? "bg-red-500/10 text-red-600" : "bg-blue-500/10 text-blue-600")}>
+                <Clock className="h-3 w-3" /> {slaLabel(active) || "Sem SLA"}
+              </span>
+              {active.ai_pause_reason && (
+                <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-1 text-amber-700">
+                  <AlertTriangle className="h-3 w-3" /> {active.ai_pause_reason}
+                </span>
+              )}
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#00a884]/10 px-2 py-1 text-[#007a60]">
+                <ClipboardList className="h-3 w-3" /> Fase: {FASE_LABELS[activeFunnelState?.fase || ""] || "Sem funil"}
+              </span>
+              {assignmentEvents[0] && (
+                <span className="shrink-0 text-[#667781]">
+                  Último registro: {assignmentEvents[0].event_type} · {new Date(assignmentEvents[0].created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
+
             {/* Painel de ferramentas IA — expandido */}
             {showAiPanel && (
               <div className="border-b border-[#e9edef] max-h-[50vh] overflow-y-auto bg-white">
@@ -1587,6 +1909,42 @@ function InboxPage() {
 
                 {/* Resultados */}
                 <div className="px-4 py-3 space-y-3">
+                  <div className="rounded-lg p-3 border border-[#e9edef] bg-[#f9fafb]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ClipboardList className="h-3.5 w-3.5 text-[#00a884]" />
+                      <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Playbook da fase</span>
+                      <Badge className="text-[10px] px-1.5 py-0 bg-[#00a884]/10 text-[#007a60] border-[#00a884]/20">
+                        {FASE_LABELS[activeFunnelState?.fase || ""] || "Atendimento"}
+                      </Badge>
+                    </div>
+                    <ul className="grid gap-1">
+                      {playbookForPhase(activeFunnelState?.fase).map(item => (
+                        <li key={item} className="flex items-start gap-2 text-xs text-[#111b21]">
+                          <CheckCheck className="h-3 w-3 mt-0.5 text-[#00a884] shrink-0" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {assignmentEvents.length > 0 && (
+                    <div className="rounded-lg p-3 border border-[#e9edef] bg-[#f9fafb]">
+                      <div className="flex items-center gap-2 mb-2">
+                        <UserCheck className="h-3.5 w-3.5 text-[#53bdeb]" />
+                        <span className="text-[10px] uppercase tracking-wide text-[#8696a0]">Histórico do responsável</span>
+                      </div>
+                      <ul className="space-y-1">
+                        {assignmentEvents.map(event => (
+                          <li key={event.id} className="text-xs text-[#54656f]">
+                            <span className="font-medium text-[#111b21]">{event.event_type}</span>
+                            {event.note ? ` · ${event.note}` : ""}
+                            <span className="text-[#8696a0]"> · {new Date(event.created_at).toLocaleString("pt-BR")}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   {aiSentiment && (
                     <div className="rounded-lg p-3 border border-[#e9edef] bg-[#f9fafb]">
                       <div className="flex items-center gap-2 mb-1">
@@ -1783,10 +2141,21 @@ function InboxPage() {
 
                         {/* Timestamp */}
                         <div className="flex items-center gap-1 justify-end px-2 pb-1.5 -mt-1">
+                          {m.status === "failed" && (
+                            <button onClick={() => retryMessage(m)}
+                              className="mr-1 inline-flex items-center gap-1 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-600 hover:bg-red-500/20"
+                              title={m.last_error || "Reenviar mensagem"}>
+                              <RotateCcw className="h-2.5 w-2.5" /> reenviar
+                            </button>
+                          )}
                           <span className="text-[10px] text-[#667781]">{formatMsgTime(m.created_at)}</span>
                           {m.direction === "outbound" && (
-                            <span title={(m as any).read_at ? "Lido" : (m as any).delivered_at ? "Entregue" : "Enviado"}>
-                              {(m as any).read_at
+                            <span title={m.status === "failed" ? (m.last_error || "Falhou") : (m as any).read_at ? "Lido" : (m as any).delivered_at ? "Entregue" : m.status === "pending" ? "Enviando" : "Enviado"}>
+                              {m.status === "failed"
+                                ? <AlertTriangle className="h-3 w-3 text-red-500" />
+                                : m.status === "pending"
+                                  ? <Clock className="h-3 w-3 text-[#8696a0]" />
+                                  : (m as any).read_at
                                 ? <CheckCheck className="h-3 w-3 text-[#53bdeb]" />
                                 : (m as any).delivered_at
                                   ? <CheckCheck className="h-3 w-3 text-[#8696a0]" />

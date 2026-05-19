@@ -565,12 +565,14 @@ export type Database = {
           ai_consecutive_count: number
           ai_handled: boolean
           ai_paused: boolean
+          ai_pause_reason: string | null
           assigned_to: string | null
           blocked: boolean
           client_id: string | null
           contact_name: string | null
           created_at: string
           follow_up_required: boolean
+          first_response_at: string | null
           id: string
           instance_id: string | null
           last_message_at: string | null
@@ -580,6 +582,7 @@ export type Database = {
           photo_url: string | null
           priority_flag: string | null
           resolved_at: string | null
+          sla_due_at: string | null
           sentiment: string | null
           status: Database["public"]["Enums"]["conversation_status"]
           tags: string[]
@@ -593,12 +596,14 @@ export type Database = {
           ai_consecutive_count?: number
           ai_handled?: boolean
           ai_paused?: boolean
+          ai_pause_reason?: string | null
           assigned_to?: string | null
           blocked?: boolean
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
           follow_up_required?: boolean
+          first_response_at?: string | null
           id?: string
           instance_id?: string | null
           last_message_at?: string | null
@@ -608,6 +613,7 @@ export type Database = {
           photo_url?: string | null
           priority_flag?: string | null
           resolved_at?: string | null
+          sla_due_at?: string | null
           sentiment?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
           tags?: string[]
@@ -621,12 +627,14 @@ export type Database = {
           ai_consecutive_count?: number
           ai_handled?: boolean
           ai_paused?: boolean
+          ai_pause_reason?: string | null
           assigned_to?: string | null
           blocked?: boolean
           client_id?: string | null
           contact_name?: string | null
           created_at?: string
           follow_up_required?: boolean
+          first_response_at?: string | null
           id?: string
           instance_id?: string | null
           last_message_at?: string | null
@@ -636,6 +644,7 @@ export type Database = {
           photo_url?: string | null
           priority_flag?: string | null
           resolved_at?: string | null
+          sla_due_at?: string | null
           sentiment?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
           tags?: string[]
@@ -657,6 +666,47 @@ export type Database = {
             columns: ["instance_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_assignment_events: {
+        Row: {
+          actor_id: string | null
+          assigned_to: string | null
+          conversation_id: string
+          created_at: string
+          event_type: string
+          id: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          assigned_to?: string | null
+          conversation_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          assigned_to?: string | null
+          conversation_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_assignment_events_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -1102,11 +1152,14 @@ export type Database = {
           conversation_id: string
           created_at: string
           direction: Database["public"]["Enums"]["message_direction"]
+          delivered_at: string | null
           external_id: string | null
           id: string
+          last_error: string | null
           media_mime: string | null
           media_type: string | null
           media_url: string | null
+          read_at: string | null
           status: Database["public"]["Enums"]["message_status"]
           transcription: string | null
           user_id: string
@@ -1116,11 +1169,14 @@ export type Database = {
           conversation_id: string
           created_at?: string
           direction: Database["public"]["Enums"]["message_direction"]
+          delivered_at?: string | null
           external_id?: string | null
           id?: string
+          last_error?: string | null
           media_mime?: string | null
           media_type?: string | null
           media_url?: string | null
+          read_at?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           transcription?: string | null
           user_id: string
@@ -1130,11 +1186,14 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           direction?: Database["public"]["Enums"]["message_direction"]
+          delivered_at?: string | null
           external_id?: string | null
           id?: string
+          last_error?: string | null
           media_mime?: string | null
           media_type?: string | null
           media_url?: string | null
+          read_at?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           transcription?: string | null
           user_id?: string
