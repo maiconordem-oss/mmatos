@@ -54,8 +54,6 @@ function useNotification() {
       const n = new Notification(title, {
         body, icon: "/favicon.ico", badge: "/favicon.ico",
         tag: "lex-crm-message",
-        renotify: true,
-        requireInteraction: false,
       });
       if (onClick) n.onclick = () => { window.focus(); onClick(); };
       setTimeout(() => n.close(), 6000);
@@ -186,7 +184,7 @@ type AssignmentEvent = {
 
 type Message = {
   id: string; direction: "inbound" | "outbound";
-  conversation_id: string;
+  conversation_id?: string;
   content: string | null; created_at: string; status?: string;
   media_type?: string | null; media_url?: string | null; media_mime?: string | null;
   delivered_at?: string | null; read_at?: string | null;
@@ -926,8 +924,9 @@ function InboxPage() {
   useEffect(() => {
     const ch = supabase.channel("inbox-notifications")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
-        const msg = payload.new as Message;
+        const msg = payload.new as any;
         if (msg.direction !== "inbound" || msg.conversation_id === activeIdRef.current) return;
+        if (!msg.conversation_id) return;
 
         const { data: conv } = await supabase
           .from("conversations")
