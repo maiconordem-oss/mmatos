@@ -165,7 +165,7 @@ function FunisPage() {
         .then(({ data }) => setSimDirective((data?.dados as any)?._last_directive ?? null));
     };
     refresh();
-    const ch = supabase.channel("sim:" + simConvId)
+    const ch = supabase.channel(`conversation:${simConvId}`, { config: { private: true } })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "conversation_id=eq." + simConvId }, refresh)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "funnel_states", filter: "conversation_id=eq." + simConvId }, refresh)
       .subscribe();

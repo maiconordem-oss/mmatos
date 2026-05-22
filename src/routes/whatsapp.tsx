@@ -113,11 +113,12 @@ function WhatsappPage() {
 
   // Realtime status
   useEffect(() => {
-    const ch = supabase.channel("wa-status")
+    if (!user?.id) return;
+    const ch = supabase.channel(`user:${user.id}:wa-status`, { config: { private: true } })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "whatsapp_instances" }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [load]);
+  }, [load, user?.id]);
 
   const openEdit = (inst: Instance) => {
     setEditingId(inst.id);

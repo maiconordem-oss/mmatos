@@ -89,6 +89,18 @@ type Message = {
 const proxyUrl = (msg: Message, token: string | null) =>
   msg.media_url && token ? `/api/media-proxy?msg=${msg.id}&token=${encodeURIComponent(token)}` : null;
 
+const storageUri = (path: string) => `whatsapp-media://${path}`;
+
+async function createWhatsappMediaSignedUrl(path: string) {
+  const { data, error } = await supabase.storage
+    .from("whatsapp-media")
+    .createSignedUrl(path, 3600);
+  if (error || !data?.signedUrl) {
+    throw new Error(error?.message || "URL de mídia não gerada");
+  }
+  return data.signedUrl;
+}
+
 type FunnelState = {
   fase: string;
   dados: Record<string, any>;
@@ -1002,7 +1014,8 @@ function InboxPage() {
 
   // Realtime conversas
   useEffect(() => {
-    const ch = supabase.channel("convs-rt")
+    if (!user?.id) return;
+    const ch = supabase.channel(`user:${user.id}:convs-rt`, { config: { private: true } })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversations" }, (payload) => {
         loadConvs();
         const conv = payload.new as any;
@@ -1017,11 +1030,11 @@ function InboxPage() {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations" }, loadConvs)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [loadConvs, notify]);
+  }, [loadConvs, notify, user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
-    const ch = supabase.channel("inbox-notifications")
+    const ch = supabase.channel(`user:${user.id}:inbox-notifications`, { config: { private: true } })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `user_id=eq.${user.id}` }, async (payload: any) => {
         const msg = payload.new as any;
         if (msg.direction !== "inbound" || msg.conversation_id === activeIdRef.current) return;
@@ -1063,7 +1076,7 @@ function InboxPage() {
       });
     clearUnread(activeId);
 
-    const ch = supabase.channel(`msgs:${activeId}`)
+    const ch = supabase.channel(`conversation:${activeId}`, { config: { private: true } })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages",
           filter: `conversation_id=eq.${activeId}` },
         (payload) => {
@@ -1189,14 +1202,12 @@ function InboxPage() {
       .upload(fileName, blob, { contentType: mime, upsert: true });
     if (upErr) throw new Error(`Upload: ${upErr.message}`);
 
-    const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(fileName);
-    const audioUrl = urlData?.publicUrl;
-    if (!audioUrl) throw new Error("URL não gerada");
+    const audioUrl = await createWhatsappMediaSignedUrl(fileName);
 
     await supabase.from("messages").insert({
       user_id: user.id, conversation_id: activeId,
       direction: "outbound", content: "[Áudio]",
-      media_type: "audio", media_url: audioUrl, status: "sent",
+      media_type: "audio", media_url: storageUri(fileName), status: "sent",
     });
     await supabase.from("conversations").update({
       last_message_at: new Date().toISOString(),
@@ -1437,8 +1448,7 @@ function InboxPage() {
       const { data: uploaded, error: upErr } = await supabase.storage
         .from("whatsapp-media").upload(path, file, { upsert: true });
       if (upErr) throw upErr;
-      const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(path);
-      const publicUrl = urlData.publicUrl;
+      const mediaUrl = await createWhatsappMediaSignedUrl(path);
 
       // Buscar instância
       const { data: convRow } = await supabase.from("conversations")
@@ -1466,11 +1476,11 @@ function InboxPage() {
         mediaRes = await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendWhatsAppAudio/${inst.instance_name}`, {
           method: "POST",
           headers: { "Content-Type": "application/json", apikey: inst.api_key },
-          body: JSON.stringify({ number, audio: publicUrl, options: { delay: 500 } }),
+          body: JSON.stringify({ number, audio: mediaUrl, options: { delay: 500 } }),
         }).catch(() => null);
       } else {
         const mediaType = isImage ? "image" : isVideo ? "video" : "document";
-        const body = { number, mediatype: mediaType, media: publicUrl, fileName: file.name, caption: "", options: { delay: 500 } };
+        const body = { number, mediatype: mediaType, media: mediaUrl, fileName: file.name, caption: "", options: { delay: 500 } };
         mediaRes = await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendMedia/${inst.instance_name}`, {
           method: "POST",
           headers: { "Content-Type": "application/json", apikey: inst.api_key },
@@ -1488,7 +1498,7 @@ function InboxPage() {
         conversation_id: active.id,
         content: file.name,
         direction: "outbound",
-        media_url: publicUrl,
+        media_url: storageUri(path),
         media_type: mediaLabel,
         media_mime: file.type,
         status: "sent",

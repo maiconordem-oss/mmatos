@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 function useBadges() {
+  const { user } = useAuth();
   const [unread, setUnread]     = useState(0);
   const [waStatus, setWaStatus] = useState<"connected"|"disconnected">("disconnected");
   const [activeLeads, setActive]= useState(0);
@@ -33,11 +34,12 @@ function useBadges() {
   }, []);
 
   useEffect(() => {
-    const ch = supabase.channel("shell-badges")
+    if (!user?.id) return;
+    const ch = supabase.channel(`user:${user.id}:shell-badges`, { config: { private: true } })
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, []);
+  }, [user?.id]);
 
   return { unread, waStatus, activeLeads };
 }

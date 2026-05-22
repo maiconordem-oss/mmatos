@@ -582,12 +582,7 @@ async function downloadAndStoreMedia(
       return null;
     }
 
-    // URL pública (bucket público) ou signed URL (bucket privado)
-    const { data: urlData } = admin.storage
-      .from("whatsapp-media")
-      .getPublicUrl(path);
-
-    return urlData?.publicUrl ?? null;
+    return `whatsapp-media://${path}`;
   } catch (e: any) {
     console.error("downloadAndStoreMedia error:", e.message);
     return null;

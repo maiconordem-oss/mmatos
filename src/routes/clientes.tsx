@@ -67,6 +67,15 @@ function ClienteDrawer({ client: initial, onClose, onUpdate }: {
   const [editing, setEditing] = useState(false);
   const [form, setForm]     = useState({ ...initial });
   const [saving, setSaving] = useState(false);
+  const [mediaToken, setMediaToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setMediaToken(data.session?.access_token ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setMediaToken(session?.access_token ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -298,8 +307,8 @@ function ClienteDrawer({ client: initial, onClose, onUpdate }: {
                       {new Date(doc.created_at).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  {doc.file_url && !doc.file_url.startsWith("whatsapp-media://") && (
-                    <a href={doc.file_url} target="_blank" rel="noreferrer"
+                  {doc.file_url && (
+                    <a href={mediaToken ? `/api/media-proxy?doc=${doc.id}&token=${encodeURIComponent(mediaToken)}` : doc.file_url} target="_blank" rel="noreferrer"
                       className="text-muted-foreground hover:text-primary shrink-0 p-1">
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>

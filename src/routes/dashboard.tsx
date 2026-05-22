@@ -170,12 +170,13 @@ function DashboardPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const ch = supabase.channel("dashboard-rt")
+    if (!user?.id) return;
+    const ch = supabase.channel(`user:${user.id}:dashboard-rt`, { config: { private: true } })
       .on("postgres_changes", { event: "*", schema: "public", table: "funnel_states" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "cases" }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [load]);
+  }, [load, user?.id]);
 
   const Skeleton = () => (
     <div className="animate-pulse h-8 rounded bg-muted w-16" />
