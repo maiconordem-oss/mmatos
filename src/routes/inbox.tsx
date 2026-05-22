@@ -186,6 +186,7 @@ type AssignmentEvent = {
 
 type Message = {
   id: string; direction: "inbound" | "outbound";
+  conversation_id: string;
   content: string | null; created_at: string; status?: string;
   media_type?: string | null; media_url?: string | null; media_mime?: string | null;
   delivered_at?: string | null; read_at?: string | null;
