@@ -146,7 +146,7 @@ function useAudioRecorder() {
 }
 
 export const Route = createFileRoute("/inbox")({
-  head: () => ({ meta: [{ title: "Inbox WhatsApp — Lex CRM" }] }),
+  head: () => ({ meta: [{ title: "Atendimentos WhatsApp — Lex CRM" }] }),
   component: () => (
     <AuthGate>
       <AppShell noPadding>
@@ -293,7 +293,7 @@ function slaLabel(conv: Conversation) {
   const due = calcSlaDue(conv);
   const hours = hoursUntil(due);
   if (hours === null) return null;
-  if (hours <= 0) return "SLA vencido";
+  if (hours <= 0) return "Atrasado";
   if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}min`;
   return `${Math.round(hours)}h`;
 }
@@ -545,8 +545,8 @@ function LeadPanel({ conv, onClose, onConvUpdated }: { conv: Conversation; onClo
             <p className="text-[#667781] text-sm">{formatBRPhone(conv.phone) || conv.phone}</p>
             <div className="flex items-center gap-1.5 mt-1">
               {conv.ai_paused
-                ? <Badge className="text-[10px] px-1.5 py-0 bg-red-500/20 text-red-400 border-red-500/30">IA pausada</Badge>
-                : <Badge className="text-[10px] px-1.5 py-0 bg-green-500/20 text-green-400 border-green-500/30">IA ativa</Badge>
+                ? <Badge className="text-[10px] px-1.5 py-0 bg-red-500/20 text-red-400 border-red-500/30">Você responde</Badge>
+                : <Badge className="text-[10px] px-1.5 py-0 bg-green-500/20 text-green-400 border-green-500/30">IA responde</Badge>
               }
             </div>
           </div>
@@ -1714,7 +1714,7 @@ function InboxPage() {
     }).eq("id", conv.id);
     await logAssignmentEvent(conv.id, pausing ? "ai_paused" : "ai_resumed", pausing ? reason : "IA retomada", user?.id ?? null);
     loadConvs();
-    toast.success(conv.ai_paused ? "IA reativada" : "IA pausada — você está no controle");
+    toast.success(conv.ai_paused ? "IA respondendo de novo" : "Você está respondendo");
   };
 
   const active  = conversations.find(c => c.id === activeId);
@@ -1811,13 +1811,13 @@ function InboxPage() {
           </div>
         )}
 
-        {/* Abas de status do ticket */}
+        {/* Abas principais */}
         <div className="flex border-b border-[#e9edef] shrink-0" style={{ background: "#f0f2f5" }}>
           {([
             { key: "all",      label: "Todos" },
-            { key: "pending",  label: "Pendentes" },
-            { key: "open",     label: "Abertos" },
-            { key: "resolved", label: "Resolvidos" },
+            { key: "pending",  label: "Responder" },
+            { key: "open",     label: "Em andamento" },
+            { key: "resolved", label: "Finalizadas" },
           ] as const).map(tab => {
             const count = tab.key === "all"
               ? conversations.length
@@ -1843,19 +1843,19 @@ function InboxPage() {
         {/* Fila operacional */}
         <div className="px-3 py-2 border-b border-[#e9edef] bg-white">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] uppercase tracking-wide text-[#667781] font-semibold">Fila de atendimento</span>
+            <span className="text-[10px] uppercase tracking-wide text-[#667781] font-semibold">O que fazer agora</span>
             <button onClick={() => setHealthOpen(!healthOpen)}
               className="flex items-center gap-1 text-[10px] text-[#00a884] hover:underline">
-              <HeartPulse className="h-3 w-3" /> saúde
+              <HeartPulse className="h-3 w-3" /> status
             </button>
           </div>
           <div className="grid grid-cols-3 gap-1.5">
             {([
-              { key: "novo", label: "Novo" },
-              { key: "humano", label: "Humano" },
-              { key: "followup", label: "Follow-up" },
+              { key: "novo", label: "Responder" },
+              { key: "humano", label: "Você" },
+              { key: "followup", label: "Retorno" },
               { key: "urgente", label: "Urgente" },
-              { key: "sla", label: "SLA" },
+              { key: "sla", label: "Atrasado" },
               { key: "all", label: "Todos" },
             ] as const).map(item => {
               const count = item.key === "all"
@@ -2075,27 +2075,27 @@ function InboxPage() {
                   title={active.ai_paused ? "Reativar IA" : "Pausar IA"}
                 >
                   <Bot className="h-3.5 w-3.5" />
-                  {active.ai_paused ? "IA pausada" : "IA ativa"}
+                  {active.ai_paused ? "Você responde" : "IA responde"}
                 </button>
 
                 {/* Aceitar ticket */}
                 {(active.ticket_status ?? "pending") === "pending" && (
                   <button onClick={() => acceptTicket(active.id)}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors">
-                    <CheckCheck className="h-3.5 w-3.5" /> Aceitar
+                    <CheckCheck className="h-3.5 w-3.5" /> Assumir
                   </button>
                 )}
                 {/* Resolver ticket */}
                 {(active.ticket_status ?? "pending") !== "resolved" && (
                   <button onClick={() => resolveTicket(active.id)}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-slate-500/20 text-slate-400 hover:bg-slate-500/30 transition-colors">
-                    ✓ Resolver
+                    Finalizar
                   </button>
                 )}
                 {(active.ticket_status ?? "pending") === "resolved" && (
                   <button onClick={() => reopenTicket(active.id)}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors">
-                    ↩ Reabrir
+                    Reabrir
                   </button>
                 )}
 
@@ -2163,7 +2163,7 @@ function InboxPage() {
               </span>
               <span className={cn("shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-1",
                 (hoursUntil(calcSlaDue(active)) ?? 1) <= 0 ? "bg-red-500/10 text-red-600" : "bg-blue-500/10 text-blue-600")}>
-                <Clock className="h-3 w-3" /> {slaLabel(active) || "Sem SLA"}
+                <Clock className="h-3 w-3" /> {slaLabel(active) || "Sem prazo"}
               </span>
               {active.ai_pause_reason && (
                 <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-1 text-amber-700">
@@ -2171,7 +2171,7 @@ function InboxPage() {
                 </span>
               )}
               <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#00a884]/10 px-2 py-1 text-[#007a60]">
-                <ClipboardList className="h-3 w-3" /> Fase: {FASE_LABELS[activeFunnelState?.fase || ""] || "Sem funil"}
+                <ClipboardList className="h-3 w-3" /> Etapa: {FASE_LABELS[activeFunnelState?.fase || ""] || "Sem funil"}
               </span>
               {assignmentEvents[0] && (
                 <span className="shrink-0 text-[#667781]">
@@ -2185,7 +2185,7 @@ function InboxPage() {
               <div className="border-b border-[#e9edef] max-h-[50vh] overflow-y-auto bg-white">
                 {/* Linha 1: ações rápidas */}
                 <div className="flex items-center gap-2 px-4 py-2 flex-wrap border-b border-[#e9edef]">
-                  <span className="text-[#8696a0] text-xs font-medium mr-1">Ferramentas IA:</span>
+                  <span className="text-[#8696a0] text-xs font-medium mr-1">Ajuda da IA:</span>
                   <button disabled={aiBusy !== null} onClick={() => doSummary()}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#f0f2f5] text-[#111b21] hover:bg-[#e9edef] disabled:opacity-50">
                     {aiBusy === "summary" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ScrollText className="h-3 w-3 text-[#53bdeb]" />}
@@ -2509,7 +2509,7 @@ function InboxPage() {
             {showQuickReplies && (
               <div className="border-t border-[#e9edef] px-3 py-2 bg-white">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[#00a884] text-xs font-medium">⚡ Respostas rápidas</span>
+                  <span className="text-[#00a884] text-xs font-medium">Respostas prontas</span>
                   <input
                     className="flex-1 bg-[#f0f2f5] rounded px-2 py-1 text-xs text-[#111b21] placeholder-[#8696a0] outline-none"
                     placeholder="Buscar..." value={quickSearch} onChange={e => setQuickSearch(e.target.value)} autoFocus />
@@ -2564,7 +2564,7 @@ function InboxPage() {
             <div className="px-5 py-4 flex items-end gap-3 shrink-0 border-t border-[#e9edef]" style={{ background: "#f0f2f5" }}>
               {/* Quick Replies button */}
               <button onClick={() => setShowQuickReplies(!showQuickReplies)}
-                title="Respostas rápidas (⚡)"
+                title="Respostas prontas"
                 className={cn("p-2 shrink-0 transition-colors", showQuickReplies ? "text-[#00a884]" : "text-[#54656f] hover:text-[#00a884]")}>
                 <Zap className="h-5 w-5" />
               </button>
@@ -2577,7 +2577,7 @@ function InboxPage() {
                 <textarea ref={textareaRef}
                   className="flex-1 bg-transparent text-base text-[#111b21] placeholder-[#8696a0] outline-none resize-none leading-relaxed"
                   style={{ height: "48px", maxHeight: "160px" }}
-                  placeholder={active.ai_paused ? "Você está no controle — IA pausada" : "Digite uma mensagem"}
+                  placeholder={active.ai_paused ? "Você está respondendo" : "Digite uma mensagem"}
                   value={text} onChange={handleTextChange} onKeyDown={handleKeyDown} rows={1} />
                 {/* Barra de reescrita inline */}
                 {text.trim().length > 0 && (
