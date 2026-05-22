@@ -9,7 +9,7 @@ import {
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2, Image, ExternalLink, Zap, AlertTriangle, UserCheck, RotateCcw, HeartPulse, ClipboardList } from "lucide-react";
+import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, FileSignature, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2, Image, ExternalLink, Zap, AlertTriangle, UserCheck, RotateCcw, HeartPulse, ClipboardList } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -118,13 +118,41 @@ function questionsFromFunnelPrompt(prompt?: string | null) {
     .slice(0, 6);
 }
 
+function mediaEntriesFromFunnel(funnel?: FunnelState["funnels"]) {
+  if (!funnel) return [];
+  const legacy = {
+    video_abertura: funnel.media_video_abertura,
+    video_conexao: funnel.media_video_conexao,
+    audio_fechamento: funnel.media_audio_fechamento,
+    video_documentos: funnel.media_video_documentos,
+  };
+  return Object.entries({ ...legacy, ...(funnel.medias ?? {}) })
+    .filter((entry): entry is [string, string] => Boolean(entry[1]))
+    .map(([key, url]) => ({
+      key,
+      url,
+      label: key.replace(/^media_/, "").replace(/_/g, " "),
+      type: key.includes("audio") ? "audio" : "video",
+    }));
+}
+
 type FunnelState = {
   id?: string;
   funnel_id?: string | null;
   fase: string;
   dados: Record<string, any>;
   midias_enviadas: string[];
-  funnels: { name: string } | null;
+  funnels: {
+    name: string;
+    persona_prompt?: string | null;
+    medias?: Record<string, string> | null;
+    media_video_abertura?: string | null;
+    media_video_conexao?: string | null;
+    media_audio_fechamento?: string | null;
+    media_video_documentos?: string | null;
+    zapsign_template_id?: string | null;
+    calendar_enabled?: boolean | null;
+  } | null;
 };
 
 // ── Componentes auxiliares ─────────────────────────────────────
@@ -180,7 +208,12 @@ function slaLabel(conv: Conversation) {
 
 
 // ── Painel lateral do lead ─────────────────────────────────────
-function LeadPanel({ conv, onClose, onConvUpdated }: { conv: Conversation; onClose: () => void; onConvUpdated?: (id: string) => void }) {
+function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
+  conv: Conversation;
+  onClose: () => void;
+  onConvUpdated?: (id: string) => void;
+  onUseText?: (text: string) => void;
+}) {
   const { user } = useAuth();
   const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
@@ -362,7 +395,7 @@ function LeadPanel({ conv, onClose, onConvUpdated }: { conv: Conversation; onClo
   useEffect(() => {
     setLoading(true);
     supabase.from("funnel_states")
-      .select("fase, dados, midias_enviadas, funnels(name)")
+      .select("id, funnel_id, fase, dados, midias_enviadas, funnels(name, persona_prompt, medias, media_video_abertura, media_video_conexao, media_audio_fechamento, media_video_documentos, zapsign_template_id, calendar_enabled)")
       .eq("conversation_id", conv.id).maybeSingle()
       .then(({ data }) => { setState(data as any); setLoading(false); });
   }, [conv.id]);
@@ -370,6 +403,11 @@ function LeadPanel({ conv, onClose, onConvUpdated }: { conv: Conversation; onClo
   const faseIdx = state ? FASES.indexOf(state.fase) : -1;
   const dados = state?.dados ?? {};
   const dadosKeys = Object.keys(dados).filter(k => dados[k] && DADO_LABELS[k]);
+  const funnel = state?.funnels as FunnelState["funnels"];
+  const funnelQuestions = questionsFromFunnelPrompt(funnel?.persona_prompt);
+  const phaseQuestions = manualQuestionsForPhase(state?.fase);
+  const mediaEntries = mediaEntriesFromFunnel(funnel);
+  const sentMedia = new Set(state?.midias_enviadas ?? []);
 
   return (
     <div className="w-80 shrink-0 flex flex-col border-l border-[#e9edef]" style={{ background: "#f0f2f5" }}>
@@ -488,10 +526,70 @@ function LeadPanel({ conv, onClose, onConvUpdated }: { conv: Conversation; onClo
             {/* Funil */}
             {(state.funnels as any)?.name && (
               <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
-                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-1">Funil</p>
-                <p className="text-[#111b21] text-sm font-medium">{(state.funnels as any).name}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-1">Funil assistido</p>
+                    <p className="text-[#111b21] text-sm font-medium">{(state.funnels as any).name}</p>
+                  </div>
+                  <Badge className="text-[10px] px-1.5 py-0 bg-[#00a884]/10 text-[#007a60] border-[#00a884]/20">
+                    {FASE_LABELS[state.fase] || state.fase}
+                  </Badge>
+                </div>
               </div>
             )}
+
+            {/* Perguntas do funil */}
+            <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Perguntas do funil</p>
+                <span className="text-[10px] text-[#8696a0]">{funnelQuestions.length + phaseQuestions.length}</span>
+              </div>
+              <div className="space-y-1.5">
+                {[...funnelQuestions, ...phaseQuestions].map(question => (
+                  <button
+                    key={question}
+                    onClick={() => onUseText?.(question)}
+                    className="w-full rounded-lg border border-[#d1e7dd] bg-[#f8fffc] px-2.5 py-2 text-left text-xs leading-relaxed text-[#007a60] hover:bg-[#e8f5f1]"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mídias do funil */}
+            <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Áudios e vídeos</p>
+                <span className="text-[10px] text-[#8696a0]">{mediaEntries.length}</span>
+              </div>
+              {mediaEntries.length === 0 ? (
+                <p className="text-xs text-[#8696a0]">Nenhuma mídia configurada neste funil.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {mediaEntries.map(media => {
+                    const sent = sentMedia.has(media.key);
+                    return (
+                      <a
+                        key={media.key}
+                        href={media.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 rounded-lg border border-[#e9edef] px-2.5 py-2 text-xs text-[#111b21] hover:bg-[#f0f2f5]"
+                      >
+                        {media.type === "audio" ? <Mic className="h-3.5 w-3.5 text-violet-500" /> : <Video className="h-3.5 w-3.5 text-blue-500" />}
+                        <span className="min-w-0 flex-1 truncate capitalize">{media.label}</span>
+                        {sent ? (
+                          <span className="shrink-0 rounded-full bg-[#25d366]/15 px-1.5 py-0.5 text-[10px] text-[#128C7E]">enviado</span>
+                        ) : (
+                          <ExternalLink className="h-3 w-3 shrink-0 text-[#8696a0]" />
+                        )}
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Progresso de fases */}
             <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
@@ -559,6 +657,25 @@ function LeadPanel({ conv, onClose, onConvUpdated }: { conv: Conversation; onClo
                 </div>
               </div>
             )}
+            <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
+              <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-2">Contrato e agendamento</p>
+              <div className="grid gap-1.5">
+                <div className="flex items-center gap-2 rounded-lg bg-[#f0f2f5] px-2.5 py-2">
+                  <FileSignature className="h-3.5 w-3.5 text-[#54656f]" />
+                  <span className="min-w-0 flex-1 text-xs text-[#111b21]">Template ZapSign</span>
+                  <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", funnel?.zapsign_template_id ? "bg-[#25d366]/15 text-[#128C7E]" : "bg-slate-200 text-[#667781]")}>
+                    {funnel?.zapsign_template_id ? "configurado" : "ausente"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-[#f0f2f5] px-2.5 py-2">
+                  <Calendar className="h-3.5 w-3.5 text-[#54656f]" />
+                  <span className="min-w-0 flex-1 text-xs text-[#111b21]">Agenda do funil</span>
+                  <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", funnel?.calendar_enabled ? "bg-[#25d366]/15 text-[#128C7E]" : "bg-slate-200 text-[#667781]")}>
+                    {funnel?.calendar_enabled ? "ativa" : "inativa"}
+                  </span>
+                </div>
+              </div>
+            </div>
           </>
         )}
 
@@ -2656,7 +2773,15 @@ function InboxPage() {
       )}
 
       {active && showLeadPanel && (
-        <LeadPanel conv={active} onClose={() => setShowLeadPanel(false)} onConvUpdated={loadConvs} />
+        <LeadPanel
+          conv={active}
+          onClose={() => setShowLeadPanel(false)}
+          onConvUpdated={loadConvs}
+          onUseText={(message) => {
+            setText(message);
+            setTimeout(() => textareaRef.current?.focus(), 0);
+          }}
+        />
       )}
 
       {/* TTS Dialog */}
