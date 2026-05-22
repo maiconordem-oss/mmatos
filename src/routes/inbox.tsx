@@ -9,7 +9,7 @@ import {
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, FileSignature, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2, Image, ExternalLink, Zap, AlertTriangle, UserCheck, RotateCcw, HeartPulse, ClipboardList } from "lucide-react";
+import { Plus, Send, Search, MoreVertical, Phone, Video, Smile, Paperclip, Mic, Bot, Sparkles, MessageSquare, CheckCheck, X, ChevronRight, User, FileText, FileSignature, Calendar, Clock, Wand2, Languages, Smile as SmileIcon, ListChecks, ScrollText, Loader2, Image, ExternalLink, Zap, AlertTriangle, UserCheck, RotateCcw, HeartPulse, ClipboardList } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -329,12 +329,24 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
       .eq("attended", false)
       .order("start_at", { ascending: true })
       .limit(1).maybeSingle()
-      .then(({ data }) => setAppointment(data));
+      .then(async ({ data, error }) => {
+        if (!error) {
+          setAppointment(data);
+          return;
+        }
+        const fallback = await supabase.from("appointments")
+          .select("id, title, start_at")
+          .eq("conversation_id", conv.id)
+          .order("start_at", { ascending: true })
+          .limit(1).maybeSingle();
+        setAppointment(fallback.data ? { ...fallback.data, attended: false } : null);
+      });
 
     supabase.from("funnel_states")
       .select("viability_score, viability_notes")
       .eq("conversation_id", conv.id).maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) return;
         if (data?.viability_score != null) {
           setViability({ score: data.viability_score, notes: data.viability_notes ?? "" });
         }
