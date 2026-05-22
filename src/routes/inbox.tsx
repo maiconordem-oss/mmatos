@@ -422,7 +422,6 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
   const dados = state?.dados ?? {};
   const dadosKeys = Object.keys(dados).filter(k => dados[k] && DADO_LABELS[k]);
   const funnel = state?.funnels as FunnelState["funnels"];
-  const funnelQuestions = questionsFromFunnelPrompt(funnel?.persona_prompt);
   const phaseQuestions = manualQuestionsForPhase(guidePhase);
   const guidance = phaseGuidance(guidePhase);
   const mediaEntries = mediaEntriesFromFunnel(funnel);
@@ -557,6 +556,44 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
               </div>
             )}
 
+            <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Funil de atendimento</p>
+                <span className="text-[10px] text-[#8696a0]">clique na etapa</span>
+              </div>
+              <div className="space-y-1.5">
+                {FASES.map((fase, i) => {
+                  const done = i < faseIdx;
+                  const current = i === faseIdx;
+                  const selected = fase === guidePhase;
+                  const color = FASE_COLORS[fase] || "#00a884";
+                  const width = `${100 - i * 5}%`;
+
+                  return (
+                    <button
+                      key={fase}
+                      type="button"
+                      onClick={() => setSelectedPhase(fase)}
+                      className="relative mx-auto flex h-9 items-center justify-center px-5 text-center text-[11px] font-semibold text-white transition-transform hover:scale-[1.01]"
+                      style={{
+                        width,
+                        background: color,
+                        clipPath: "polygon(8% 0, 92% 0, 84% 100%, 16% 100%)",
+                        opacity: selected || current || done ? 1 : 0.58,
+                        boxShadow: selected ? `0 0 0 2px ${color}55` : "none",
+                      }}
+                      title={phaseGuidance(fase).title}
+                    >
+                      <span className="truncate drop-shadow-sm">{FASE_LABELS[fase]}</span>
+                      {current && (
+                        <span className="absolute right-5 rounded-full bg-white/25 px-1.5 py-0.5 text-[9px]">atual</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Perguntas do funil */}
             <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
               <div className="flex items-center justify-between gap-2 mb-2">
@@ -578,7 +615,7 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                 ))}
               </div>
               <div className="space-y-1.5">
-                {[...funnelQuestions, ...phaseQuestions].map(question => (
+                {phaseQuestions.map(question => (
                   <button
                     key={question}
                     onClick={() => onUseText?.(question)}
@@ -625,8 +662,8 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
             </div>
 
             {/* Progresso de fases */}
-            <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
-              <p className="text-[10px] text-[#8696a0] uppercase tracking-wide mb-3">Progresso</p>
+            <div className="hidden rounded-lg p-3 border border-[#e9edef] bg-white">
+              <p className="hidden text-[10px] text-[#8696a0] uppercase tracking-wide mb-3">Progresso</p>
               <div className="space-y-1.5">
                 {FASES.map((fase, i) => {
                   const done    = i < faseIdx;
@@ -1815,9 +1852,6 @@ function InboxPage() {
     ? messages.filter(m => m.content?.toLowerCase().includes(searchMsg.toLowerCase()))
     : messages;
   const grouped = groupByDate(displayMessages);
-  const selectedFunnel = funnels.find(f => f.id === activeFunnelState?.funnel_id);
-  const funnelPromptQuestions = questionsFromFunnelPrompt(selectedFunnel?.persona_prompt);
-
   return (
     <div className="flex flex-1 overflow-hidden" style={{ background: "#f0f2f5" }}>
       <Toaster />
@@ -2358,7 +2392,7 @@ function InboxPage() {
                       ))}
                     </ul>
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {[...funnelPromptQuestions, ...manualQuestionsForPhase(activeFunnelState?.fase)].map(question => (
+                      {manualQuestionsForPhase(activeFunnelState?.fase).map(question => (
                         <button
                           key={question}
                           onClick={() => {
