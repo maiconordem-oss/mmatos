@@ -4,7 +4,7 @@ import { useNotification } from "@/hooks/use-notification";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import {
   avatar, formatTime, formatMsgTime, hoursUntil, playbookForPhase, groupByDate,
-  manualQuestionsForPhase, FASES, FASE_LABELS, FASE_COLORS, DADO_LABELS,
+  manualQuestionsForPhase, phaseGuidance, FASES, FASE_LABELS, FASE_COLORS, DADO_LABELS,
 } from "@/lib/inbox-helpers";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
@@ -306,6 +306,7 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
   };
   const [state, setState] = useState<FunnelState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
 
   // Juridico state
   const [briefing, setBriefing]                   = useState<any | null>(conv.briefing ?? null);
@@ -409,15 +410,21 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
     supabase.from("funnel_states")
       .select("id, funnel_id, fase, dados, midias_enviadas, funnels(name, persona_prompt, medias, media_video_abertura, media_video_conexao, media_audio_fechamento, media_video_documentos, zapsign_template_id, calendar_enabled)")
       .eq("conversation_id", conv.id).maybeSingle()
-      .then(({ data }) => { setState(data as any); setLoading(false); });
+      .then(({ data }) => {
+        setState(data as any);
+        setSelectedPhase((data as any)?.fase ?? null);
+        setLoading(false);
+      });
   }, [conv.id]);
 
   const faseIdx = state ? FASES.indexOf(state.fase) : -1;
+  const guidePhase = selectedPhase || state?.fase || "abertura";
   const dados = state?.dados ?? {};
   const dadosKeys = Object.keys(dados).filter(k => dados[k] && DADO_LABELS[k]);
   const funnel = state?.funnels as FunnelState["funnels"];
   const funnelQuestions = questionsFromFunnelPrompt(funnel?.persona_prompt);
-  const phaseQuestions = manualQuestionsForPhase(state?.fase);
+  const phaseQuestions = manualQuestionsForPhase(guidePhase);
+  const guidance = phaseGuidance(guidePhase);
   const mediaEntries = mediaEntriesFromFunnel(funnel);
   const sentMedia = new Set(state?.midias_enviadas ?? []);
 
@@ -553,8 +560,22 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
             {/* Perguntas do funil */}
             <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Perguntas do funil</p>
-                <span className="text-[10px] text-[#8696a0]">{funnelQuestions.length + phaseQuestions.length}</span>
+                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Roteiro da etapa</p>
+                <span className="rounded-full px-1.5 py-0.5 text-[10px]" style={{ background: (FASE_COLORS[guidePhase] || "#00a884") + "24", color: FASE_COLORS[guidePhase] || "#007a60" }}>
+                  {FASE_LABELS[guidePhase] || "Atendimento"}
+                </span>
+              </div>
+              <div className="mb-3 rounded-lg bg-[#f0f2f5] px-2.5 py-2">
+                <p className="text-xs font-semibold text-[#111b21]">{guidance.title}</p>
+                <p className="mt-1 text-xs leading-relaxed text-[#54656f]">{guidance.goal}</p>
+                <p className="mt-1 text-[11px] font-medium text-[#007a60]">{guidance.next}</p>
+              </div>
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {playbookForPhase(guidePhase).map(item => (
+                  <span key={item} className="rounded-full bg-[#f8fffc] border border-[#d1e7dd] px-2 py-1 text-[10px] text-[#007a60]">
+                    {item}
+                  </span>
+                ))}
               </div>
               <div className="space-y-1.5">
                 {[...funnelQuestions, ...phaseQuestions].map(question => (
@@ -611,8 +632,17 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                   const done    = i < faseIdx;
                   const current = i === faseIdx;
                   const future  = i > faseIdx;
+                  const selected = fase === guidePhase;
                   return (
-                    <div key={fase} className="flex items-center gap-2">
+                    <button
+                      key={fase}
+                      type="button"
+                      onClick={() => setSelectedPhase(fase)}
+                      className={cn(
+                        "w-full flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-[#f0f2f5]",
+                        selected && "bg-[#f0f2f5]"
+                      )}
+                    >
                       <div className={cn(
                         "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
                         done    && "bg-[#25d366] text-black",
@@ -634,7 +664,12 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                           atual
                         </span>
                       )}
-                    </div>
+                      {selected && !current && (
+                        <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-[#e8f5f1] text-[#007a60]">
+                          vendo
+                        </span>
+                      )}
+                    </button>
                   );
                 })}
               </div>

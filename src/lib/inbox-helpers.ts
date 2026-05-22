@@ -98,6 +98,51 @@ export function manualQuestionsForPhase(phase?: string | null) {
   ];
 }
 
+export function phaseGuidance(phase?: string | null) {
+  const map: Record<string, { title: string; goal: string; next: string }> = {
+    abertura: {
+      title: "Cumprimente e entenda o motivo",
+      goal: "Abra a conversa, confirme quem está falando e descubra o problema principal sem pedir muitos dados ainda.",
+      next: "Após a resposta, siga para Triagem.",
+    },
+    triagem: {
+      title: "Faça as perguntas essenciais",
+      goal: "Colete cidade, urgência, prazo, documentos/protocolo e resumo objetivo do caso.",
+      next: "Quando entender se há caso e urgência, siga para Conexão.",
+    },
+    conexao: {
+      title: "Explique o caminho",
+      goal: "Mostre que entendeu o caso e explique próximos passos em linguagem simples.",
+      next: "Se o cliente demonstrar interesse, siga para Fechamento.",
+    },
+    fechamento: {
+      title: "Confirme interesse e condições",
+      goal: "Valide se faz sentido seguir, trate objeções e prepare proposta ou contratação.",
+      next: "Se avançar, siga para Coleta de dados.",
+    },
+    coleta: {
+      title: "Colete dados e documentos",
+      goal: "Peça dados pessoais e documentos em lista curta, confirmando cada envio.",
+      next: "Com tudo pronto, siga para Assinatura.",
+    },
+    assinatura: {
+      title: "Oriente contrato e assinatura",
+      goal: "Envie link/contrato, confirme assinatura e deixe claro o que acontece depois.",
+      next: "Após assinatura e documentos, siga para Encerrado.",
+    },
+    encerrado: {
+      title: "Confirme próximos acompanhamentos",
+      goal: "Finalize o atendimento inicial e informe como o cliente será atualizado.",
+      next: "Mantenha acompanhamento conforme o caso.",
+    },
+  };
+  return map[phase || ""] ?? {
+    title: "Atendimento manual",
+    goal: "Leia o histórico e escolha a etapa mais adequada para conduzir o cliente.",
+    next: "Escolha uma etapa do funil.",
+  };
+}
+
 export function groupByDate<T extends { created_at: string }>(messages: T[]) {
   const groups: { date: string; messages: T[] }[] = [];
   let current = "";
