@@ -86,7 +86,8 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           const rawPhone = remoteJid.split("@")[0].replace(/^\+/, "").trim();
           const phone    = normalizeBRPhone(rawPhone) || rawPhone;
           const pushName = msg?.pushName || msg?.key?.participant || null;
-          if (!phone || fromMe) return Response.json({ ok: true });
+          if (!phone) return Response.json({ ok: true });
+          const direction = fromMe ? "outbound" : "inbound";
 
           const msgContent = msg?.message ?? {};
 
@@ -113,6 +114,17 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           if (!hasText && !hasMedia) return Response.json({ ok: true });
 
           // ── Encontrar ou criar conversa (busca por todas variantes do número) ──
+          const externalId = msg?.key?.id || null;
+          if (externalId) {
+            const { data: existingMsg } = await supabaseAdmin
+              .from("messages")
+              .select("id")
+              .eq("user_id", inst.user_id)
+              .eq("external_id", externalId)
+              .maybeSingle();
+            if (existingMsg) return Response.json({ ok: true, duplicate: true });
+          }
+
           const variants = phoneVariants(phone);
           let { data: conv } = await supabaseAdmin
             .from("conversations").select("*")
@@ -166,19 +178,21 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               last_message_at:      new Date().toISOString(),
               last_message_preview: preview,
               sla_due_at: nextSlaDue(null, false, false),
+              ...(fromMe ? { first_response_at: new Date().toISOString() } : {}),
             }).select().single();
             conv = created;
           } else {
             await supabaseAdmin.from("conversations").update({
               last_message_at:      new Date().toISOString(),
               last_message_preview: preview,
-              sla_due_at: nextSlaDue(conv.priority_flag, conv.needs_human, conv.follow_up_required),
-              unread_count: (conv.unread_count || 0) + 1,
+              sla_due_at: fromMe ? conv.sla_due_at : nextSlaDue(conv.priority_flag, conv.needs_human, conv.follow_up_required),
+              unread_count: fromMe ? (conv.unread_count || 0) : (conv.unread_count || 0) + 1,
               instance_id: conv.instance_id ?? inst.id,
+              ...(fromMe ? { first_response_at: conv.first_response_at ?? new Date().toISOString() } : {}),
               // Atualizar nome se ainda não tem
-              ...(pushName && !conv.contact_name ? { contact_name: pushName } : {}),
+              ...(!fromMe && pushName && !conv.contact_name ? { contact_name: pushName } : {}),
               // Se conversa estava resolvida, volta para pendente
-              ...(conv.ticket_status === "resolved" ? {
+              ...(!fromMe && conv.ticket_status === "resolved" ? {
                 ticket_status: "pending",
                 resolved_at:   null,
                 assigned_to:   null,
@@ -189,6 +203,28 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           if (!conv) return Response.json({ ok: true });
 
           // ── Salvar mensagem ────────────────────────────────
+          if (fromMe && externalId && hasText) {
+            const { data: pendingMatch } = await supabaseAdmin
+              .from("messages")
+              .select("id")
+              .eq("conversation_id", conv.id)
+              .eq("direction", "outbound")
+              .eq("content", text)
+              .is("external_id", null)
+              .gte("created_at", new Date(Date.now() - 120000).toISOString())
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (pendingMatch) {
+              await supabaseAdmin.from("messages").update({
+                external_id: externalId,
+                status: "sent",
+              }).eq("id", pendingMatch.id);
+              return Response.json({ ok: true, matched_pending: true });
+            }
+          }
+
           const mediaType = audioMsg ? "audio" : imageMsg ? "image" : documentMsg ? "document" : videoMsg ? "video" : null;
           const mediaUrl  = audioMsg?.url    || imageMsg?.url    || documentMsg?.url    || videoMsg?.url    || null;
           const mediaMime = audioMsg?.mimetype || imageMsg?.mimetype || documentMsg?.mimetype || videoMsg?.mimetype || null;
@@ -198,14 +234,16 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           await supabaseAdmin.from("messages").insert({
             user_id:         inst.user_id,
             conversation_id: conv.id,
-            direction:       "inbound",
+            direction,
             content:         hasText ? text : preview,
             media_url:       mediaUrl,
             media_type:      mediaType,
             media_mime:      mediaMime,
-            external_id:     msg?.key?.id || null,
+            external_id:     externalId,
             status:          "sent",
           });
+
+          if (fromMe) return Response.json({ ok: true, direction: "outbound" });
 
           // ── Transcrever áudio via IA ───────────────────────
           if (audioMsg) {
