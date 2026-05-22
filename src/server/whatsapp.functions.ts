@@ -103,7 +103,7 @@ export const connectInstance = createServerFn({ method: "POST" })
     if (!url || !key) throw new Error("Configure a URL e API Key da Evolution API na instância ou em Configurações.");
 
     const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
-    const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
+    const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
 
     // Try create instance (idempotent — Evolution returns 409 if exists)
     try {
@@ -191,7 +191,7 @@ export const setWebhook = createServerFn({ method: "POST" })
     const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
 
     // Evolution API v2: POST /webhook/set/{instance}
-    const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
+    const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
     let ok = false;
     let lastErr: any = null;
     // Tentar v2 primeiro
@@ -258,7 +258,7 @@ export async function syncInstanceWebhookEvents(
   instanceName: string,
   webhookUrl: string,
 ): Promise<void> {
-  const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
+  const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
   try {
     await _evo(apiUrl, apiKey, `/webhook/set/${instanceName}`, "POST", {
       webhook: { url: webhookUrl, enabled: true, webhookByEvents: false, webhookBase64: false, events },

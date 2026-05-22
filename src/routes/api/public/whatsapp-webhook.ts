@@ -26,11 +26,11 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
 
         // ── Connection update ──────────────────────────────────
         if (event === "connection.update" || event === "CONNECTION_UPDATE") {
-          const state  = data?.state;
+          const state  = data?.state || data?.instance?.state || data?.connection;
           const status = state === "open" ? "connected" : state === "connecting" ? "connecting" : "disconnected";
           await supabaseAdmin.from("whatsapp_instances").update({
             status,
-            phone_number:  data?.wuid?.split("@")[0] || inst.phone_number,
+            phone_number:  (data?.wuid || data?.instance?.wuid || data?.instance?.owner)?.split("@")[0] || inst.phone_number,
             qr_code:       status === "connected" ? null : inst.qr_code,
             last_event_at: new Date().toISOString(),
           }).eq("id", inst.id);
@@ -50,17 +50,25 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
 
         // ── Status de leitura ──────────────────────────────────
         if (event === "MESSAGES_UPDATE" || event === "messages.update") {
-          const updates = Array.isArray(body.data) ? body.data : [body.data];
+          const updates = Array.isArray(data?.messages) ? data.messages
+            : Array.isArray(data?.updates) ? data.updates
+            : Array.isArray(data) ? data
+            : [data];
           for (const upd of updates) {
-            const msgId  = upd?.key?.id;
-            const status = upd?.update?.status;
+            const msgId  = upd?.key?.id || upd?.id || upd?.messageId || upd?.update?.key?.id;
+            const status = upd?.update?.status ?? upd?.status ?? upd?.message?.status;
             if (!msgId || !status) continue;
             const updateData: any = {};
-            if (status === "DELIVERY_ACK" || status === "DELIVERED") {
+            const statusName = String(status).toUpperCase();
+            const statusNumber = typeof status === "number" ? status : Number.NaN;
+            if (statusName === "SERVER_ACK" || statusName === "SENT" || statusNumber === 2) {
+              updateData.status = "sent";
+            }
+            if (statusName === "DELIVERY_ACK" || statusName === "DELIVERED" || statusNumber === 3) {
               updateData.delivered_at = new Date().toISOString();
               updateData.status = "delivered";
             }
-            if (status === "READ" || status === "PLAYED") { updateData.read_at = new Date().toISOString(); updateData.status = "read"; }
+            if (statusName === "READ" || statusName === "PLAYED" || statusNumber >= 4) { updateData.read_at = new Date().toISOString(); updateData.status = "read"; }
             if (Object.keys(updateData).length) {
               await supabaseAdmin.from("messages").update(updateData).eq("external_id", msgId);
             }
@@ -79,14 +87,19 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
         }
 
         // ── Mensagem recebida ──────────────────────────────────
-        if (event === "messages.upsert" || event === "MESSAGES_UPSERT") {
-          const msg      = Array.isArray(data?.messages) ? data.messages[0] : data;
+        if (event === "messages.upsert" || event === "MESSAGES_UPSERT" || event === "SEND_MESSAGE" || event === "send.message") {
+          const upsertMessages = Array.isArray(data?.messages) ? data.messages
+            : Array.isArray(data) ? data
+            : [data?.message?.key ? data.message : data];
+          let processed = 0;
+
+          for (const msg of upsertMessages) {
           const fromMe   = msg?.key?.fromMe;
           const remoteJid: string = msg?.key?.remoteJid || "";
           const rawPhone = remoteJid.split("@")[0].replace(/^\+/, "").trim();
           const phone    = normalizeBRPhone(rawPhone) || rawPhone;
           const pushName = msg?.pushName || msg?.key?.participant || null;
-          if (!phone) return Response.json({ ok: true });
+          if (!phone) continue;
           const direction = fromMe ? "outbound" : "inbound";
 
           const msgContent = msg?.message ?? {};
@@ -111,7 +124,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           const hasMedia = !!(audioMsg || imageMsg || documentMsg || videoMsg);
           const hasText  = !!text.trim();
 
-          if (!hasText && !hasMedia) return Response.json({ ok: true });
+          if (!hasText && !hasMedia) continue;
 
           // ── Encontrar ou criar conversa (busca por todas variantes do número) ──
           const externalId = msg?.key?.id || null;
@@ -121,8 +134,9 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               .select("id")
               .eq("user_id", inst.user_id)
               .eq("external_id", externalId)
+              .limit(1)
               .maybeSingle();
-            if (existingMsg) return Response.json({ ok: true, duplicate: true });
+            if (existingMsg) continue;
           }
 
           const variants = phoneVariants(phone);
@@ -200,7 +214,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
             }).eq("id", conv.id);
           }
 
-          if (!conv) return Response.json({ ok: true });
+          if (!conv) continue;
 
           // ── Salvar mensagem ────────────────────────────────
           if (fromMe && externalId && hasText) {
@@ -221,7 +235,8 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
                 external_id: externalId,
                 status: "sent",
               }).eq("id", pendingMatch.id);
-              return Response.json({ ok: true, matched_pending: true });
+              processed++;
+              continue;
             }
           }
 
@@ -242,8 +257,9 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
             external_id:     externalId,
             status:          "sent",
           });
+          processed++;
 
-          if (fromMe) return Response.json({ ok: true, direction: "outbound" });
+          if (fromMe) continue;
 
           // ── Transcrever áudio via IA ───────────────────────
           if (audioMsg) {
@@ -362,17 +378,17 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
                 }
               }
             } catch {}
-            return Response.json({ ok: true, off_hours: true });
+            continue;
           }
 
           try {
             // Não processar se contato bloqueado
             if ((conv as any).blocked) {
-              return Response.json({ ok: true, blocked: true });
+              continue;
             }
             // Não processar se IA pausada manualmente / por segurança
             if ((conv as any).ai_paused) {
-              return Response.json({ ok: true, ai_paused: true });
+              continue;
             }
 
             if (!inst.is_office) {
@@ -381,6 +397,8 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           } catch (e) {
             console.error("funnel executor error:", e);
           }
+          }
+          return Response.json({ ok: true, event: "messages_upsert", processed });
         }
 
         return Response.json({ ok: true });

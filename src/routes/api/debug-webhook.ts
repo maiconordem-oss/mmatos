@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServiceClient, requireUserFromRequest } from "@/server/security.server";
+import { buildInstanceWebhookUrl, syncInstanceWebhookEvents } from "@/server/whatsapp.functions";
 
 export const Route = createFileRoute("/api/debug-webhook")({
   server: {
@@ -22,6 +23,20 @@ export const Route = createFileRoute("/api/debug-webhook")({
 
         // ── 1. Verificar status atual ──────────────────────────
         if (action === "status") {
+          if (!inst.api_url || !inst.api_key) {
+            return Response.json({
+              db: {
+                id:            inst.id,
+                name:          inst.instance_name,
+                status:        inst.status,
+                phone:         inst.phone_number,
+                funnel_id:     inst.funnel_id,
+              },
+              evolution_api: { error: "api_url/api_key ausentes na instância" },
+              webhook_configured: Boolean(inst.webhook_secret),
+            });
+          }
+
           let evoStatus: any = null;
           let evoError: string | null = null;
 
@@ -50,32 +65,14 @@ export const Route = createFileRoute("/api/debug-webhook")({
 
         // ── 2. Configurar webhook automaticamente ──────────────
         if (action === "set-webhook") {
-          const webhookUrl = `${new URL(request.url).origin}/api/public/whatsapp-webhook?id=${inst.id}&secret=${inst.webhook_secret}`;
+          if (!inst.api_url || !inst.api_key) {
+            return Response.json({ error: "api_url/api_key ausentes na instância" }, { status: 400 });
+          }
+          const webhookUrl = buildInstanceWebhookUrl(inst.id, inst.webhook_secret);
 
           try {
-            const res = await fetch(
-              `${inst.api_url?.replace(/\/$/, "")}/webhook/set/${inst.instance_name}`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json", apikey: inst.api_key ?? "" },
-                body: JSON.stringify({
-                  webhook: {
-                    enabled: true,
-                    url: webhookUrl,
-                    webhookByEvents: false,
-                    webhookBase64: false,
-                    events: [
-                      "MESSAGES_UPSERT",
-                      "MESSAGES_UPDATE",
-                      "CONNECTION_UPDATE",
-                      "QRCODE_UPDATED",
-                    ],
-                  },
-                }),
-              }
-            );
-            const data = await res.json();
-            return Response.json({ ok: res.ok, webhook_configured: res.ok, response: data });
+            await syncInstanceWebhookEvents(inst.api_url, inst.api_key, inst.instance_name, webhookUrl);
+            return Response.json({ ok: true, webhook_configured: true, webhookUrl });
           } catch (e: any) {
             return Response.json({ error: e.message }, { status: 500 });
           }
