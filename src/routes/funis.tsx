@@ -643,6 +643,41 @@ function FunisPage() {
               <Textarea rows={16} value={form.persona_prompt ?? ""} onChange={(e) => setForm({ ...form, persona_prompt: e.target.value })} className="font-mono text-xs" placeholder="Cole aqui o prompt completo da persona..." />
             </div>
 
+            {/* Mensagens pós-consulta */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <p className="font-medium text-sm">📬 Follow-ups pós-consulta</p>
+              <p className="text-xs text-muted-foreground">
+                Enviadas automaticamente após a consulta ser marcada como realizada. Deixe em branco para usar a mensagem padrão.
+              </p>
+              <div>
+                <Label>Follow-up D+1 (1 dia após a consulta)</Label>
+                <Textarea
+                  value={form.post_consulta_d1_msg ?? ""}
+                  onChange={(e) => setForm({ ...form, post_consulta_d1_msg: e.target.value })}
+                  placeholder="Ex: Olá! Espero que a consulta tenha sido útil. Conseguiu pensar melhor sobre o caso?"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label>Follow-up D+3 (3 dias após a consulta)</Label>
+                <Textarea
+                  value={form.post_consulta_d3_msg ?? ""}
+                  onChange={(e) => setForm({ ...form, post_consulta_d3_msg: e.target.value })}
+                  placeholder="Ex: Oi! Passaram alguns dias. Conseguiu reunir a documentação?"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label>Follow-up D+7 (7 dias após a consulta)</Label>
+                <Textarea
+                  value={form.post_consulta_d7_msg ?? ""}
+                  onChange={(e) => setForm({ ...form, post_consulta_d7_msg: e.target.value })}
+                  placeholder="Ex: Olá! Sei que decisões jurídicas pedem reflexão. Ainda posso ajudar?"
+                  rows={2}
+                />
+              </div>
+            </div>
+
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Switch checked={form.is_active ?? true} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />

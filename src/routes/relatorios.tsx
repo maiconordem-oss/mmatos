@@ -49,7 +49,7 @@ function Tendencia({ v }: { v: number }) {
 
 function RelatoriosPage() {
   const [period, setPeriod]           = useState(30);
-  const [tab, setTab]                 = useState<"funis"|"leads"|"agenda"|"retencao"|"ia">("funis");
+  const [tab, setTab]                 = useState<"funis"|"leads"|"agenda"|"retencao"|"ia"|"conversao">("funis");
   const [aiData, setAiData]           = useState<any>(null);
   const fetchAI                       = useAuthServerFn(aiMetrics);
   const [loading, setLoading]         = useState(true);
@@ -73,21 +73,28 @@ function RelatoriosPage() {
   // Retenção
   const [retencao, setRetencao]          = useState<any[]>([]);
 
+  // F5: Funil de conversão
+  const [funnelConversao, setFunnelConversao] = useState<any[]>([]);
+
   const load = useCallback(async () => {
     setLoading(true);
     const since = new Date(Date.now() - period * 86400000).toISOString();
 
-    const [statesRes, apptRes, funisRes, convsRes] = await Promise.all([
+    const [statesRes, apptRes, funisRes, convsRes, proposalsRes, contractsRes] = await Promise.all([
       supabase.from("funnel_states").select("*, funnels(name), conversations(contact_name, phone)").gte("created_at", since),
       supabase.from("appointments").select("*, conversations(contact_name, phone)").order("start_at", { ascending: true }),
       supabase.from("funnels").select("id, name").eq("is_active", true),
       supabase.from("conversations").select("id, created_at, ticket_status, last_message_at").gte("created_at", since),
+      supabase.from("proposals").select("id, created_at, status").gte("created_at", since),
+      supabase.from("contracts").select("id, created_at, signed_at").gte("created_at", since),
     ]);
 
     const states = statesRes.data ?? [];
     const funnels = funisRes.data ?? [];
     const convs   = convsRes.data ?? [];
     const apts    = apptRes.data ?? [];
+    const proposals = proposalsRes.data ?? [];
+    const contracts = contractsRes.data ?? [];
 
     // ── 1. Performance por funil ──────────────────────────────
     const perfMap: Record<string, any> = {};
@@ -148,7 +155,23 @@ function RelatoriosPage() {
     const pendentes  = apts.filter(a => new Date(a.start_at) > new Date()).length;
     setApptStats({ total: apts.length, realizados, pendentes, taxa: apts.length > 0 ? Math.round((realizados / apts.length) * 100) : 0 });
 
-    // ── 5. Retenção — leads que voltaram vs novos ──────────────
+    // ── 5. Funil de conversão (F5) ───────────────────────────────
+    const attendedApts = apts.filter((a: any) => a.attended === true).length;
+    const signedContracts = contracts.filter((c: any) => c.signed_at).length;
+    const funnelTotal = convs.length;
+    const comFunil = states.length;
+    const totalAppts = apts.length;
+    const funnelStages = [
+      { fase: "Leads recebidos",   count: funnelTotal },
+      { fase: "Triagem iniciada",  count: comFunil },
+      { fase: "Consulta agendada", count: totalAppts },
+      { fase: "Consulta realizada",count: attendedApts },
+      { fase: "Proposta enviada",  count: proposals.length },
+      { fase: "Contrato assinado", count: signedContracts },
+    ];
+    setFunnelConversao(funnelStages);
+
+    // ── 6. Retenção — leads que voltaram vs novos ──────────────
     const semanas: Record<string, { novos: number; retorno: number }> = {};
     const phoneCounts: Record<string, number> = {};
     convs.forEach(c => {
@@ -180,11 +203,12 @@ function RelatoriosPage() {
   };
 
   const TABS = [
-    { id: "funis",   label: "Por funil",         icon: Zap },
-    { id: "leads",   label: "Onde perdem leads",  icon: TrendingUp },
-    { id: "agenda",  label: "Agenda",             icon: Calendar },
-    { id: "retencao",label: "Horários de pico",   icon: Clock },
-    { id: "ia",      label: "IA & Atendimento",   icon: Bot },
+    { id: "funis",     label: "Por funil",         icon: Zap },
+    { id: "conversao", label: "Funil conversão",   icon: TrendingUp },
+    { id: "leads",     label: "Onde perdem leads", icon: AlertTriangle },
+    { id: "agenda",    label: "Agenda",            icon: Calendar },
+    { id: "retencao",  label: "Horários de pico",  icon: Clock },
+    { id: "ia",        label: "IA & Atendimento",  icon: Bot },
   ] as const;
 
   useEffect(() => {
@@ -281,6 +305,80 @@ function RelatoriosPage() {
                 </div>
               )}
             </>
+          )}
+
+          {/* ── FUNIL DE CONVERSÃO ── */}
+          {tab === "conversao" && (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-border bg-card p-5">
+                <p className="font-semibold text-foreground mb-1">Funil de conversão</p>
+                <p className="text-xs text-muted-foreground mb-5">Volume em cada etapa do processo comercial</p>
+                <div className="space-y-3">
+                  {funnelConversao.map((stage, i) => {
+                    const maxCount = funnelConversao[0]?.count || 1;
+                    const pct = maxCount > 0 ? Math.round((stage.count / maxCount) * 100) : 0;
+                    const prev = i > 0 ? funnelConversao[i - 1]?.count : null;
+                    const dropoff = prev != null && prev > 0 ? Math.round(((prev - stage.count) / prev) * 100) : null;
+                    const barColor = pct >= 70 ? "#22c55e" : pct >= 40 ? "#3b82f6" : pct >= 20 ? "#f59e0b" : "#ef4444";
+                    return (
+                      <div key={stage.fase} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-foreground">{stage.fase}</span>
+                          <span className="text-muted-foreground">{stage.count} ({pct}%)</span>
+                        </div>
+                        <div className="h-7 rounded-lg bg-muted relative overflow-hidden">
+                          <div className="h-full rounded-lg transition-all duration-500" style={{ width: `${pct}%`, background: barColor + "cc" }} />
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-foreground mix-blend-multiply">
+                            {stage.count} leads
+                          </span>
+                        </div>
+                        {dropoff !== null && dropoff > 0 && (
+                          <p className="text-[10px] text-red-500 flex items-center gap-0.5 pl-1">
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            Perda de {dropoff}% nesta etapa ({prev! - stage.count} leads)
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Gráfico de barras horizontal */}
+              {funnelConversao.some(s => s.count > 0) && (
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <p className="font-semibold text-foreground mb-4">Visualização em barras</p>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={funnelConversao} layout="vertical" barSize={22}>
+                      <XAxis type="number" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="fase" tick={{ fontSize: 10, fill: "#64748b" }} width={130} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="count" name="Leads" radius={[0, 4, 4, 0]} fill="#3b82f6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Taxa de conversão total */}
+              {funnelConversao.length > 0 && funnelConversao[0]?.count > 0 && (
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { label: "Leads → Consulta", a: funnelConversao[0]?.count, b: funnelConversao[2]?.count },
+                    { label: "Consulta → Proposta", a: funnelConversao[2]?.count, b: funnelConversao[4]?.count },
+                    { label: "Proposta → Contrato", a: funnelConversao[4]?.count, b: funnelConversao[5]?.count },
+                  ].map(k => {
+                    const rate = k.a > 0 ? Math.round((k.b / k.a) * 100) : 0;
+                    return (
+                      <div key={k.label} className="rounded-xl border border-border bg-card p-4 text-center">
+                        <p className="text-[11px] text-muted-foreground mb-1">{k.label}</p>
+                        <p className={`text-2xl font-bold ${rate >= 30 ? "text-emerald-600" : rate >= 15 ? "text-amber-500" : "text-red-500"}`}>{rate}%</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{k.b} de {k.a}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
 
           {/* ── ONDE PERDEM LEADS ── */}

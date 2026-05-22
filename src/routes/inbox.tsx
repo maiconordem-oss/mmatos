@@ -15,6 +15,10 @@ import {
   suggestReplies, rewriteMessage, summarizeConversation,
   extractTasks, translateText, analyzeSentiment, semanticSearch,
 } from "@/server/inbox-ai.functions";
+import {
+  generateLegalBriefing, evaluateCaseViability,
+  markConsultationAttended, sendHonorarioProposal,
+} from "@/server/juridico.functions";
 import { transcribeAudioMessage, generateTTS } from "@/server/elevenlabs.functions";
 import { sendWhatsappMessage } from "@/server/whatsapp.functions";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
@@ -169,6 +173,8 @@ type Conversation = {
   sla_due_at?: string | null;
   first_response_at?: string | null;
   ai_pause_reason?: string | null;
+  briefing?: any | null;
+  consulta_at?: string | null;
 };
 
 type QuickReply = { id: string; shortcut: string; message: string };
@@ -326,7 +332,7 @@ const DADO_LABELS: Record<string, string> = {
 };
 
 // ── Painel lateral do lead ─────────────────────────────────────
-function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void }) {
+function LeadPanel({ conv, onClose, onConvUpdated }: { conv: Conversation; onClose: () => void; onConvUpdated?: (id: string) => void }) {
   const { user } = useAuth();
   const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
@@ -419,6 +425,91 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
   };
   const [state, setState] = useState<FunnelState | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Juridico state
+  const [briefing, setBriefing]                   = useState<any | null>(conv.briefing ?? null);
+  const [viability, setViability]                 = useState<{ score: number; notes: string } | null>(null);
+  const [appointment, setAppointment]             = useState<any | null>(null);
+  const [juridicoLoading, setJuridicoLoading]     = useState<string | null>(null);
+  const [showProposalModal, setShowProposalModal] = useState(false);
+  const [showAttendedModal, setShowAttendedModal] = useState(false);
+  const [proposal, setProposal] = useState({ paymentType: "fixo" as "fixo"|"exito"|"mensalidade"|"misto", value: "", scope: "", details: "" });
+
+  const genBriefingFn     = useAuthServerFn(generateLegalBriefing);
+  const evalViabilityFn   = useAuthServerFn(evaluateCaseViability);
+  const markAttendedFn    = useAuthServerFn(markConsultationAttended);
+  const sendProposalFn    = useAuthServerFn(sendHonorarioProposal);
+
+  // Load appointment and viability
+  useEffect(() => {
+    supabase.from("appointments")
+      .select("id, title, start_at, attended")
+      .eq("conversation_id", conv.id)
+      .eq("attended", false)
+      .order("start_at", { ascending: true })
+      .limit(1).maybeSingle()
+      .then(({ data }) => setAppointment(data));
+
+    supabase.from("funnel_states")
+      .select("viability_score, viability_notes")
+      .eq("conversation_id", conv.id).maybeSingle()
+      .then(({ data }) => {
+        if (data?.viability_score != null) {
+          setViability({ score: data.viability_score, notes: data.viability_notes ?? "" });
+        }
+      });
+  }, [conv.id]);
+
+  const handleGenBriefing = async () => {
+    setJuridicoLoading("briefing");
+    try {
+      const result = await genBriefingFn({ data: { conversationId: conv.id } });
+      setBriefing(result.briefing);
+      onConvUpdated?.(conv.id);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setJuridicoLoading(null); }
+  };
+
+  const handleEvalViability = async () => {
+    setJuridicoLoading("viability");
+    try {
+      const result = await evalViabilityFn({ data: { conversationId: conv.id } });
+      setViability({ score: result.score, notes: result.notes });
+    } catch (e: any) { toast.error(e.message); }
+    finally { setJuridicoLoading(null); }
+  };
+
+  const handleMarkAttended = async () => {
+    if (!appointment) return;
+    setJuridicoLoading("attended");
+    try {
+      await markAttendedFn({ data: { appointmentId: appointment.id, conversationId: conv.id } });
+      setAppointment(null);
+      setShowAttendedModal(false);
+      onConvUpdated?.(conv.id);
+      toast.success("Consulta marcada como realizada! Follow-ups D+1/D+3/D+7 agendados.");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setJuridicoLoading(null); }
+  };
+
+  const handleSendProposal = async () => {
+    const value = parseFloat(proposal.value.replace(",", "."));
+    if (!value || !proposal.scope) { toast.error("Preencha valor e escopo"); return; }
+    setJuridicoLoading("proposal");
+    try {
+      await sendProposalFn({ data: {
+        conversationId: conv.id,
+        paymentType: proposal.paymentType,
+        value,
+        scope: proposal.scope,
+        details: proposal.details || undefined,
+      }});
+      setShowProposalModal(false);
+      setProposal({ paymentType: "fixo", value: "", scope: "", details: "" });
+      toast.success("Proposta enviada via WhatsApp!");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setJuridicoLoading(null); }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -620,6 +711,195 @@ function LeadPanel({ conv, onClose }: { conv: Conversation; onClose: () => void 
               </div>
             )}
           </>
+        )}
+
+        {/* ── PAINEL JURÍDICO ── */}
+        <div className="rounded-lg border border-[#e9edef] bg-white overflow-hidden">
+          <div className="px-3 py-2.5 border-b border-[#e9edef] flex items-center gap-2">
+            <ScrollText className="h-3.5 w-3.5 text-[#8696a0]" />
+            <span className="text-[10px] text-[#8696a0] uppercase tracking-wide font-semibold">Jurídico</span>
+          </div>
+
+          <div className="p-3 space-y-3">
+            {/* F2: Consulta pendente */}
+            {appointment && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-2.5">
+                <p className="text-[10px] text-amber-700 font-semibold mb-1">📅 Consulta agendada</p>
+                <p className="text-xs text-amber-800">{appointment.title}</p>
+                <p className="text-[10px] text-amber-600">{new Date(appointment.start_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</p>
+                <button onClick={() => setShowAttendedModal(true)}
+                  className="mt-2 w-full text-xs py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium transition-colors">
+                  ✅ Marcar como realizada
+                </button>
+              </div>
+            )}
+
+            {/* F3: Briefing */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] text-[#8696a0] font-semibold uppercase tracking-wide">Briefing do caso</p>
+                <button onClick={handleGenBriefing} disabled={juridicoLoading === "briefing"}
+                  className="text-[10px] px-2 py-0.5 rounded bg-[#25d366]/20 text-[#128C7E] hover:bg-[#25d366]/30 transition-colors disabled:opacity-50">
+                  {juridicoLoading === "briefing" ? "Gerando..." : briefing ? "Atualizar" : "Gerar"}
+                </button>
+              </div>
+              {briefing && (
+                <div className="space-y-1.5 text-[11px]">
+                  {briefing.area && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#8696a0] shrink-0 w-16">Área:</span>
+                      <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium capitalize">{briefing.area}</span>
+                    </div>
+                  )}
+                  {briefing.urgencia && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#8696a0] shrink-0 w-16">Urgência:</span>
+                      <span className={cn("px-1.5 py-0.5 rounded font-medium capitalize",
+                        briefing.urgencia === "alta" ? "bg-red-100 text-red-700" :
+                        briefing.urgencia === "media" ? "bg-amber-100 text-amber-700" :
+                        "bg-green-100 text-green-700"
+                      )}>{briefing.urgencia}</span>
+                    </div>
+                  )}
+                  {briefing.resumo_caso && (
+                    <p className="text-[#111b21] leading-snug">{briefing.resumo_caso}</p>
+                  )}
+                  {briefing.fatos_principais?.length > 0 && (
+                    <div>
+                      <p className="text-[#8696a0] mb-0.5">Fatos principais:</p>
+                      <ul className="space-y-0.5">
+                        {briefing.fatos_principais.map((f: string, i: number) => (
+                          <li key={i} className="text-[#111b21] pl-2 border-l-2 border-[#25d366]/40">{f}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {briefing.documentos_necessarios?.length > 0 && (
+                    <div>
+                      <p className="text-[#8696a0] mb-0.5">Documentos:</p>
+                      <ul className="space-y-0.5">
+                        {briefing.documentos_necessarios.map((d: string, i: number) => (
+                          <li key={i} className="text-[#111b21] pl-2 border-l-2 border-blue-400/40">{d}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* F4: Viabilidade */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] text-[#8696a0] font-semibold uppercase tracking-wide">Viabilidade</p>
+                <button onClick={handleEvalViability} disabled={juridicoLoading === "viability"}
+                  className="text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors disabled:opacity-50">
+                  {juridicoLoading === "viability" ? "Avaliando..." : viability ? "Reavaliar" : "Avaliar"}
+                </button>
+              </div>
+              {viability && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 rounded-full bg-[#f0f2f5]">
+                      <div className="h-full rounded-full transition-all" style={{
+                        width: `${viability.score}%`,
+                        background: viability.score >= 70 ? "#25d366" : viability.score >= 40 ? "#f59e0b" : "#ef4444",
+                      }} />
+                    </div>
+                    <span className="text-xs font-bold" style={{
+                      color: viability.score >= 70 ? "#128C7E" : viability.score >= 40 ? "#d97706" : "#dc2626",
+                    }}>{viability.score}%</span>
+                  </div>
+                  {viability.notes && (
+                    <p className="text-[11px] text-[#667781] leading-snug">{viability.notes}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* F6: Proposta de honorários */}
+            <button onClick={() => setShowProposalModal(true)}
+              className="w-full text-xs py-2 rounded-lg border border-[#e9edef] hover:bg-[#f0f2f5] text-[#111b21] font-medium transition-colors flex items-center justify-center gap-1.5">
+              💰 Enviar Proposta de Honorários
+            </button>
+          </div>
+        </div>
+
+        {/* Modal: Consulta realizada */}
+        {showAttendedModal && appointment && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAttendedModal(false)}>
+            <div className="bg-white rounded-xl shadow-xl p-5 w-80 mx-4" onClick={e => e.stopPropagation()}>
+              <p className="font-semibold text-[#111b21] mb-1">Confirmar consulta realizada</p>
+              <p className="text-sm text-[#667781] mb-4">Isso irá marcar a consulta como realizada e agendar follow-ups em D+1, D+3 e D+7.</p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowAttendedModal(false)}
+                  className="flex-1 py-2 rounded-lg text-sm border border-[#e9edef] text-[#54656f] hover:bg-[#f0f2f5] transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={handleMarkAttended} disabled={juridicoLoading === "attended"}
+                  className="flex-1 py-2 rounded-lg text-sm bg-[#25d366] text-white font-medium hover:bg-[#128C7E] transition-colors disabled:opacity-50">
+                  {juridicoLoading === "attended" ? "Salvando..." : "Confirmar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Proposta de honorários */}
+        {showProposalModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowProposalModal(false)}>
+            <div className="bg-white rounded-xl shadow-xl p-5 w-80 mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <p className="font-semibold text-[#111b21] mb-3">Proposta de Honorários</p>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-[10px] text-[#8696a0] mb-1">Tipo de cobrança</p>
+                  <select value={proposal.paymentType}
+                    onChange={e => setProposal(p => ({ ...p, paymentType: e.target.value as any }))}
+                    className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef]">
+                    <option value="fixo">Honorário fixo</option>
+                    <option value="exito">Êxito (% sobre ganho)</option>
+                    <option value="mensalidade">Mensalidade</option>
+                    <option value="misto">Misto (fixo + êxito)</option>
+                  </select>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#8696a0] mb-1">Valor (R$) *</p>
+                  <input value={proposal.value}
+                    onChange={e => setProposal(p => ({ ...p, value: e.target.value }))}
+                    className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef] placeholder-[#8696a0]"
+                    placeholder="Ex: 3500,00" inputMode="decimal" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#8696a0] mb-1">Escopo / serviços inclusos *</p>
+                  <textarea value={proposal.scope}
+                    onChange={e => setProposal(p => ({ ...p, scope: e.target.value }))}
+                    rows={3}
+                    className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef] placeholder-[#8696a0] resize-none"
+                    placeholder="Ex: Ação trabalhista de rescisão indireta + FGTS + verbas rescisórias" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#8696a0] mb-1">Detalhes adicionais</p>
+                  <textarea value={proposal.details}
+                    onChange={e => setProposal(p => ({ ...p, details: e.target.value }))}
+                    rows={2}
+                    className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef] placeholder-[#8696a0] resize-none"
+                    placeholder="Prazo estimado, condições de pagamento, etc." />
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setShowProposalModal(false)}
+                  className="flex-1 py-2 rounded-lg text-xs border border-[#e9edef] text-[#54656f] hover:bg-[#f0f2f5] transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={handleSendProposal} disabled={juridicoLoading === "proposal" || !proposal.value || !proposal.scope}
+                  className="flex-1 py-2 rounded-lg text-xs bg-[#25d366] text-white font-medium hover:bg-[#128C7E] transition-colors disabled:opacity-50">
+                  {juridicoLoading === "proposal" ? "Enviando..." : "Enviar via WhatsApp"}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -2415,7 +2695,7 @@ function InboxPage() {
       )}
 
       {active && showLeadPanel && (
-        <LeadPanel conv={active} onClose={() => setShowLeadPanel(false)} />
+        <LeadPanel conv={active} onClose={() => setShowLeadPanel(false)} onConvUpdated={loadConvs} />
       )}
 
       {/* TTS Dialog */}

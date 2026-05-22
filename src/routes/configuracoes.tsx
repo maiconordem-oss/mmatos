@@ -11,12 +11,13 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound, Scale, ShieldAlert, Bot } from "lucide-react";
+import { Plus, Trash2, Zap, Tag, Clock, Save, Mic, Loader2, KeyRound, Scale, ShieldAlert, Bot, Users2, Mail, Crown, GraduationCap, Briefcase, UserX, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { checkElevenlabsToken, saveElevenlabsToken, deleteElevenlabsToken } from "@/server/elevenlabs.functions";
 import { listForbiddenWords, addForbiddenWord, deleteForbiddenWord } from "@/server/intelligence.functions";
+import { listTeamMembers, inviteTeamMember, updateTeamMemberRole, removeTeamMember } from "@/server/juridico.functions";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Lex CRM" }] }),
@@ -34,7 +35,55 @@ const TAG_COLORS = ["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6","#ef4444",
 
 function ConfigPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<"quick"|"tags"|"horario"|"ia"|"integracoes">("quick");
+  const [tab, setTab] = useState<"quick"|"tags"|"horario"|"ia"|"integracoes"|"equipe">("quick");
+
+  // Team management
+  const listMembersFn   = useAuthServerFn(listTeamMembers);
+  const inviteMemberFn  = useAuthServerFn(inviteTeamMember);
+  const updateRoleFn    = useAuthServerFn(updateTeamMemberRole);
+  const removeMemberFn  = useAuthServerFn(removeTeamMember);
+  const [teamMembers, setTeamMembers]       = useState<any[]>([]);
+  const [teamLoading, setTeamLoading]       = useState(false);
+  const [inviteEmail, setInviteEmail]       = useState("");
+  const [inviteRole, setInviteRole]         = useState<"admin"|"advogado"|"estagiario"|"secretaria">("secretaria");
+  const [showInviteForm, setShowInviteForm] = useState(false);
+
+  const loadTeam = useCallback(async () => {
+    setTeamLoading(true);
+    try {
+      const r = await listMembersFn({ data: {} });
+      setTeamMembers(r.members);
+    } catch {}
+    finally { setTeamLoading(false); }
+  }, [listMembersFn]);
+
+  useEffect(() => { if (tab === "equipe") loadTeam(); }, [tab, loadTeam]);
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    try {
+      await inviteMemberFn({ data: { email: inviteEmail.trim(), role: inviteRole } });
+      toast.success("Convite enviado!");
+      setInviteEmail("");
+      setShowInviteForm(false);
+      loadTeam();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleRemoveMember = async (id: string) => {
+    try {
+      await removeMemberFn({ data: { memberId: id } });
+      toast.success("Membro removido");
+      loadTeam();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleUpdateRole = async (id: string, role: "admin"|"advogado"|"estagiario"|"secretaria") => {
+    try {
+      await updateRoleFn({ data: { memberId: id, role } });
+      setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, role } : m));
+    } catch (e: any) { toast.error(e.message); }
+  };
 
   // Forbidden words / IA segurança
   const listFwFn = useAuthServerFn(listForbiddenWords);
@@ -235,7 +284,15 @@ function ConfigPage() {
     { id: "horario",     label: "Horário",           icon: Clock },
     { id: "ia",          label: "IA & Segurança",    icon: Bot },
     { id: "integracoes", label: "Integrações",       icon: KeyRound },
+    { id: "equipe",      label: "Equipe",            icon: Users2 },
   ] as const;
+
+  const ROLE_LABELS: Record<string, string> = {
+    admin: "Admin", advogado: "Advogado", estagiario: "Estagiário", secretaria: "Secretária",
+  };
+  const ROLE_ICONS: Record<string, any> = {
+    admin: Crown, advogado: Scale, estagiario: GraduationCap, secretaria: Briefcase,
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -645,6 +702,115 @@ function ConfigPage() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+            </div>
+          )}
+
+          {/* EQUIPE */}
+          {tab === "equipe" && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="font-semibold text-foreground flex items-center gap-2">
+                      <Users2 className="h-4 w-4 text-primary" /> Membros da equipe
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Convide colaboradores para acessar o CRM com diferentes permissões.
+                    </p>
+                  </div>
+                  <Button size="sm" onClick={() => setShowInviteForm(!showInviteForm)} className="gap-1.5">
+                    <Plus className="h-3.5 w-3.5" /> Convidar
+                  </Button>
+                </div>
+
+                {showInviteForm && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-4 mb-4 space-y-3">
+                    <p className="text-sm font-medium text-foreground">Novo convite</p>
+                    <div>
+                      <Label className="text-xs">E-mail *</Label>
+                      <Input
+                        className="mt-1" type="email" placeholder="colega@escritorio.com.br"
+                        value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Papel</Label>
+                      <select
+                        value={inviteRole}
+                        onChange={e => setInviteRole(e.target.value as any)}
+                        className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="secretaria">Secretária</option>
+                        <option value="estagiario">Estagiário</option>
+                        <option value="advogado">Advogado</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setShowInviteForm(false)}>Cancelar</Button>
+                      <Button size="sm" onClick={handleInvite} disabled={!inviteEmail.trim()}>
+                        <Mail className="h-3.5 w-3.5 mr-1" /> Enviar convite
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {teamLoading && <p className="text-sm text-muted-foreground text-center py-4">Carregando…</p>}
+
+                {!teamLoading && teamMembers.length === 0 && (
+                  <div className="text-center py-6">
+                    <Users2 className="h-10 w-10 mx-auto mb-2 text-muted-foreground/20" />
+                    <p className="text-sm text-muted-foreground">Nenhum membro convidado ainda.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Clique em "Convidar" para adicionar colaboradores.</p>
+                  </div>
+                )}
+
+                {!teamLoading && teamMembers.length > 0 && (
+                  <div className="divide-y divide-border">
+                    {teamMembers.map(member => {
+                      const RoleIcon = ROLE_ICONS[member.role] ?? Briefcase;
+                      return (
+                        <div key={member.id} className="flex items-center gap-3 py-3">
+                          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                            {member.member_email[0].toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{member.member_email}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <RoleIcon className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">{ROLE_LABELS[member.role]}</span>
+                              {member.status === "pendente" && (
+                                <span className="text-[10px] px-1.5 py-0 rounded-full bg-amber-100 text-amber-700 border border-amber-200">aguardando aceite</span>
+                              )}
+                              {member.status === "ativo" && (
+                                <span className="text-[10px] px-1.5 py-0 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-0.5">
+                                  <Check className="h-2.5 w-2.5" /> ativo
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <select
+                              value={member.role}
+                              onChange={e => handleUpdateRole(member.id, e.target.value as any)}
+                              className="text-xs rounded border border-input bg-background px-2 py-1 outline-none"
+                            >
+                              <option value="secretaria">Secretária</option>
+                              <option value="estagiario">Estagiário</option>
+                              <option value="advogado">Advogado</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                            <button onClick={() => handleRemoveMember(member.id)}
+                              className="text-muted-foreground hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50">
+                              <UserX className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

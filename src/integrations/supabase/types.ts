@@ -106,6 +106,8 @@ export type Database = {
       }
       appointments: {
         Row: {
+          attended: boolean
+          attended_at: string | null
           client_id: string | null
           conversation_id: string | null
           created_at: string
@@ -114,12 +116,16 @@ export type Database = {
           google_event_id: string | null
           id: string
           notes: string | null
+          reminder_d0_sent: boolean
+          reminder_d1_sent: boolean
           start_at: string
           status: string
           title: string
           user_id: string
         }
         Insert: {
+          attended?: boolean
+          attended_at?: string | null
           client_id?: string | null
           conversation_id?: string | null
           created_at?: string
@@ -128,12 +134,16 @@ export type Database = {
           google_event_id?: string | null
           id?: string
           notes?: string | null
+          reminder_d0_sent?: boolean
+          reminder_d1_sent?: boolean
           start_at: string
           status?: string
           title: string
           user_id: string
         }
         Update: {
+          attended?: boolean
+          attended_at?: string | null
           client_id?: string | null
           conversation_id?: string | null
           created_at?: string
@@ -142,6 +152,8 @@ export type Database = {
           google_event_id?: string | null
           id?: string
           notes?: string | null
+          reminder_d0_sent?: boolean
+          reminder_d1_sent?: boolean
           start_at?: string
           status?: string
           title?: string
@@ -568,9 +580,13 @@ export type Database = {
           ai_pause_reason: string | null
           assigned_to: string | null
           blocked: boolean
+          briefing: Json | null
           client_id: string | null
           contact_name: string | null
+          consulta_at: string | null
           created_at: string
+          deadline_context: string | null
+          deadline_mentioned_at: string | null
           follow_up_required: boolean
           first_response_at: string | null
           id: string
@@ -580,6 +596,7 @@ export type Database = {
           needs_human: boolean
           phone: string
           photo_url: string | null
+          post_consulta_stage: string | null
           priority_flag: string | null
           resolved_at: string | null
           sla_due_at: string | null
@@ -599,9 +616,13 @@ export type Database = {
           ai_pause_reason?: string | null
           assigned_to?: string | null
           blocked?: boolean
+          briefing?: Json | null
           client_id?: string | null
           contact_name?: string | null
+          consulta_at?: string | null
           created_at?: string
+          deadline_context?: string | null
+          deadline_mentioned_at?: string | null
           follow_up_required?: boolean
           first_response_at?: string | null
           id?: string
@@ -611,6 +632,7 @@ export type Database = {
           needs_human?: boolean
           phone: string
           photo_url?: string | null
+          post_consulta_stage?: string | null
           priority_flag?: string | null
           resolved_at?: string | null
           sla_due_at?: string | null
@@ -630,9 +652,13 @@ export type Database = {
           ai_pause_reason?: string | null
           assigned_to?: string | null
           blocked?: boolean
+          briefing?: Json | null
           client_id?: string | null
           contact_name?: string | null
+          consulta_at?: string | null
           created_at?: string
+          deadline_context?: string | null
+          deadline_mentioned_at?: string | null
           follow_up_required?: boolean
           first_response_at?: string | null
           id?: string
@@ -642,6 +668,7 @@ export type Database = {
           needs_human?: boolean
           phone?: string
           photo_url?: string | null
+          post_consulta_stage?: string | null
           priority_flag?: string | null
           resolved_at?: string | null
           sla_due_at?: string | null
@@ -812,6 +839,8 @@ export type Database = {
           prompt_variant: string | null
           updated_at: string
           user_id: string
+          viability_notes: string | null
+          viability_score: number | null
         }
         Insert: {
           conversation_id: string
@@ -826,6 +855,8 @@ export type Database = {
           prompt_variant?: string | null
           updated_at?: string
           user_id: string
+          viability_notes?: string | null
+          viability_score?: number | null
         }
         Update: {
           conversation_id?: string
@@ -840,6 +871,8 @@ export type Database = {
           prompt_variant?: string | null
           updated_at?: string
           user_id?: string
+          viability_notes?: string | null
+          viability_score?: number | null
         }
         Relationships: [
           {
@@ -900,6 +933,9 @@ export type Database = {
           working_days: number[]
           working_hours_end: string | null
           working_hours_start: string | null
+          post_consulta_d1_msg: string | null
+          post_consulta_d3_msg: string | null
+          post_consulta_d7_msg: string | null
           zapsign_template_id: string | null
         }
         Insert: {
@@ -935,6 +971,9 @@ export type Database = {
           notify_phone?: string | null
           outside_hours_msg?: string | null
           persona_prompt?: string
+          post_consulta_d1_msg?: string | null
+          post_consulta_d3_msg?: string | null
+          post_consulta_d7_msg?: string | null
           prompt_b?: string | null
           proposal_is_free?: boolean
           proposal_value?: number | null
@@ -978,6 +1017,9 @@ export type Database = {
           notify_phone?: string | null
           outside_hours_msg?: string | null
           persona_prompt?: string
+          post_consulta_d1_msg?: string | null
+          post_consulta_d3_msg?: string | null
+          post_consulta_d7_msg?: string | null
           prompt_b?: string | null
           proposal_is_free?: boolean
           proposal_value?: number | null
@@ -987,6 +1029,45 @@ export type Database = {
           working_hours_end?: string | null
           working_hours_start?: string | null
           zapsign_template_id?: string | null
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          created_at: string
+          id: string
+          invite_expires_at: string | null
+          invite_token: string | null
+          member_email: string
+          member_user_id: string | null
+          owner_user_id: string
+          permissions: Json
+          role: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invite_expires_at?: string | null
+          invite_token?: string | null
+          member_email: string
+          member_user_id?: string | null
+          owner_user_id: string
+          permissions?: Json
+          role?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invite_expires_at?: string | null
+          invite_token?: string | null
+          member_email?: string
+          member_user_id?: string | null
+          owner_user_id?: string
+          permissions?: Json
+          role?: string
+          status?: string
         }
         Relationships: []
       }

@@ -45,11 +45,12 @@ function timeAgo(iso: string) {
   return `${Math.floor(diff / 60000)}min`;
 }
 
-function ScoreBar({ score }: { score?: number | null }) {
+function ScoreBar({ score, label, colorOverride }: { score?: number | null; label?: string; colorOverride?: string }) {
   if (score == null) return null;
-  const color = score >= 80 ? "#22c55e" : score >= 50 ? "#f59e0b" : "#ef4444";
+  const color = colorOverride ?? (score >= 80 ? "#22c55e" : score >= 50 ? "#f59e0b" : "#ef4444");
   return (
     <div className="flex items-center gap-2 mt-1.5">
+      {label && <span className="text-[9px] text-muted-foreground shrink-0 w-14 truncate">{label}</span>}
       <div className="flex-1 h-1.5 rounded-full bg-muted">
         <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: color }} />
       </div>
@@ -58,10 +59,11 @@ function ScoreBar({ score }: { score?: number | null }) {
   );
 }
 
-function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, onClick }: any) {
-  const stageInfo  = STAGES.find(s => s.id === stage)!;
-  const score      = leadScores[card.client_id];
-  const variant    = leadVariants[card.client_id];
+function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, viabilityScores, onClick }: any) {
+  const stageInfo    = STAGES.find(s => s.id === stage)!;
+  const score        = leadScores[card.client_id];
+  const variant      = leadVariants[card.client_id];
+  const viability    = viabilityScores[card.client_id];
   const stuckHours = Math.floor((Date.now() - new Date(card.updated_at).getTime()) / 3600000);
   const isStuck    = stuckHours > 24 && ["qualificacao","proposta"].includes(stage);
   const isUrgent   = stuckHours > 48;
@@ -94,8 +96,9 @@ function KanbanCard({ card, stage, onDragStart, leadScores, leadVariants, onClic
         )}
       </div>
 
-      {/* Score */}
-      <ScoreBar score={score} />
+      {/* Scores */}
+      <ScoreBar score={score} label={viability != null ? "Lead" : undefined} />
+      <ScoreBar score={viability} label="Viabilidade" colorOverride="#3b82f6" />
 
       {/* Preview */}
       {card.title && (
@@ -132,8 +135,9 @@ function KanbanPage() {
   const navigate   = useNavigate();
   const [cards, setCards]         = useState<Record<string, any[]>>({});
   const [clients, setClients]     = useState<any[]>([]);
-  const [leadScores, setLeadScores]   = useState<Record<string, number>>({});
+  const [leadScores, setLeadScores]     = useState<Record<string, number>>({});
   const [leadVariants, setLeadVariants] = useState<Record<string, string>>({});
+  const [viabilityScores, setViabilityScores] = useState<Record<string, number>>({});
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [open, setOpen]           = useState(false);
   const [selectedCard, setSelectedCard] = useState<any>(null);
@@ -146,7 +150,7 @@ function KanbanPage() {
     const [casesRes, clientsRes, scoresRes] = await Promise.all([
       supabase.from("cases").select("*, clients(full_name, whatsapp)").order("created_at", { ascending: false }),
       supabase.from("clients").select("id, full_name").order("full_name"),
-      supabase.from("funnel_states").select("conversation_id, lead_score, prompt_variant").not("lead_score", "is", null),
+      supabase.from("funnel_states").select("conversation_id, lead_score, prompt_variant, viability_score"),
     ]);
 
     const cases = (casesRes.data ?? []) as any[];
@@ -155,19 +159,26 @@ function KanbanPage() {
     // Scores por client_id via conversations
     const scoreMap: Record<string, number>  = {};
     const variantMap: Record<string, string> = {};
+    const viabilityMap: Record<string, number> = {};
     if (scoresRes.data?.length) {
       const convIds = scoresRes.data.map((s: any) => s.conversation_id);
       const { data: convs } = await supabase.from("conversations").select("id, client_id").in("id", convIds);
       convs?.forEach((conv: any) => {
         const s = scoresRes.data?.find((x: any) => x.conversation_id === conv.id);
-        if (s && conv.client_id && typeof s.lead_score === "number") {
-          scoreMap[conv.client_id]   = s.lead_score;
-          variantMap[conv.client_id] = s.prompt_variant ?? "a";
+        if (s && conv.client_id) {
+          if (typeof s.lead_score === "number") {
+            scoreMap[conv.client_id]   = s.lead_score;
+            variantMap[conv.client_id] = s.prompt_variant ?? "a";
+          }
+          if (typeof s.viability_score === "number") {
+            viabilityMap[conv.client_id] = s.viability_score;
+          }
         }
       });
     }
     setLeadScores(scoreMap);
     setLeadVariants(variantMap);
+    setViabilityScores(viabilityMap);
 
     // Agrupar por stage
     const grouped: Record<string, any[]> = {};
@@ -268,6 +279,7 @@ function KanbanPage() {
                     <KanbanCard key={card.id} card={card} stage={stage.id}
                       onDragStart={setDraggedId}
                       leadScores={leadScores} leadVariants={leadVariants}
+                      viabilityScores={viabilityScores}
                       onClick={setSelectedCard} />
                   ))}
                   {stageCards.length === 0 && (
