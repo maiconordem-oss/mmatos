@@ -40,10 +40,10 @@ export const Route = createRootRoute({
       { name: "twitter:description", content: "CRM jurídico com atendimento por WhatsApp, Kanban, funis de IA e automação para escritórios de advocacia." },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..700;1,14..32,300..700&display=swap" },
+      { rel: "stylesheet", href: appCss },
     ],
   }),
   shellComponent: RootShell,

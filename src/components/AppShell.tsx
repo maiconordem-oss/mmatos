@@ -53,7 +53,6 @@ type NavItem = {
 type NavGroup = {
   id: string;
   label: string;
-  emoji: string;
   color: string;
   items: NavItem[];
 };
@@ -61,7 +60,7 @@ type NavGroup = {
 function NavBadge({ count, color = "bg-red-500" }: { count: number; color?: string }) {
   if (!count) return null;
   return (
-    <span className={`ml-auto shrink-0 min-w-[18px] h-4.5 px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center ${color}`}>
+    <span className={`ml-auto shrink-0 min-w-[18px] h-4 px-1 rounded-full text-[10px] font-semibold text-white flex items-center justify-center tabular-nums ${color}`}>
       {count > 99 ? "99+" : count}
     </span>
   );
@@ -89,7 +88,6 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Abrir grupo automaticamente quando rota ativa pertence a ele
   useEffect(() => {
     const path = location.pathname;
     if (["/inbox", "/kanban", "/clientes", "/dashboard"].some(p => path.startsWith(p))) {
@@ -107,7 +105,6 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     {
       id: "atendimento",
       label: "Atendimento",
-      emoji: "💬",
       color: "#0d9488",
       items: [
         { to: "/dashboard", label: "Início",          icon: LayoutDashboard },
@@ -119,7 +116,6 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     {
       id: "automacao",
       label: "Automação",
-      emoji: "🤖",
       color: "#7c3aed",
       items: [
         { to: "/construtor",   label: "Criar atendimento",  icon: Zap },
@@ -132,7 +128,6 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     {
       id: "juridico",
       label: "Jurídico",
-      emoji: "⚖️",
       color: "#d97706",
       items: [
         { to: "/contratos",  label: "Contratos",   icon: FileSignature },
@@ -144,12 +139,11 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     {
       id: "config",
       label: "Ajustes",
-      emoji: "⚙️",
       color: "#64748b",
       items: [
         { to: "/whatsapp",      label: "Conectar WhatsApp", icon: Smartphone },
-        { to: "/configuracoes", label: "Ajustes",           icon: Settings },
-        { to: "/diagnostico",   label: "Teste do sistema",  icon: Stethoscope },
+        { to: "/configuracoes", label: "Configurações",     icon: Settings },
+        { to: "/diagnostico",   label: "Diagnóstico",       icon: Stethoscope },
       ],
     },
   ];
@@ -159,35 +153,37 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
 
       {/* ── Sidebar ── */}
       <aside className={cn(
-        "shrink-0 flex flex-col border-r border-border bg-sidebar transition-all duration-300 shadow-sm",
+        "shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200",
         collapsed ? "w-[52px]" : "w-56"
       )}>
 
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-3 py-4 border-b border-sidebar-border">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <Scale className="h-4 w-4 text-primary-foreground" />
+        <div className="flex items-center gap-2.5 px-3 py-[14px] border-b border-sidebar-border/70">
+          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
+            <Scale className="h-[14px] w-[14px] text-primary-foreground" />
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm text-sidebar-foreground leading-tight">Lex CRM</p>
-              <p className="text-[10px] text-sidebar-foreground/50">Advocacia Digital</p>
+              <p className="font-semibold text-[13px] text-sidebar-foreground tracking-tight leading-tight">Lex CRM</p>
+              <p className="text-[10px] text-sidebar-foreground/40 tracking-wide">Advocacia Digital</p>
             </div>
           )}
-          <button onClick={() => setCollapsed(!collapsed)}
-            className="shrink-0 text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
-            {collapsed
-              ? <ChevronRight className="h-3.5 w-3.5" />
-              : <ChevronLeft  className="h-3.5 w-3.5" />}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="shrink-0 h-5 w-5 flex items-center justify-center rounded text-sidebar-foreground/30 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors"
+          >
+            {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
           </button>
         </div>
 
         {/* Status WhatsApp */}
         {!collapsed && (
-          <div className="mx-3 mt-3 px-3 py-1.5 rounded-lg bg-sidebar-accent flex items-center gap-2">
-            <div className={cn("h-1.5 w-1.5 rounded-full shrink-0 flex-none",
-              badges.waStatus === "connected" ? "bg-emerald-500 animate-pulse" : "bg-red-500")} />
-            <span className="text-[11px] text-sidebar-foreground/60 truncate">
+          <div className="mx-3 mt-2.5 px-2.5 py-1.5 rounded-md border border-sidebar-border/50 bg-sidebar-accent/40 flex items-center gap-2">
+            <div className={cn(
+              "h-1.5 w-1.5 rounded-full shrink-0",
+              badges.waStatus === "connected" ? "bg-emerald-500" : "bg-slate-400"
+            )} />
+            <span className="text-[11px] text-sidebar-foreground/50 truncate">
               {badges.waStatus === "connected"
                 ? `${badges.activeLeads} leads ativos`
                 : "WhatsApp desconectado"}
@@ -196,9 +192,9 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
         )}
 
         {/* Nav por grupos */}
-        <nav className="flex-1 overflow-y-auto py-3 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 relative">
           {groups.map(group => {
-            const isOpen   = openGroups[group.id];
+            const isOpen    = openGroups[group.id];
             const hasActive = group.items.some(i => location.pathname === i.to || location.pathname.startsWith(i.to + "/"));
             const groupBadge = group.items.reduce((a, i) => a + (i.badge || 0), 0);
 
@@ -209,25 +205,28 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
                   onClick={() => !collapsed && toggleGroup(group.id)}
                   title={collapsed ? group.label : undefined}
                   className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2 text-left transition-all",
+                    "w-full flex items-center px-3 py-1.5 text-left transition-colors",
                     collapsed ? "justify-center" : "justify-between",
-                    hasActive ? "text-sidebar-foreground" : "text-sidebar-foreground/50 hover:text-sidebar-foreground/80"
+                    "text-sidebar-foreground/35 hover:text-sidebar-foreground/55"
                   )}>
                   {collapsed ? (
-                    <span className="text-base">{group.emoji}</span>
+                    <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: group.color }} />
                   ) : (
                     <>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm">{group.emoji}</span>
-                        <span className="text-[11px] font-semibold uppercase tracking-wider truncate">{group.label}</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: group.color }} />
+                        <span className={cn(
+                          "text-[10px] font-semibold uppercase tracking-widest",
+                          hasActive && "text-sidebar-foreground/55"
+                        )}>{group.label}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         {groupBadge > 0 && !isOpen && (
-                          <span className="min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white bg-red-500 flex items-center justify-center">
+                          <span className="min-w-[16px] h-3.5 px-1 rounded-full text-[9px] font-semibold text-white bg-red-500 flex items-center justify-center">
                             {groupBadge}
                           </span>
                         )}
-                        <ChevronDown className={cn("h-3 w-3 transition-transform", isOpen && "rotate-180")} />
+                        <ChevronDown className={cn("h-2.5 w-2.5 transition-transform duration-150", isOpen && "rotate-180")} />
                       </div>
                     </>
                   )}
@@ -235,20 +234,23 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
 
                 {/* Itens do grupo */}
                 {(isOpen || collapsed) && (
-                  <div className={cn("space-y-0.5", collapsed ? "px-1.5" : "px-2 pb-2")}>
+                  <div className={cn("space-y-px", collapsed ? "px-1.5" : "px-2 pb-1.5")}>
                     {group.items.map(item => {
                       const active = location.pathname === item.to;
                       return (
                         <Link key={item.to} to={item.to}
                           title={collapsed ? item.label : undefined}
                           className={cn(
-                            "flex items-center gap-2.5 rounded-lg text-sm font-medium transition-all",
-                            collapsed ? "p-2 justify-center" : "px-2.5 py-1.5",
+                            "flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-colors",
+                            collapsed ? "p-2 justify-center" : "px-2.5 py-[7px]",
                             active
-                              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                              : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                              ? "bg-primary/[0.08] text-primary"
+                              : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
                           )}>
-                          <item.icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+                          <item.icon className={cn(
+                            "h-[15px] w-[15px] shrink-0",
+                            active ? "text-primary" : "text-sidebar-foreground/45"
+                          )} />
                           {!collapsed && (
                             <>
                               <span className="flex-1 truncate">{item.label}</span>
@@ -262,25 +264,25 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
                 )}
 
                 {/* Separador entre grupos */}
-                {!collapsed && <div className="mx-3 h-px bg-sidebar-border/50 mt-0.5" />}
+                {!collapsed && <div className="mx-3 h-px bg-sidebar-border/40 mt-1" />}
               </div>
             );
           })}
         </nav>
 
         {/* Logout */}
-        <div className="p-2 border-t border-sidebar-border">
+        <div className="p-2 border-t border-sidebar-border/70">
           <button onClick={logout}
             className={cn(
-              "flex items-center gap-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/50 hover:text-red-400 hover:bg-red-500/10 transition-all w-full",
-              collapsed ? "p-2 justify-center" : "px-2.5 py-1.5"
+              "flex items-center gap-2.5 rounded-md text-[13px] font-medium text-sidebar-foreground/40 hover:text-red-500 hover:bg-red-500/8 transition-colors w-full",
+              collapsed ? "p-2 justify-center" : "px-2.5 py-[7px]"
             )}
             title={collapsed ? "Sair" : undefined}>
-            <LogOut className="h-4 w-4 shrink-0" />
+            <LogOut className="h-[15px] w-[15px] shrink-0" />
             {!collapsed && <span>Sair</span>}
           </button>
           {!collapsed && user && (
-            <p className="text-[10px] text-sidebar-foreground/30 px-2.5 pt-1 truncate">{user.email}</p>
+            <p className="text-[10px] text-sidebar-foreground/25 px-2.5 pt-1 truncate">{user.email}</p>
           )}
         </div>
       </aside>
