@@ -46,6 +46,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               syncInstanceWebhookEvents(url, key, inst.instance_name, webhookUrl).catch(() => {});
             }
           }
+          return Response.json({ ok: true, event: "connection_update" });
         }
 
         // ── Status de leitura ──────────────────────────────────
@@ -84,6 +85,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               status: "qr", qr_code: qr, last_event_at: new Date().toISOString(),
             }).eq("id", inst.id);
           }
+          return Response.json({ ok: true, event: "qrcode_updated" });
         }
 
         // ── Mensagem recebida ──────────────────────────────────

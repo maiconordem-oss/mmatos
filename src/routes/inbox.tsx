@@ -908,7 +908,7 @@ function InboxPage() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversations" }, (payload) => {
         loadConvs();
         const conv = payload.new as any;
-        if (conv?.phone && window.location.hash === "#notify-new-conversation") {
+        if (conv?.phone) {
           notify(
             "Novo lead! 🆕",
             `${conv.contact_name || conv.phone} iniciou uma conversa`,
@@ -922,8 +922,9 @@ function InboxPage() {
   }, [loadConvs, notify]);
 
   useEffect(() => {
+    if (!user?.id) return;
     const ch = supabase.channel("inbox-notifications")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `user_id=eq.${user.id}` }, async (payload: any) => {
         const msg = payload.new as any;
         if (msg.direction !== "inbound" || msg.conversation_id === activeIdRef.current) return;
         if (!msg.conversation_id) return;
@@ -945,7 +946,7 @@ function InboxPage() {
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [clearUnread, notify]);
+  }, [clearUnread, notify, user?.id]);
 
   // Carregar mensagens + realtime quando troca de conversa
   useEffect(() => {
