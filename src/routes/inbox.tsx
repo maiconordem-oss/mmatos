@@ -1,5 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useNotification } from "@/hooks/use-notification";
+import { useAudioRecorder } from "@/hooks/use-audio-recorder";
+import {
+  avatar, formatTime, formatMsgTime, hoursUntil, playbookForPhase, groupByDate,
+  FASES, FASE_LABELS, FASE_COLORS, DADO_LABELS,
+} from "@/lib/inbox-helpers";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -25,125 +31,6 @@ import { useAuthServerFn } from "@/hooks/use-server-fn";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-
-// ── Hook de notificação sonora + visual ────────────────────────
-function useNotification() {
-  const audioRef = useRef<AudioContext | null>(null);
-
-  const playSound = useCallback(() => {
-    try {
-      if (!audioRef.current) audioRef.current = new AudioContext();
-      const ctx = audioRef.current;
-      const playTone = (frequency: number, start: number, duration: number, gain = 0.12) => {
-        const oscillator = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(frequency, ctx.currentTime + start);
-        gainNode.gain.setValueAtTime(0.001, ctx.currentTime + start);
-        gainNode.gain.exponentialRampToValueAtTime(gain, ctx.currentTime + start + 0.015);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
-        oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        oscillator.start(ctx.currentTime + start);
-        oscillator.stop(ctx.currentTime + start + duration + 0.02);
-      };
-      playTone(880, 0, 0.12);
-      playTone(1175, 0.09, 0.18, 0.10);
-    } catch {}
-  }, []);
-
-  const notify = useCallback((title: string, body: string, onClick?: () => void) => {
-    playSound();
-    if ("Notification" in window && Notification.permission === "granted") {
-      const n = new Notification(title, {
-        body, icon: "/favicon.ico", badge: "/favicon.ico",
-        tag: "lex-crm-message",
-      });
-      if (onClick) n.onclick = () => { window.focus(); onClick(); };
-      setTimeout(() => n.close(), 6000);
-    }
-  }, [playSound]);
-
-  const requestPermission = useCallback(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
-
-  return { notify, requestPermission };
-}
-
-
-// ── Hook de gravação de áudio ──────────────────────────────────
-function useAudioRecorder() {
-  const [recording, setRecording]     = useState(false);
-  const [audioBlob, setAudioBlob]     = useState<Blob | null>(null);
-  const [duration, setDuration]       = useState(0);
-  const mediaRef  = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const getMimeType = () => {
-    const types = [
-      "audio/webm;codecs=opus",
-      "audio/webm",
-      "audio/ogg;codecs=opus",
-      "audio/ogg",
-      "audio/mp4",
-    ];
-    for (const type of types) {
-      if (MediaRecorder.isTypeSupported(type)) return type;
-    }
-    return "";
-  };
-
-  const start = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = getMimeType();
-      const mr = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
-      chunksRef.current = [];
-      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
-        setAudioBlob(blob);
-        stream.getTracks().forEach(t => t.stop());
-      };
-      mr.start(100);
-      mediaRef.current = mr;
-      setRecording(true);
-      setDuration(0);
-      timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
-    } catch (e: any) {
-      if (e.name === "NotAllowedError") {
-        toast.error("Permissão de microfone negada. Clique no ícone de cadeado na barra de endereço e permita o microfone.");
-      } else {
-        toast.error(`Erro ao acessar microfone: ${e.message}`);
-      }
-    }
-  };
-
-  const stop = () => {
-    if (mediaRef.current?.state === "recording") mediaRef.current.stop();
-    setRecording(false);
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
-
-  const cancel = () => {
-    if (mediaRef.current?.state === "recording") mediaRef.current.stop();
-    chunksRef.current = [];
-    setRecording(false);
-    setAudioBlob(null);
-    setDuration(0);
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
-
-  const reset = () => { setAudioBlob(null); setDuration(0); };
-
-  return { recording, audioBlob, duration, start, stop, cancel, reset };
-}
 
 export const Route = createFileRoute("/inbox")({
   head: () => ({ meta: [{ title: "Atendimentos WhatsApp — Lex CRM" }] }),
@@ -209,7 +96,7 @@ type FunnelState = {
   funnels: { name: string } | null;
 };
 
-// ── Helpers ────────────────────────────────────────────────────
+// ── Componentes auxiliares ─────────────────────────────────────
 function ContactAvatar({ conv, size = "md" }: { conv: Conversation; size?: "sm" | "md" | "lg" }) {
   const av = avatar(conv.contact_name, conv.phone);
   const sizes = { sm: "h-8 w-8 text-xs", md: "h-10 w-10 text-sm", lg: "h-12 w-12 text-base" };
@@ -233,44 +120,6 @@ function ContactAvatar({ conv, size = "md" }: { conv: Conversation; size?: "sm" 
   );
 }
 
-function avatar(name: string | null, phone: string) {
-  const label = name ? name[0].toUpperCase() : phone[0];
-  const colors = ["#25D366","#128C7E","#075E54","#34B7F1","#00BCD4","#8BC34A","#FF9800","#E91E63"];
-  const idx = (name || phone).split("").reduce((a,c) => a + c.charCodeAt(0), 0) % colors.length;
-  return { label, color: colors[idx] };
-}
-
-function formatTime(iso: string) {
-  const d = new Date(iso), now = new Date();
-  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-  if (diffDays === 0) return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  if (diffDays === 1) return "Ontem";
-  if (diffDays < 7) return d.toLocaleDateString("pt-BR", { weekday: "short" });
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-}
-
-function formatMsgTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-}
-
-function groupByDate(messages: Message[]) {
-  const groups: { date: string; messages: Message[] }[] = [];
-  let current = "";
-  for (const m of messages) {
-    const d = new Date(m.created_at), now = new Date();
-    const diff = Math.floor((now.getTime() - d.getTime()) / 86400000);
-    const label = diff === 0 ? "Hoje" : diff === 1 ? "Ontem"
-      : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-    if (label !== current) { groups.push({ date: label, messages: [] }); current = label; }
-    groups[groups.length - 1].messages.push(m);
-  }
-  return groups;
-}
-
-function hoursUntil(iso?: string | null) {
-  if (!iso) return null;
-  return (new Date(iso).getTime() - Date.now()) / 3600000;
-}
 
 function calcSlaDue(conv: Conversation) {
   if (conv.sla_due_at) return conv.sla_due_at;
@@ -298,38 +147,6 @@ function slaLabel(conv: Conversation) {
   return `${Math.round(hours)}h`;
 }
 
-function playbookForPhase(phase?: string | null) {
-  const map: Record<string, string[]> = {
-    abertura: ["Cumprimente pelo nome", "Confirme o motivo do contato", "Evite pedir documentos cedo demais"],
-    triagem: ["Identifique urgência e cidade", "Colete dados mínimos", "Sinalize se precisa de humano"],
-    conexao: ["Demonstre entendimento do caso", "Explique próximos passos em linguagem simples"],
-    fechamento: ["Reforce valor e prazo", "Tire objeções antes de enviar contrato"],
-    coleta: ["Peça documentos em lista curta", "Confirme recebimento de cada mídia"],
-    assinatura: ["Oriente assinatura", "Confirme canal para dúvidas"],
-    encerrado: ["Confirme conclusão", "Ofereça acompanhamento futuro"],
-  };
-  return map[phase || ""] ?? ["Leia o histórico", "Responda com clareza", "Registre a próxima ação"];
-}
-
-const FASES = ["abertura","triagem","conexao","fechamento","coleta","assinatura","encerrado"];
-const FASE_LABELS: Record<string, string> = {
-  abertura: "Abertura", triagem: "Triagem", conexao: "Conexão",
-  fechamento: "Fechamento", coleta: "Coleta de dados",
-  assinatura: "Assinatura", encerrado: "Encerrado",
-};
-const FASE_COLORS: Record<string, string> = {
-  abertura: "#8696a0", triagem: "#34B7F1", conexao: "#FF9800",
-  fechamento: "#E91E63", coleta: "#9C27B0", assinatura: "#25D366", encerrado: "#128C7E",
-};
-
-const DADO_LABELS: Record<string, string> = {
-  nome: "Nome", nomeCrianca: "Criança", idadeCrianca: "Idade",
-  municipio: "Município", cpf: "CPF", rg: "RG",
-  estadoCivil: "Estado civil", profissao: "Profissão",
-  endereco: "Endereço", dataNascimentoCrianca: "Nasc. criança",
-  creche: "Creche", protocolo: "Protocolo",
-  temPrescricao: "Tem prescrição", nomeMedico: "Médico", crm: "CRM", cid: "CID",
-};
 
 // ── Painel lateral do lead ─────────────────────────────────────
 function LeadPanel({ conv, onClose, onConvUpdated }: { conv: Conversation; onClose: () => void; onConvUpdated?: (id: string) => void }) {
@@ -607,8 +424,9 @@ function LeadPanel({ conv, onClose, onConvUpdated }: { conv: Conversation; onClo
               <div>
                 <p className="text-[10px] text-[#8696a0] mb-1">Observações</p>
                 <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                  rows={2} className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef] placeholder-[#8696a0] resize-none"
+                  rows={2} maxLength={2000} className="w-full bg-[#f0f2f5] text-[#111b21] text-xs rounded-lg px-2.5 py-1.5 outline-none border border-[#e9edef] placeholder-[#8696a0] resize-none"
                   placeholder="Anotações sobre o cliente..." />
+                <p className="text-right text-[10px] text-[#8696a0] mt-0.5">{form.notes.length}/2000</p>
               </div>
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setShowForm(false)}

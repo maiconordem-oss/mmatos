@@ -82,6 +82,9 @@ function ClienteDrawer({ client: initial, onClose, onUpdate }: {
 
   const salvar = async () => {
     if (!form.full_name.trim()) return;
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      toast.error("E-mail inválido"); return;
+    }
     setSaving(true);
     const { data, error } = await supabase.from("clients").update({
       full_name: form.full_name.trim(),
@@ -194,7 +197,8 @@ function ClienteDrawer({ client: initial, onClose, onUpdate }: {
                   <div>
                     <Label className="text-xs text-muted-foreground">Observações</Label>
                     <Textarea value={form.notes || ""} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                      rows={3} className="mt-1 text-sm resize-none" />
+                      rows={3} maxLength={2000} className="mt-1 text-sm resize-none" />
+                    <p className="text-right text-[11px] text-muted-foreground mt-0.5">{(form.notes || "").length}/2000</p>
                   </div>
                 </div>
               ) : (
@@ -372,6 +376,9 @@ function ClientesPage() {
 
   const handleCreate = async () => {
     if (!user || !form.full_name.trim()) return;
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      toast.error("E-mail inválido"); return;
+    }
     const { error } = await supabase.from("clients").insert({ user_id: user.id, ...form });
     if (error) { toast.error(error.message); return; }
     toast.success("Cliente criado!");
@@ -539,9 +546,10 @@ function ClientesPage() {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Observações</Label>
-              <Textarea className="mt-1 resize-none" rows={3} value={form.notes}
+              <Textarea className="mt-1 resize-none" rows={3} maxLength={2000} value={form.notes}
                 onChange={e => setForm({ ...form, notes: e.target.value })}
                 placeholder="Anotações sobre o cliente..." />
+              <p className="text-right text-[11px] text-muted-foreground mt-0.5">{(form.notes || "").length}/2000</p>
             </div>
           </div>
           <DialogFooter>

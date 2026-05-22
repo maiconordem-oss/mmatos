@@ -108,14 +108,21 @@ function KbPage() {
           <Input
             placeholder="Título (ex: Valores de consulta)"
             value={editing.title ?? ""}
+            maxLength={200}
             onChange={(e) => setEditing({ ...editing, title: e.target.value })}
           />
-          <Textarea
-            placeholder="Conteúdo. Ex: Consulta inicial gratuita. Honorários definidos após análise."
-            rows={5}
-            value={editing.content ?? ""}
-            onChange={(e) => setEditing({ ...editing, content: e.target.value })}
-          />
+          <div>
+            <Textarea
+              placeholder="Conteúdo. Ex: Consulta inicial gratuita. Honorários definidos após análise."
+              rows={5}
+              maxLength={8000}
+              value={editing.content ?? ""}
+              onChange={(e) => setEditing({ ...editing, content: e.target.value })}
+            />
+            <p className="text-right text-[11px] text-muted-foreground mt-1">
+              {(editing.content ?? "").length}/8000
+            </p>
+          </div>
           <Input
             placeholder="Tags separadas por vírgula (opcional)"
             value={(editing.tags ?? []).join(", ")}

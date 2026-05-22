@@ -31,6 +31,19 @@ const TRIBUNAIS_ESPECIAIS: Record<string, string> = {
 
 function onlyDigits(s: string) { return (s || "").replace(/\D/g, ""); }
 
+async function fetchWithTimeout(url: string, options: RequestInit, ms = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (e: any) {
+    if (e.name === "AbortError") throw new Error(`Datajud não respondeu em ${ms / 1000}s — tente novamente.`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Detecta o alias do tribunal (ex: tjsp, trf3, trt2) a partir do nº CNJ. */
 export function detectTribunalAlias(numero: string): { alias: string; segmento: string; tr: string } | null {
   const d = onlyDigits(numero);
@@ -99,7 +112,7 @@ async function consultarDatajud(numeroCnj: string) {
     size: 5,
   };
 
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -177,11 +190,11 @@ async function buscarPorOabNoTribunal(
     sort: [{ "dataAjuizamento": { order: "desc" } }],
   };
 
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `APIKey ${apiKey}` },
     body: JSON.stringify(body),
-  }).catch(() => null);
+  }, 10000).catch(() => null);
 
   if (!res?.ok) return [];
   const json = await res.json().catch(() => null);

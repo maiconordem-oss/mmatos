@@ -88,16 +88,22 @@ function TemplatesPage() {
             <Input
               placeholder="Atalho (ex: ola)"
               value={shortcut}
+              maxLength={50}
               onChange={(e) => setShortcut(e.target.value)}
             />
           </div>
-          <Textarea
-            placeholder="Mensagem. Variáveis: {{nome}}, {{telefone}}"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={3}
-            className="flex-1"
-          />
+          <div className="flex-1">
+            <Textarea
+              placeholder="Mensagem. Variáveis: {{nome}}, {{telefone}}"
+              value={message}
+              maxLength={2000}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={3}
+            />
+            <p className="text-right text-[11px] text-muted-foreground mt-1">
+              {message.length}/2000
+            </p>
+          </div>
         </div>
         <div className="flex justify-end">
           <Button onClick={create} disabled={loading || !shortcut.trim() || !message.trim()}>
