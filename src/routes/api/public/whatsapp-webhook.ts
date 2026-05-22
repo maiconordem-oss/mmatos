@@ -192,6 +192,12 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               user_id: inst.user_id, phone, status: "open",
               contact_name: pushName || null, instance_id: inst.id,
               photo_url: photoUrl,
+              ...(inst.is_office ? {
+                ai_paused: true,
+                ai_pause_reason: "Entrada pelo número do escritório",
+                needs_human: true,
+                ticket_status: "pending",
+              } : {}),
               last_message_at:      new Date().toISOString(),
               last_message_preview: preview,
               sla_due_at: nextSlaDue(null, false, false),
@@ -205,6 +211,11 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
               sla_due_at: fromMe ? conv.sla_due_at : nextSlaDue(conv.priority_flag, conv.needs_human, conv.follow_up_required),
               unread_count: fromMe ? (conv.unread_count || 0) : (conv.unread_count || 0) + 1,
               instance_id: conv.instance_id ?? inst.id,
+              ...(inst.is_office ? {
+                ai_paused: true,
+                ai_pause_reason: conv.ai_pause_reason ?? "Entrada pelo número do escritório",
+                needs_human: true,
+              } : {}),
               ...(fromMe ? { first_response_at: conv.first_response_at ?? new Date().toISOString() } : {}),
               // Atualizar nome se ainda não tem
               ...(!fromMe && pushName && !conv.contact_name ? { contact_name: pushName } : {}),

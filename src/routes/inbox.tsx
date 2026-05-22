@@ -4,7 +4,7 @@ import { useNotification } from "@/hooks/use-notification";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import {
   avatar, formatTime, formatMsgTime, hoursUntil, playbookForPhase, groupByDate,
-  FASES, FASE_LABELS, FASE_COLORS, DADO_LABELS,
+  manualQuestionsForPhase, FASES, FASE_LABELS, FASE_COLORS, DADO_LABELS,
 } from "@/lib/inbox-helpers";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
@@ -66,6 +66,7 @@ type Conversation = {
 
 type QuickReply = { id: string; shortcut: string; message: string };
 type ConvTag    = { id: string; name: string; color: string };
+type FunnelOption = { id: string; name: string; is_active: boolean; persona_prompt?: string | null };
 type QueueFilter = "all" | "novo" | "humano" | "followup" | "urgente" | "sla";
 type AssignmentEvent = {
   id: string;
@@ -101,7 +102,25 @@ async function createWhatsappMediaSignedUrl(path: string) {
   return data.signedUrl;
 }
 
+function questionsFromFunnelPrompt(prompt?: string | null) {
+  if (!prompt) return [];
+  const seen = new Set<string>();
+  return prompt
+    .split(/\r?\n/)
+    .map(line => line.replace(/^[-*•\d.)\s]+/, "").trim())
+    .filter(line => line.includes("?") && line.length >= 12 && line.length <= 180)
+    .filter(line => {
+      const key = line.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 6);
+}
+
 type FunnelState = {
+  id?: string;
+  funnel_id?: string | null;
   fase: string;
   dados: Record<string, any>;
   midias_enviadas: string[];
@@ -755,6 +774,7 @@ function InboxPage() {
   const [ticketFilter, setTicketFilter]   = useState<"all"|"pending"|"open"|"resolved">("all");
   const [queueFilter, setQueueFilter]     = useState<QueueFilter>("all");
   const [quickReplies, setQuickReplies]   = useState<QuickReply[]>([]);
+  const [funnels, setFunnels]             = useState<FunnelOption[]>([]);
   const [tags, setTags]                   = useState<ConvTag[]>([]);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [quickSearch, setQuickSearch]     = useState("");
@@ -778,6 +798,7 @@ function InboxPage() {
   const [newConv, setNewConv] = useState({ phone: "", contact_name: "" });
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [showLeadPanel, setShowLeadPanel] = useState(false);
+  const [savingFunnel, setSavingFunnel]   = useState(false);
 
   // IA — estados das ferramentas
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -898,6 +919,17 @@ function InboxPage() {
     setQuickReplies(data ?? []);
   }, []);
 
+  const loadFunnels = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("funnels")
+      .select("id, name, is_active, persona_prompt")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .order("created_at");
+    setFunnels((data ?? []) as FunnelOption[]);
+  }, [user]);
+
   const loadTags = useCallback(async () => {
     const { data } = await supabase.from("conversation_tags").select("*").order("name");
     setTags(data ?? []);
@@ -929,6 +961,14 @@ function InboxPage() {
     });
     if (activeId === conversationId) loadAssignmentEvents(conversationId);
   };
+
+  const refreshActiveFunnelState = useCallback(async (conversationId: string) => {
+    const { data } = await supabase.from("funnel_states")
+      .select("id, funnel_id, fase, dados, midias_enviadas, funnels(name)")
+      .eq("conversation_id", conversationId)
+      .maybeSingle();
+    setActiveFunnelState(data as any);
+  }, []);
 
   const refreshMetrics = useCallback(async (items: Conversation[]) => {
     if (!user) return;
@@ -1007,9 +1047,10 @@ function InboxPage() {
   useEffect(() => {
     loadInstances();
     loadQuickReplies();
+    loadFunnels();
     loadTags();
     loadBusinessHours();
-  }, [loadInstances, loadQuickReplies, loadTags, loadBusinessHours]);
+  }, [loadInstances, loadQuickReplies, loadFunnels, loadTags, loadBusinessHours]);
   useEffect(() => { loadConvs(); setActiveId(null); }, [loadConvs]);
 
   // Realtime conversas
@@ -1063,11 +1104,7 @@ function InboxPage() {
   useEffect(() => {
     if (!activeId) return;
     loadAssignmentEvents(activeId);
-    supabase.from("funnel_states")
-      .select("fase, dados, midias_enviadas, funnels(name)")
-      .eq("conversation_id", activeId)
-      .maybeSingle()
-      .then(({ data }) => setActiveFunnelState(data as any));
+    refreshActiveFunnelState(activeId);
     supabase.from("messages").select("*")
       .eq("conversation_id", activeId).order("created_at")
       .then(({ data }) => {
@@ -1092,7 +1129,7 @@ function InboxPage() {
         })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [activeId, clearUnread, loadAssignmentEvents, loadConvs]);
+  }, [activeId, clearUnread, loadAssignmentEvents, loadConvs, refreshActiveFunnelState]);
 
   const handleNewConv = async () => {
     if (!user || !newConv.phone) return;
@@ -1189,6 +1226,62 @@ function InboxPage() {
     setShowQuickReplies(false);
     setQuickSearch("");
     if (textareaRef.current) textareaRef.current.focus();
+  };
+
+  const applyAssistedFunnel = async (funnelId: string) => {
+    if (!active || !user || !funnelId) return;
+    setSavingFunnel(true);
+    try {
+      const payload = {
+        user_id: user.id,
+        conversation_id: active.id,
+        funnel_id: funnelId,
+        fase: activeFunnelState?.fase || "abertura",
+        dados: activeFunnelState?.dados || {},
+        midias_enviadas: activeFunnelState?.midias_enviadas || [],
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = activeFunnelState?.id
+        ? await supabase.from("funnel_states").update(payload).eq("id", activeFunnelState.id)
+        : await supabase.from("funnel_states").insert({ ...payload, historico: [] });
+      if (error) throw error;
+
+      const conversationPatch: Record<string, any> = {
+        ai_paused: true,
+        ai_pause_reason: "Funil assistido por atendimento humano",
+        needs_human: true,
+        ticket_status: (active.ticket_status ?? "pending") === "pending" ? "open" : active.ticket_status,
+        assigned_to: user.id,
+      };
+      if (!active.assigned_to) conversationPatch.accepted_at = new Date().toISOString();
+      await supabase.from("conversations").update(conversationPatch).eq("id", active.id);
+      await logAssignmentEvent(active.id, "funnel_assisted", "Funil assistido aplicado", user.id);
+      await refreshActiveFunnelState(active.id);
+      await loadConvs();
+      toast.success("Funil aplicado ao atendimento");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao aplicar funil");
+    } finally {
+      setSavingFunnel(false);
+    }
+  };
+
+  const changeFunnelPhase = async (fase: string) => {
+    if (!active || !activeFunnelState?.id) return;
+    setSavingFunnel(true);
+    try {
+      const { error } = await supabase.from("funnel_states")
+        .update({ fase, updated_at: new Date().toISOString() })
+        .eq("id", activeFunnelState.id);
+      if (error) throw error;
+      await refreshActiveFunnelState(active.id);
+      await logAssignmentEvent(active.id, "funnel_phase", `Etapa alterada para ${FASE_LABELS[fase] || fase}`, user?.id ?? null);
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao mudar etapa");
+    } finally {
+      setSavingFunnel(false);
+    }
   };
 
   const uploadAndSendAudio = async (blob: Blob) => {
@@ -1558,6 +1651,8 @@ function InboxPage() {
     ? messages.filter(m => m.content?.toLowerCase().includes(searchMsg.toLowerCase()))
     : messages;
   const grouped = groupByDate(displayMessages);
+  const selectedFunnel = funnels.find(f => f.id === activeFunnelState?.funnel_id);
+  const funnelPromptQuestions = questionsFromFunnelPrompt(selectedFunnel?.persona_prompt);
 
   return (
     <div className="flex flex-1 overflow-hidden" style={{ background: "#f0f2f5" }}>
@@ -2001,6 +2096,30 @@ function InboxPage() {
               <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#00a884]/10 px-2 py-1 text-[#007a60]">
                 <ClipboardList className="h-3 w-3" /> Etapa: {FASE_LABELS[activeFunnelState?.fase || ""] || "Sem funil"}
               </span>
+              {instances.find(i => i.id === active.instance_id)?.is_office && (
+                <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-1 text-amber-700">
+                  <Phone className="h-3 w-3" /> Escritório
+                </span>
+              )}
+              <select
+                value={activeFunnelState?.funnel_id || ""}
+                disabled={savingFunnel}
+                onChange={e => e.target.value && applyAssistedFunnel(e.target.value)}
+                className="shrink-0 h-7 max-w-[220px] rounded-full border border-[#e9edef] bg-white px-2 text-xs text-[#111b21] outline-none focus:border-[#00a884] disabled:opacity-50"
+              >
+                <option value="">Aplicar funil</option>
+                {funnels.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+              {activeFunnelState?.id && (
+                <select
+                  value={activeFunnelState.fase}
+                  disabled={savingFunnel}
+                  onChange={e => changeFunnelPhase(e.target.value)}
+                  className="shrink-0 h-7 rounded-full border border-[#e9edef] bg-white px-2 text-xs text-[#111b21] outline-none focus:border-[#00a884] disabled:opacity-50"
+                >
+                  {FASES.map(fase => <option key={fase} value={fase}>{FASE_LABELS[fase]}</option>)}
+                </select>
+              )}
               {assignmentEvents[0] && (
                 <span className="shrink-0 text-[#667781]">
                   Último registro: {assignmentEvents[0].event_type} · {new Date(assignmentEvents[0].created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
@@ -2074,6 +2193,20 @@ function InboxPage() {
                         </li>
                       ))}
                     </ul>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {[...funnelPromptQuestions, ...manualQuestionsForPhase(activeFunnelState?.fase)].map(question => (
+                        <button
+                          key={question}
+                          onClick={() => {
+                            setText(question);
+                            setTimeout(() => textareaRef.current?.focus(), 0);
+                          }}
+                          className="max-w-full rounded-full border border-[#d1e7dd] bg-white px-2.5 py-1 text-left text-xs text-[#007a60] hover:bg-[#e8f5f1]"
+                        >
+                          {question}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {assignmentEvents.length > 0 && (

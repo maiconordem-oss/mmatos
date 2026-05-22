@@ -60,6 +60,44 @@ export function playbookForPhase(phase?: string | null) {
   return map[phase || ""] ?? ["Leia o histórico", "Responda com clareza", "Registre a próxima ação"];
 }
 
+export function manualQuestionsForPhase(phase?: string | null) {
+  const map: Record<string, string[]> = {
+    abertura: [
+      "Oi, tudo bem? Me conta rapidamente o que aconteceu para eu te orientar melhor.",
+      "Esse atendimento é para você ou para outra pessoa?",
+    ],
+    triagem: [
+      "Em qual cidade isso aconteceu?",
+      "Existe algum prazo, audiência, negativa ou urgência envolvida?",
+      "Você já tem algum documento ou protocolo sobre isso?",
+    ],
+    conexao: [
+      "Pelo que você contou, vou te explicar o caminho mais seguro em passos simples.",
+      "Antes de eu te passar os próximos passos, tem algum detalhe importante que ainda não mencionei?",
+    ],
+    fechamento: [
+      "Faz sentido seguirmos com essa estratégia?",
+      "Posso te passar as condições e próximos passos para começarmos?",
+    ],
+    coleta: [
+      "Me envie, por favor, os documentos principais em fotos ou PDF.",
+      "Pode me confirmar nome completo, CPF, endereço e melhor e-mail?",
+    ],
+    assinatura: [
+      "Vou te enviar o link de assinatura. Assim que assinar, me avise por aqui.",
+      "Conseguiu acessar o link de assinatura?",
+    ],
+    encerrado: [
+      "Tudo certo por aqui. Vou manter você atualizado sobre os próximos movimentos.",
+      "Se surgir qualquer documento novo, pode me enviar por aqui.",
+    ],
+  };
+  return map[phase || ""] ?? [
+    "Me conta um pouco mais sobre o caso.",
+    "Qual é o principal resultado que você precisa resolver agora?",
+  ];
+}
+
 export function groupByDate<T extends { created_at: string }>(messages: T[]) {
   const groups: { date: string; messages: T[] }[] = [];
   let current = "";
