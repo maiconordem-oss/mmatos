@@ -94,7 +94,8 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           let processed = 0;
 
           for (const msg of upsertMessages) {
-          const fromMe   = msg?.key?.fromMe;
+          const rawFromMe = msg?.key?.fromMe;
+          const fromMe = rawFromMe === true || rawFromMe === "true" || rawFromMe === 1 || rawFromMe === "1";
           const remoteJid: string = msg?.key?.remoteJid || "";
           const rawPhone = remoteJid.split("@")[0].replace(/^\+/, "").trim();
           const phone    = normalizeBRPhone(rawPhone) || rawPhone;

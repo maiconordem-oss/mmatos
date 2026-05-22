@@ -26,39 +26,47 @@ import { Button } from "@/components/ui/button";
 function useNotification() {
   const audioRef = useRef<AudioContext | null>(null);
 
-  const playSound = () => {
+  const playSound = useCallback(() => {
     try {
       if (!audioRef.current) audioRef.current = new AudioContext();
       const ctx = audioRef.current;
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-      oscillator.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
-      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.3);
+      const playTone = (frequency: number, start: number, duration: number, gain = 0.12) => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, ctx.currentTime + start);
+        gainNode.gain.setValueAtTime(0.001, ctx.currentTime + start);
+        gainNode.gain.exponentialRampToValueAtTime(gain, ctx.currentTime + start + 0.015);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        oscillator.start(ctx.currentTime + start);
+        oscillator.stop(ctx.currentTime + start + duration + 0.02);
+      };
+      playTone(880, 0, 0.12);
+      playTone(1175, 0.09, 0.18, 0.10);
     } catch {}
-  };
+  }, []);
 
-  const notify = (title: string, body: string, onClick?: () => void) => {
+  const notify = useCallback((title: string, body: string, onClick?: () => void) => {
     playSound();
     if ("Notification" in window && Notification.permission === "granted") {
       const n = new Notification(title, {
         body, icon: "/favicon.ico", badge: "/favicon.ico",
         tag: "lex-crm-message",
+        renotify: true,
+        requireInteraction: false,
       });
       if (onClick) n.onclick = () => { window.focus(); onClick(); };
+      setTimeout(() => n.close(), 6000);
     }
-  };
+  }, [playSound]);
 
-  const requestPermission = () => {
+  const requestPermission = useCallback(() => {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
-  };
+  }, []);
 
   return { notify, requestPermission };
 }
@@ -673,6 +681,7 @@ function InboxPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef    = useRef<HTMLTextAreaElement>(null);
+  const activeIdRef    = useRef<string | null>(null);
 
   const qualifierReplyFn      = useAuthServerFn(qualifierReply);
   const extractQualificationFn = useAuthServerFn(extractQualification);
@@ -697,6 +706,11 @@ function InboxPage() {
   const [ttsBlob, setTtsBlob] = useState<Blob | null>(null);
   const [ttsVoice, setTtsVoice] = useState("FGY2WhTYpPnrIDTdsKH5");
 
+  const clearUnread = useCallback(async (conversationId: string) => {
+    setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 0 } : c));
+    await supabase.from("conversations").update({ unread_count: 0 }).eq("id", conversationId);
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setMediaToken(data.session?.access_token ?? null));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -707,6 +721,7 @@ function InboxPage() {
 
   // Reset ao trocar de conversa
   useEffect(() => {
+    activeIdRef.current = activeId;
     setSuggestions([]); setAiSummary(null); setAiTasks([]); setAiSentiment(null);
     setAiSearchQ(""); setAiSearchResults([]);
     setAssignmentEvents([]);
@@ -894,7 +909,7 @@ function InboxPage() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversations" }, (payload) => {
         loadConvs();
         const conv = payload.new as any;
-        if (conv?.phone) {
+        if (conv?.phone && window.location.hash === "#notify-new-conversation") {
           notify(
             "Novo lead! 🆕",
             `${conv.contact_name || conv.phone} iniciou uma conversa`,
@@ -905,7 +920,32 @@ function InboxPage() {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations" }, loadConvs)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [loadConvs]);
+  }, [loadConvs, notify]);
+
+  useEffect(() => {
+    const ch = supabase.channel("inbox-notifications")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
+        const msg = payload.new as Message;
+        if (msg.direction !== "inbound" || msg.conversation_id === activeIdRef.current) return;
+
+        const { data: conv } = await supabase
+          .from("conversations")
+          .select("id, phone, contact_name")
+          .eq("id", msg.conversation_id)
+          .maybeSingle();
+
+        notify(
+          conv?.contact_name || conv?.phone || "Nova mensagem",
+          msg.content || "Mensagem recebida",
+          () => {
+            setActiveId(msg.conversation_id);
+            clearUnread(msg.conversation_id);
+          }
+        );
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [clearUnread, notify]);
 
   // Carregar mensagens + realtime quando troca de conversa
   useEffect(() => {
@@ -922,7 +962,7 @@ function InboxPage() {
         setMessages((data ?? []) as Message[]);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
       });
-    supabase.from("conversations").update({ unread_count: 0 }).eq("id", activeId);
+    clearUnread(activeId);
 
     const ch = supabase.channel(`msgs:${activeId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages",
@@ -930,7 +970,7 @@ function InboxPage() {
         (payload) => {
           setMessages(prev => [...prev, payload.new as Message]);
           setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-          supabase.from("conversations").update({ unread_count: 0 }).eq("id", activeId);
+          clearUnread(activeId);
           loadConvs(); // Atualiza preview na lista
         })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages",
@@ -940,7 +980,7 @@ function InboxPage() {
         })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [activeId, loadAssignmentEvents, loadConvs]);
+  }, [activeId, clearUnread, loadAssignmentEvents, loadConvs]);
 
   const handleNewConv = async () => {
     if (!user || !newConv.phone) return;
@@ -1615,7 +1655,7 @@ function InboxPage() {
             const av = avatar(c.contact_name, c.phone);
             const isActive = activeId === c.id;
             return (
-              <button key={c.id} onClick={() => { setActiveId(c.id); setShowLeadPanel(true); }}
+              <button key={c.id} onClick={() => { setActiveId(c.id); clearUnread(c.id); setShowLeadPanel(true); }}
                 className={cn("w-full flex items-center gap-3.5 px-4 py-4 border-b border-[#e9edef] hover:bg-[#f5f5f5] transition-colors text-left bg-white", isActive && "bg-[#f0f2f5]")}>
                 <div className="relative shrink-0">
                   {c.photo_url ? (
