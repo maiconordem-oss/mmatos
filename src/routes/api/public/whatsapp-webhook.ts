@@ -146,6 +146,7 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
           let { data: conv } = await supabaseAdmin
             .from("conversations").select("*")
             .eq("user_id", inst.user_id)
+            .eq("instance_id", inst.id)
             .in("phone", variants.length ? variants : [phone])
             .order("last_message_at", { ascending: false, nullsFirst: false })
             .limit(1)
