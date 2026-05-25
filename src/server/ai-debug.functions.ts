@@ -46,17 +46,23 @@ export const aiMetrics = createServerFn({ method: "POST" })
         .eq("user_id", userId).gte("created_at", since)
         .order("created_at", { ascending: true }).limit(5000),
       supabase.from("ai_debug_logs")
-        .select("kind, variant, latency_ms, error, created_at")
+        .select("conversation_id, kind, variant, latency_ms, error, created_at")
         .eq("user_id", userId).gte("created_at", since).limit(5000),
     ]);
 
     const convs = convsRes.data ?? [];
     const msgs = msgsRes.data ?? [];
     const logs = logsRes.data ?? [];
+    const aiReplyConversations = new Set(
+      (logs as any[])
+        .filter((l) => l.kind === "reply" && l.conversation_id)
+        .map((l) => l.conversation_id),
+    );
 
     // Tempo até a primeira resposta (outbound) por conversa
     const firstInbound: Record<string, number> = {};
     const firstOutbound: Record<string, number> = {};
+    const firstAiReply: Record<string, number> = {};
     for (const m of msgs as any[]) {
       const t = new Date(m.created_at).getTime();
       if (m.direction === "inbound" && firstInbound[m.conversation_id] === undefined) {
@@ -65,10 +71,14 @@ export const aiMetrics = createServerFn({ method: "POST" })
         firstOutbound[m.conversation_id] = t;
       }
     }
+    for (const l of logs as any[]) {
+      if (l.kind !== "reply" || !l.conversation_id || firstAiReply[l.conversation_id] !== undefined) continue;
+      firstAiReply[l.conversation_id] = new Date(l.created_at).getTime();
+    }
     const responseTimes: number[] = [];
     for (const cid of Object.keys(firstInbound)) {
-      const out = firstOutbound[cid];
-      if (out && out > firstInbound[cid]) responseTimes.push(out - firstInbound[cid]);
+      const out = firstAiReply[cid] ?? firstOutbound[cid];
+      if (aiReplyConversations.has(cid) && out && out > firstInbound[cid]) responseTimes.push(out - firstInbound[cid]);
     }
     responseTimes.sort((a, b) => a - b);
     const avgMs = responseTimes.length ? Math.round(responseTimes.reduce((s, n) => s + n, 0) / responseTimes.length) : 0;

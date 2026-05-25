@@ -23,6 +23,10 @@ export const CRITICAL_KEYWORDS = [
 // Máximo de respostas seguidas da IA sem intervenção humana
 export const MAX_AI_CONSECUTIVE = 6;
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // ──────────────────────────────────────────────────────────────
 // SENTIMENT — chamado pelo webhook (admin client, sem auth)
 // ──────────────────────────────────────────────────────────────
@@ -34,14 +38,26 @@ export async function classifyAndPersistSentiment(
 ): Promise<{ sentiment: string; critical: boolean } | null> {
   if (!text || text.trim().length < 2) return null;
 
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) return null;
-
   // Checagem rápida de palavras-chave críticas (sem IA)
   const lower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const critical = CRITICAL_KEYWORDS.some((k) => lower.includes(k));
 
   let sentiment = "neutro";
+
+  if (critical || text.trim().length < 8) {
+    await supabaseAdmin
+      .from("conversations")
+      .update({
+        sentiment: critical ? "urgente" : sentiment,
+        priority_flag: critical ? "alta" : null,
+        ...(critical ? { needs_human: true, ai_paused: true } : {}),
+      })
+      .eq("id", conversationId);
+    return { sentiment: critical ? "urgente" : sentiment, critical };
+  }
+
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey) return null;
 
   try {
     const res = await fetch(GATEWAY_URL, {
@@ -160,7 +176,11 @@ export async function checkSafety(
     .select("word")
     .eq("user_id", userId);
   if (words && words.length) {
-    const hit = (words as any[]).find((w) => lower.includes(String(w.word).toLowerCase()));
+    const hit = (words as any[]).find((w) => {
+      const word = String(w.word ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      if (!word) return false;
+      return new RegExp(`(^|\\W)${escapeRegExp(word)}($|\\W)`, "i").test(lower);
+    });
     if (hit) {
       await supabaseAdmin
         .from("conversations")

@@ -12,8 +12,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAvailableSlots, createCalendarEvent } from "@/server/google-calendar.server";
 import { analyzeMoment, directiveToPromptBlock, type MomentDirective } from "@/server/funnel-timing.server";
+import { checkSafety, incrementAICounter, logAIDebug } from "@/server/intelligence.functions";
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const FUNNEL_AI_MODEL = "google/gemini-3-flash-preview";
+const LOW_CONFIDENCE_RE = /\b(n[aã]o sei|n[aã]o posso|consulte um advogado|encaminhar|equipe entrar[aá]|entrar.*contato)\b/i;
 
 // ── Tipos ──────────────────────────────────────────────────────
 type AiReply = {
@@ -526,14 +529,128 @@ async function releaseLock(admin: SupabaseClient<any, any, any>, convId: string)
   await admin.from("conversation_locks").delete().eq("conversation_id", convId);
 }
 
+async function loadFunnelContext(
+  admin: SupabaseClient<any, any, any>,
+  convId: string,
+): Promise<{ memory: string; summary: string; messageCount: number }> {
+  const { data: conv } = await admin
+    .from("conversations")
+    .select("client_id")
+    .eq("id", convId)
+    .maybeSingle();
+
+  let memory = "";
+  if (conv?.client_id) {
+    const { data: mem } = await admin
+      .from("client_memory")
+      .select("summary")
+      .eq("client_id", conv.client_id)
+      .maybeSingle();
+    if (mem?.summary) memory = String(mem.summary);
+  }
+
+  const { data: summaryRow } = await admin
+    .from("conversation_summaries")
+    .select("summary, next_step, message_count")
+    .eq("conversation_id", convId)
+    .maybeSingle();
+
+  const summary = summaryRow?.summary
+    ? `${summaryRow.summary}${summaryRow.next_step ? `\nProxima acao: ${summaryRow.next_step}` : ""}`
+    : "";
+
+  return { memory, summary, messageCount: Number(summaryRow?.message_count ?? 0) };
+}
+
+async function refreshClientMemory(
+  admin: SupabaseClient<any, any, any>,
+  userId: string,
+  convId: string,
+) {
+  try {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) return;
+
+    const { data: conv } = await admin
+      .from("conversations")
+      .select("client_id")
+      .eq("id", convId)
+      .maybeSingle();
+    if (!conv?.client_id) return;
+
+    const [{ data: existing }, { data: msgs }] = await Promise.all([
+      admin.from("client_memory").select("summary").eq("client_id", conv.client_id).maybeSingle(),
+      admin.from("messages")
+        .select("direction, content, transcription")
+        .eq("conversation_id", convId)
+        .order("created_at", { ascending: false })
+        .limit(40),
+    ]);
+
+    const transcript = [...(msgs ?? [])].reverse()
+      .map((m: any) => `${m.direction === "inbound" ? "Cliente" : "Atendente"}: ${m.transcription ?? m.content ?? ""}`)
+      .join("\n");
+
+    const res = await fetch(AI_GATEWAY, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "Atualize a memoria persistente de um cliente juridico em 2-4 frases. Nao inclua dados sensiveis desnecessarios." },
+          { role: "user", content: `Memoria atual: ${existing?.summary ?? "(vazia)"}\n\nConversa recente:\n${transcript}` },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "save_memory",
+            parameters: {
+              type: "object",
+              properties: {
+                summary: { type: "string" },
+                facts: { type: "object" },
+              },
+              required: ["summary", "facts"],
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "save_memory" } },
+        max_tokens: 700,
+      }),
+    });
+    if (!res.ok) return;
+    const aiRes = await res.json();
+    const args = JSON.parse(aiRes.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments ?? "{}");
+    if (!args.summary) return;
+
+    await admin.from("client_memory").upsert(
+      {
+        user_id: userId,
+        client_id: conv.client_id,
+        conversation_id: convId,
+        summary: args.summary,
+        facts: args.facts ?? {},
+      },
+      { onConflict: "user_id,client_id" },
+    );
+  } catch (e) {
+    console.error("refreshClientMemory error:", e);
+  }
+}
+
 // ── Chamar IA com retry automático ─────────────────────────────
 async function callAI(
   personaPrompt: string,
   state: FunnelState,
   userMessage: string,
+  extraContext: { memory?: string; summary?: string } = {},
   retries = 2
 ): Promise<AiReply> {
   const apiKey = process.env.LOVABLE_API_KEY ?? "lovable-internal";
+  const longHistory = state.historico.length > 40;
+  const history = longHistory ? state.historico.slice(-15) : state.historico.slice(-30);
+  const memoryBlock = extraContext.memory ? `\n\nCONTEXTO DO CLIENTE\n${extraContext.memory}` : "";
+  const summaryBlock = longHistory && extraContext.summary ? `\n\nRESUMO DA CONVERSA ANTERIOR\n${extraContext.summary}` : "";
 
   const contextBlock = `
 ═══════════════════════════
@@ -559,22 +676,57 @@ REGRAS CRÍTICAS ANTI-TRAVAMENTO
 8. Responda APENAS com JSON válido no formato: {"texto":"...","midias":[],"texto_pos_midia":null,"nova_fase":null,"acao":null,"dados_extraidos":{},"botoes":null}. Nenhum texto fora do JSON.`;
 
   const messages = [
-    { role: "system", content: personaPrompt + "\n\n" + contextBlock },
-    ...state.historico.slice(-30),
+    { role: "system", content: personaPrompt + memoryBlock + summaryBlock + "\n\n" + contextBlock },
+    ...history,
     { role: "user", content: userMessage },
   ];
+  const tools = [{
+    type: "function",
+    function: {
+      name: "funnel_reply",
+      description: "Resposta estruturada do funil de atendimento",
+      parameters: {
+        type: "object",
+        properties: {
+          texto: { type: "string" },
+          midias: { type: "array", items: { type: "string" } },
+          texto_pos_midia: { type: ["string", "null"] },
+          nova_fase: { type: ["string", "null"] },
+          acao: { type: ["string", "null"] },
+          dados_extraidos: { type: "object" },
+          botoes: {
+            type: ["array", "null"],
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                titulo: { type: "string" },
+              },
+            },
+          },
+        },
+        required: ["texto", "midias", "texto_pos_midia", "nova_fase", "acao", "dados_extraidos"],
+      },
+    },
+  }];
 
   let res: Response;
   try {
     res = await fetch(AI_GATEWAY, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages, max_tokens: 1500 }),
+      body: JSON.stringify({
+        model: FUNNEL_AI_MODEL,
+        messages,
+        tools,
+        tool_choice: { type: "function", function: { name: "funnel_reply" } },
+        max_tokens: 1500,
+      }),
     });
   } catch (networkErr) {
     if (retries > 0) {
       await new Promise(r => setTimeout(r, 1500));
-      return callAI(personaPrompt, state, userMessage, retries - 1);
+      return callAI(personaPrompt, state, userMessage, extraContext, retries - 1);
     }
     console.error("Erro de rede ao chamar IA:", networkErr);
     throw new Error("Erro de rede");
@@ -585,13 +737,14 @@ REGRAS CRÍTICAS ANTI-TRAVAMENTO
     console.error(`IA erro [${res.status}]:`, errText);
     if (retries > 0 && res.status >= 500) {
       await new Promise(r => setTimeout(r, 2000));
-      return callAI(personaPrompt, state, userMessage, retries - 1);
+      return callAI(personaPrompt, state, userMessage, extraContext, retries - 1);
     }
     throw new Error(`IA [${res.status}]: ${errText}`);
   }
 
   const data = await res.json();
-  let raw = (data.choices?.[0]?.message?.content ?? "{}").trim();
+  const toolArgs = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+  let raw = String(toolArgs ?? data.choices?.[0]?.message?.content ?? "{}").trim();
   raw = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
 
   try {
@@ -1063,6 +1216,20 @@ async function handleFunnelMessageInner(
     return;
   }
 
+  const safety = await checkSafety(userId, convId, userMessage);
+  if (safety.block) {
+    await logAIDebug({
+      userId,
+      conversationId: convId,
+      kind: "blocked",
+      model: FUNNEL_AI_MODEL,
+      prompt: { reason: safety.reason, phase: state.fase },
+      response: null,
+      variant: state.prompt_variant ?? null,
+    });
+    return;
+  }
+
   // ── A/B Testing: selecionar variante do prompt ───────────────
   let personaPrompt = funnel.persona_prompt;
   let promptVariant = state.prompt_variant ?? "a";
@@ -1103,14 +1270,6 @@ async function handleFunnelMessageInner(
     }
   }
 
-  // ── Verificar horário de atendimento ─────────────────────────
-  if (!isWithinWorkingHours(funnel)) {
-    const msg = funnel.outside_hours_msg ||
-      "Olá! Recebemos sua mensagem. O Dr. Maicon retorna no horário de atendimento.";
-    await sendText(admin, userId, convId, msg, false);
-    return;
-  }
-
   // 3. IA de momento certo (timing + objeções escondidas)
   const midiasDisponiveis = Object.keys((funnel.medias as Record<string, string>) ?? {});
   let directive: MomentDirective | null = null;
@@ -1139,12 +1298,32 @@ async function handleFunnelMessageInner(
 
   // 4. Chamar IA principal
   let reply: AiReply;
+  const aiStartedAt = Date.now();
+  const extraContext = await loadFunnelContext(admin, convId);
   try {
-    reply = await callAI(personaWithDirective, state, userMessage);
+    reply = await callAI(personaWithDirective, state, userMessage, extraContext);
   } catch (e: any) {
     console.error("Funnel executor - erro IA:", e?.message ?? e);
+    await logAIDebug({
+      userId,
+      conversationId: convId,
+      kind: "error",
+      model: FUNNEL_AI_MODEL,
+      prompt: {
+        phase: state.fase,
+        variant: promptVariant,
+        hasMemory: !!extraContext.memory,
+        hasSummary: !!extraContext.summary,
+        userMessage: userMessage.slice(0, 500),
+      },
+      response: null,
+      latencyMs: Date.now() - aiStartedAt,
+      error: e?.message ?? "erro IA",
+      variant: promptVariant,
+    });
     return;
   }
+  const aiLatencyMs = Date.now() - aiStartedAt;
 
   // 5. Ordem de envio: abertura → mídia primeiro, texto depois
   //    outras fases → texto primeiro, mídia depois
@@ -1184,6 +1363,32 @@ async function handleFunnelMessageInner(
   if (reply.texto_pos_midia?.trim() && novasMidias.length > 0) {
     await new Promise(r => setTimeout(r, 2000));
     await sendText(admin, userId, convId, reply.texto_pos_midia);
+  }
+
+  const fullReplyText = [reply.texto, reply.texto_pos_midia].filter(Boolean).join("\n");
+  const lowConfidence = LOW_CONFIDENCE_RE.test(fullReplyText);
+  await logAIDebug({
+    userId,
+    conversationId: convId,
+    kind: "reply",
+    model: FUNNEL_AI_MODEL,
+    prompt: {
+      phase: state.fase,
+      variant: promptVariant,
+      hasMemory: !!extraContext.memory,
+      hasSummary: !!extraContext.summary,
+      historyMessages: state.historico.length,
+      userMessage: userMessage.slice(0, 500),
+    },
+    response: fullReplyText || JSON.stringify(reply).slice(0, 2000),
+    latencyMs: aiLatencyMs,
+    variant: promptVariant,
+  });
+  await incrementAICounter(convId);
+  if (lowConfidence) {
+    await admin.from("conversations")
+      .update({ needs_human: true })
+      .eq("id", convId);
   }
 
   const novosDados = { ...state.dados, ...reply.dados_extraidos };
@@ -1299,5 +1504,10 @@ async function handleFunnelMessageInner(
   // 13. Agendar follow-up
   if (novaFase !== "encerrado" && novaFase !== "assinatura" && (funnel.followup_hours ?? 0) > 0) {
     await scheduleFollowup(admin, userId, convId, state.funnel_id, funnel.followup_hours);
+  }
+
+  const inboundCount = state.historico.filter((h) => h.role === "user").length + 1;
+  if (inboundCount % 10 === 0 || novaFase !== state.fase) {
+    refreshClientMemory(admin, userId, convId).catch(() => {});
   }
 }

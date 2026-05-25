@@ -438,6 +438,12 @@ async function transcribeAudio(
   instName: string,
   mediaKey: string | null
 ): Promise<string | null> {
+  void instName;
+  void mediaKey;
+  return transcribeViaGateway(audioUrl, mimetype, instApiUrl, instApiKey);
+}
+
+/*
   try {
     const geminiKey = process.env.GEMINI_API_KEY ?? process.env.LOVABLE_API_KEY ?? null;
     if (!geminiKey || geminiKey === "lovable-internal") {
@@ -499,6 +505,8 @@ async function transcribeAudio(
   }
 }
 
+*/
+
 // Fallback: tentar via gateway OpenAI-compatible
 async function transcribeViaGateway(
   audioUrl: string,
@@ -520,7 +528,11 @@ async function transcribeViaGateway(
       base64 += btoa(String.fromCharCode(...bytes.slice(i, i + chunkSize)));
     }
 
-    const fmt = mimetype.includes("ogg") ? "ogg" : mimetype.includes("mp4") ? "mp4" : "wav";
+    const mime = mimetype.includes("ogg") ? "audio/ogg"
+      : mimetype.includes("mp4") ? "audio/mp4"
+      : mimetype.includes("mpeg") ? "audio/mpeg"
+      : mimetype.includes("webm") ? "audio/webm"
+      : "audio/ogg";
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method:  "POST",
@@ -530,7 +542,7 @@ async function transcribeViaGateway(
         messages: [{
           role: "user",
           content: [
-            { type: "input_audio", input_audio: { data: base64, format: fmt } },
+            { type: "image_url", image_url: { url: `data:${mime};base64,${base64}` } },
             { type: "text", text: "Transcreva o áudio em português. Retorne apenas a transcrição." },
           ],
         }],
