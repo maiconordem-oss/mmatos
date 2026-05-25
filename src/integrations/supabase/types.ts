@@ -106,8 +106,6 @@ export type Database = {
       }
       appointments: {
         Row: {
-          attended: boolean
-          attended_at: string | null
           client_id: string | null
           conversation_id: string | null
           created_at: string
@@ -116,16 +114,12 @@ export type Database = {
           google_event_id: string | null
           id: string
           notes: string | null
-          reminder_d0_sent: boolean
-          reminder_d1_sent: boolean
           start_at: string
           status: string
           title: string
           user_id: string
         }
         Insert: {
-          attended?: boolean
-          attended_at?: string | null
           client_id?: string | null
           conversation_id?: string | null
           created_at?: string
@@ -134,16 +128,12 @@ export type Database = {
           google_event_id?: string | null
           id?: string
           notes?: string | null
-          reminder_d0_sent?: boolean
-          reminder_d1_sent?: boolean
           start_at: string
           status?: string
           title: string
           user_id: string
         }
         Update: {
-          attended?: boolean
-          attended_at?: string | null
           client_id?: string | null
           conversation_id?: string | null
           created_at?: string
@@ -152,8 +142,6 @@ export type Database = {
           google_event_id?: string | null
           id?: string
           notes?: string | null
-          reminder_d0_sent?: boolean
-          reminder_d1_sent?: boolean
           start_at?: string
           status?: string
           title?: string
@@ -499,6 +487,47 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_assignment_events: {
+        Row: {
+          actor_id: string | null
+          assigned_to: string | null
+          conversation_id: string
+          created_at: string
+          event_type: string
+          id: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          assigned_to?: string | null
+          conversation_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          assigned_to?: string | null
+          conversation_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_assignment_events_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_locks: {
         Row: {
           conversation_id: string
@@ -576,19 +605,15 @@ export type Database = {
           accepted_at: string | null
           ai_consecutive_count: number
           ai_handled: boolean
-          ai_paused: boolean
           ai_pause_reason: string | null
+          ai_paused: boolean
           assigned_to: string | null
           blocked: boolean
-          briefing: Json | null
           client_id: string | null
           contact_name: string | null
-          consulta_at: string | null
           created_at: string
-          deadline_context: string | null
-          deadline_mentioned_at: string | null
-          follow_up_required: boolean
           first_response_at: string | null
+          follow_up_required: boolean
           id: string
           instance_id: string | null
           last_message_at: string | null
@@ -596,11 +621,10 @@ export type Database = {
           needs_human: boolean
           phone: string
           photo_url: string | null
-          post_consulta_stage: string | null
           priority_flag: string | null
           resolved_at: string | null
-          sla_due_at: string | null
           sentiment: string | null
+          sla_due_at: string | null
           status: Database["public"]["Enums"]["conversation_status"]
           tags: string[]
           ticket_status: string
@@ -612,19 +636,15 @@ export type Database = {
           accepted_at?: string | null
           ai_consecutive_count?: number
           ai_handled?: boolean
-          ai_paused?: boolean
           ai_pause_reason?: string | null
+          ai_paused?: boolean
           assigned_to?: string | null
           blocked?: boolean
-          briefing?: Json | null
           client_id?: string | null
           contact_name?: string | null
-          consulta_at?: string | null
           created_at?: string
-          deadline_context?: string | null
-          deadline_mentioned_at?: string | null
-          follow_up_required?: boolean
           first_response_at?: string | null
+          follow_up_required?: boolean
           id?: string
           instance_id?: string | null
           last_message_at?: string | null
@@ -632,11 +652,10 @@ export type Database = {
           needs_human?: boolean
           phone: string
           photo_url?: string | null
-          post_consulta_stage?: string | null
           priority_flag?: string | null
           resolved_at?: string | null
-          sla_due_at?: string | null
           sentiment?: string | null
+          sla_due_at?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
           tags?: string[]
           ticket_status?: string
@@ -648,19 +667,15 @@ export type Database = {
           accepted_at?: string | null
           ai_consecutive_count?: number
           ai_handled?: boolean
-          ai_paused?: boolean
           ai_pause_reason?: string | null
+          ai_paused?: boolean
           assigned_to?: string | null
           blocked?: boolean
-          briefing?: Json | null
           client_id?: string | null
           contact_name?: string | null
-          consulta_at?: string | null
           created_at?: string
-          deadline_context?: string | null
-          deadline_mentioned_at?: string | null
-          follow_up_required?: boolean
           first_response_at?: string | null
+          follow_up_required?: boolean
           id?: string
           instance_id?: string | null
           last_message_at?: string | null
@@ -668,11 +683,10 @@ export type Database = {
           needs_human?: boolean
           phone?: string
           photo_url?: string | null
-          post_consulta_stage?: string | null
           priority_flag?: string | null
           resolved_at?: string | null
-          sla_due_at?: string | null
           sentiment?: string | null
+          sla_due_at?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
           tags?: string[]
           ticket_status?: string
@@ -693,47 +707,6 @@ export type Database = {
             columns: ["instance_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_instances"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      conversation_assignment_events: {
-        Row: {
-          actor_id: string | null
-          assigned_to: string | null
-          conversation_id: string
-          created_at: string
-          event_type: string
-          id: string
-          note: string | null
-          user_id: string
-        }
-        Insert: {
-          actor_id?: string | null
-          assigned_to?: string | null
-          conversation_id: string
-          created_at?: string
-          event_type: string
-          id?: string
-          note?: string | null
-          user_id: string
-        }
-        Update: {
-          actor_id?: string | null
-          assigned_to?: string | null
-          conversation_id?: string
-          created_at?: string
-          event_type?: string
-          id?: string
-          note?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversation_assignment_events_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -839,8 +812,6 @@ export type Database = {
           prompt_variant: string | null
           updated_at: string
           user_id: string
-          viability_notes: string | null
-          viability_score: number | null
         }
         Insert: {
           conversation_id: string
@@ -855,8 +826,6 @@ export type Database = {
           prompt_variant?: string | null
           updated_at?: string
           user_id: string
-          viability_notes?: string | null
-          viability_score?: number | null
         }
         Update: {
           conversation_id?: string
@@ -871,8 +840,6 @@ export type Database = {
           prompt_variant?: string | null
           updated_at?: string
           user_id?: string
-          viability_notes?: string | null
-          viability_score?: number | null
         }
         Relationships: [
           {
@@ -933,9 +900,6 @@ export type Database = {
           working_days: number[]
           working_hours_end: string | null
           working_hours_start: string | null
-          post_consulta_d1_msg: string | null
-          post_consulta_d3_msg: string | null
-          post_consulta_d7_msg: string | null
           zapsign_template_id: string | null
         }
         Insert: {
@@ -971,9 +935,6 @@ export type Database = {
           notify_phone?: string | null
           outside_hours_msg?: string | null
           persona_prompt?: string
-          post_consulta_d1_msg?: string | null
-          post_consulta_d3_msg?: string | null
-          post_consulta_d7_msg?: string | null
           prompt_b?: string | null
           proposal_is_free?: boolean
           proposal_value?: number | null
@@ -1017,9 +978,6 @@ export type Database = {
           notify_phone?: string | null
           outside_hours_msg?: string | null
           persona_prompt?: string
-          post_consulta_d1_msg?: string | null
-          post_consulta_d3_msg?: string | null
-          post_consulta_d7_msg?: string | null
           prompt_b?: string | null
           proposal_is_free?: boolean
           proposal_value?: number | null
@@ -1029,45 +987,6 @@ export type Database = {
           working_hours_end?: string | null
           working_hours_start?: string | null
           zapsign_template_id?: string | null
-        }
-        Relationships: []
-      }
-      team_members: {
-        Row: {
-          created_at: string
-          id: string
-          invite_expires_at: string | null
-          invite_token: string | null
-          member_email: string
-          member_user_id: string | null
-          owner_user_id: string
-          permissions: Json
-          role: string
-          status: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          invite_expires_at?: string | null
-          invite_token?: string | null
-          member_email: string
-          member_user_id?: string | null
-          owner_user_id: string
-          permissions?: Json
-          role?: string
-          status?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          invite_expires_at?: string | null
-          invite_token?: string | null
-          member_email?: string
-          member_user_id?: string | null
-          owner_user_id?: string
-          permissions?: Json
-          role?: string
-          status?: string
         }
         Relationships: []
       }
@@ -1233,14 +1152,12 @@ export type Database = {
           conversation_id: string
           created_at: string
           direction: Database["public"]["Enums"]["message_direction"]
-          delivered_at: string | null
           external_id: string | null
           id: string
           last_error: string | null
           media_mime: string | null
           media_type: string | null
           media_url: string | null
-          read_at: string | null
           status: Database["public"]["Enums"]["message_status"]
           transcription: string | null
           user_id: string
@@ -1250,14 +1167,12 @@ export type Database = {
           conversation_id: string
           created_at?: string
           direction: Database["public"]["Enums"]["message_direction"]
-          delivered_at?: string | null
           external_id?: string | null
           id?: string
           last_error?: string | null
           media_mime?: string | null
           media_type?: string | null
           media_url?: string | null
-          read_at?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           transcription?: string | null
           user_id: string
@@ -1267,14 +1182,12 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           direction?: Database["public"]["Enums"]["message_direction"]
-          delivered_at?: string | null
           external_id?: string | null
           id?: string
           last_error?: string | null
           media_mime?: string | null
           media_type?: string | null
           media_url?: string | null
-          read_at?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           transcription?: string | null
           user_id?: string
