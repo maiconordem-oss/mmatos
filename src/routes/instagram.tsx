@@ -69,24 +69,24 @@ const emptyForm = {
   file_url: "",
   file_name: "",
   file_type: "document",
-  delivery_message: "Oi, {{nome}}! Conforme combinado, segue o material que voce pediu.",
+  delivery_message: "Oi, {{nome}}! Conforme combinado, segue o material que você pediu.",
   success_message: "Pronto. Enviamos o material no seu WhatsApp.",
   followup_enabled: true,
   followup_hours: 48,
-  followup_message: "Oi, {{nome}}! Passando para saber se voce conseguiu ver o material que enviei. Ainda posso te ajudar com alguma duvida?",
+  followup_message: "Oi, {{nome}}! Passando para saber se você conseguiu ver o material que enviei. Ainda posso te ajudar com alguma dúvida?",
   instance_id: "",
   is_active: true,
 };
 
 const manualPericiaPreset = {
   ...emptyForm,
-  title: "Manual da Pericia Medica Previdenciaria",
+  title: "Manual da Perícia Médica Previdenciária",
   slug: "manual-pericia",
   keyword: "PERICIA",
-  description: "Digite seu nome e WhatsApp para receber o Manual da Pericia Medica Previdenciaria gratuitamente.",
+  description: "Digite seu nome e WhatsApp para receber o Manual da Perícia Médica Previdenciária gratuitamente.",
   button_label: "Quero o manual gratuito",
   file_name: "manual-pericia.pdf",
-  delivery_message: "Oi, {{nome}}! Conforme combinado, segue o Manual da Pericia Medica Previdenciaria.",
+  delivery_message: "Oi, {{nome}}! Conforme combinado, segue o Manual da Perícia Médica Previdenciária.",
   success_message: "Pronto. Enviamos o manual no seu WhatsApp.",
 };
 
@@ -108,7 +108,7 @@ const productLandings = [
     success_message: "Pronto. Enviamos o material no seu WhatsApp.",
     followup_enabled: true,
     followup_hours: 48,
-    followup_message: `Oi, {{nome}}! Passando para saber se voce conseguiu ver o material "${landing.title}". Ainda posso te ajudar com alguma duvida?`,
+    followup_message: `Oi, {{nome}}! Passando para saber se você conseguiu ver o material "${landing.title}". Ainda posso te ajudar com alguma dúvida?`,
   };
 });
 
@@ -239,7 +239,7 @@ function InstagramPage() {
 
   const uploadLeadMagnetFile = async (file: File) => {
     if (!user) {
-      toast.error("Usuario nao autenticado.");
+      toast.error("Usuário não autenticado.");
       return;
     }
     const slug = slugify(form.slug || "material");
@@ -260,7 +260,7 @@ function InstagramPage() {
         body,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Nao foi possivel enviar o arquivo.");
+      if (!res.ok) throw new Error(data?.error ?? "Não foi possível enviar o arquivo.");
 
       setForm((prev) => ({
         ...prev,
@@ -270,7 +270,7 @@ function InstagramPage() {
       }));
       toast.success("Arquivo enviado");
     } catch (e: any) {
-      toast.error(e?.message ?? "Nao foi possivel enviar o arquivo.");
+      toast.error(e?.message ?? "Não foi possível enviar o arquivo.");
     } finally {
       setUploading(false);
     }
@@ -298,7 +298,7 @@ function InstagramPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-foreground">Instagram</h1>
-            <p className="text-sm text-muted-foreground">Landing de captura para comentario, ManyChat e envio automatico de arquivo.</p>
+            <p className="text-sm text-muted-foreground">Landing de captura para comentário, ManyChat e envio automático de arquivo.</p>
           </div>
         </div>
       </div>
@@ -364,7 +364,7 @@ function InstagramPage() {
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Titulo"><Input value={form.title} onChange={(e) => patch("title", e.target.value)} /></Field>
-                <Field label="Palavra do comentario"><Input value={form.keyword} onChange={(e) => patch("keyword", e.target.value)} placeholder="Ex: GUIA" /></Field>
+                <Field label="Palavra do comentário"><Input value={form.keyword} onChange={(e) => patch("keyword", e.target.value)} placeholder="Ex: GUIA" /></Field>
                 <Field label="Slug do link"><Input value={form.slug} onChange={(e) => patch("slug", e.target.value)} /></Field>
                 <Field label="Botao"><Input value={form.button_label} onChange={(e) => patch("button_label", e.target.value)} /></Field>
                 <div className="md:col-span-2">
@@ -410,7 +410,7 @@ function InstagramPage() {
                         {form.file_name ? form.file_name : "Clique para enviar PDF, imagem, video ou audio"}
                       </span>
                       <span className="mt-1 text-xs text-muted-foreground">
-                        {form.file_url ? "Arquivo pronto para envio automatico" : "O link sera gerado automaticamente"}
+                        {form.file_url ? "Arquivo pronto para envio automático" : "O link será gerado automaticamente"}
                       </span>
                       <input
                         type="file"
@@ -557,7 +557,7 @@ function inferFileType(file: File) {
 
 function friendlySupabaseError(message: string) {
   if (message.includes("instagram_lead_magnets") && message.includes("schema cache")) {
-    return "O banco publicado ainda nao recebeu as tabelas do Instagram. Aplique as migrations do Supabase e tente salvar novamente.";
+    return "O banco publicado ainda não recebeu as tabelas do Instagram. Aplique as migrations do Supabase e tente salvar novamente.";
   }
   return message;
 }
