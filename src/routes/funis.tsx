@@ -469,6 +469,9 @@ function FunisPage() {
               <div>
                 <Label className="text-xs">Horas sem resposta para reativar (48 = 2 dias, 0 = desativado)</Label>
                 <Input type="number" min={0} value={form.followup_hours ?? 48} onChange={(e) => setForm({ ...form, followup_hours: Number(e.target.value) })} />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Se cair fora do horario de atendimento, o envio fica para o proximo horario comercial do funil.
+                </p>
               </div>
               <div>
                 <Label className="text-xs">Mensagem de follow-up (opcional)</Label>

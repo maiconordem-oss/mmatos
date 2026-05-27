@@ -90,9 +90,13 @@ async function scheduleFollowup(
   userId: string,
   convId: string,
   funnelId: string | null,
-  followupHours: number
+  followupHours: number,
+  funnel?: any
 ) {
-  const scheduledAt = new Date(Date.now() + followupHours * 60 * 60 * 1000).toISOString();
+  const scheduledAt = nextBusinessTime(
+    new Date(Date.now() + followupHours * 60 * 60 * 1000),
+    funnel
+  ).toISOString();
   // Substituir follow-up pendente se existir
   await admin.from("funnel_followups")
     .delete().eq("conversation_id", convId).eq("sent", false);
@@ -100,6 +104,45 @@ async function scheduleFollowup(
     user_id: userId, conversation_id: convId,
     funnel_id: funnelId, scheduled_at: scheduledAt, sent: false,
   });
+}
+
+function nextBusinessTime(target: Date, funnel?: any): Date {
+  const start = parseHHMM(funnel?.working_hours_start ?? "08:00", 8 * 60);
+  const end = parseHHMM(funnel?.working_hours_end ?? "18:00", 18 * 60);
+  const days: number[] = Array.isArray(funnel?.working_days) && funnel.working_days.length
+    ? funnel.working_days
+    : [1, 2, 3, 4, 5, 6];
+  const result = new Date(target);
+
+  for (let i = 0; i < 14; i++) {
+    const day = result.getDay();
+    const minutes = result.getHours() * 60 + result.getMinutes();
+
+    if (days.includes(day)) {
+      if (minutes < start) {
+        setMinutesOfDay(result, start);
+        return result;
+      }
+      if (minutes <= end) return result;
+    }
+
+    result.setDate(result.getDate() + 1);
+    setMinutesOfDay(result, start);
+  }
+
+  return result;
+}
+
+function parseHHMM(value: string, fallback: number) {
+  const match = /^(\d{1,2}):(\d{2})/.exec(String(value ?? ""));
+  if (!match) return fallback;
+  const hours = Math.min(23, Math.max(0, Number(match[1])));
+  const minutes = Math.min(59, Math.max(0, Number(match[2])));
+  return hours * 60 + minutes;
+}
+
+function setMinutesOfDay(date: Date, minutes: number) {
+  date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
 }
 
 // ── Cancelar follow-up quando cliente responde ─────────────────
@@ -1503,7 +1546,7 @@ async function handleFunnelMessageInner(
 
   // 13. Agendar follow-up
   if (novaFase !== "encerrado" && novaFase !== "assinatura" && (funnel.followup_hours ?? 0) > 0) {
-    await scheduleFollowup(admin, userId, convId, state.funnel_id, funnel.followup_hours);
+    await scheduleFollowup(admin, userId, convId, state.funnel_id, funnel.followup_hours, funnel);
   }
 
   const inboundCount = state.historico.filter((h) => h.role === "user").length + 1;
