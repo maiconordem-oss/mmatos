@@ -61,7 +61,7 @@ async function sendReminderMessage(
 
   if (inst?.api_url && phone) {
     try {
-      const externalId = await sendEvolutionText(inst.api_url, inst.api_key, inst.instance_name, phone, text);
+      const externalId = await sendEvolutionText(inst.api_url, inst.api_key ?? "", inst.instance_name, phone, text);
       if (msg?.id) await supabaseAdmin.from("messages").update({ status: "sent", external_id: externalId }).eq("id", msg.id);
     } catch {
       if (msg?.id) await supabaseAdmin.from("messages").update({ status: "failed" }).eq("id", msg.id);

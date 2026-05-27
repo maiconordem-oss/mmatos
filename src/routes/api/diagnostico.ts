@@ -62,7 +62,7 @@ export const Route = createFileRoute("/api/diagnostico")({
           if (participants.length === 0) return Response.json({ ok: false, erro: "Informe ao menos um número válido (mín. 10 dígitos)" });
 
           const base = inst.api_url.replace(/\/$/, "");
-          const headers = { "Content-Type": "application/json", apikey: inst.api_key };
+          const headers = { "Content-Type": "application/json", apikey: inst.api_key ?? "" };
 
           // Tentar criar o grupo
           const res = await fetch(`${base}/group/create/${inst.instance_name}`,
@@ -88,7 +88,7 @@ export const Route = createFileRoute("/api/diagnostico")({
             await new Promise(r => setTimeout(r, 1500));
             const msgRes = await fetch(
               `${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`,
-              { method: "POST", headers: { "Content-Type": "application/json", apikey: inst.api_key },
+              { method: "POST", headers: { "Content-Type": "application/json", apikey: inst.api_key ?? "" },
                 body: JSON.stringify({ number: groupId, text: "👋 Olá! Este é um grupo de teste do Lex CRM.", options: { delay: 500 } }) }
             ).catch(() => null);
             etapas.push(`${msgRes?.ok ? "✅" : "❌"} Mensagem de boas-vindas no grupo: ${msgRes?.ok ? "enviada" : "falhou"}`);

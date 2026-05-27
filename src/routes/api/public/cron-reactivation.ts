@@ -79,7 +79,7 @@ async function runReactivation() {
 
       if (inst?.api_url && conv.phone) {
         try {
-          const externalId = await sendEvolutionText(inst.api_url, inst.api_key, inst.instance_name, conv.phone, text);
+          const externalId = await sendEvolutionText(inst.api_url, inst.api_key ?? "", inst.instance_name, conv.phone as string, text);
           if (msg?.id) await supabaseAdmin.from("messages").update({ status: "sent", external_id: externalId }).eq("id", msg.id);
         } catch {
           if (msg?.id) await supabaseAdmin.from("messages").update({ status: "failed" }).eq("id", msg.id);
