@@ -61,6 +61,18 @@ const emptyForm = {
   is_active: true,
 };
 
+const manualPericiaPreset = {
+  ...emptyForm,
+  title: "Manual da Pericia Medica Previdenciaria",
+  slug: "manual-pericia",
+  keyword: "PERICIA",
+  description: "Digite seu nome e WhatsApp para receber o Manual da Pericia Medica Previdenciaria gratuitamente.",
+  button_label: "Quero o manual gratuito",
+  file_name: "manual-pericia.pdf",
+  delivery_message: "Oi, {{nome}}! Conforme combinado, segue o Manual da Pericia Medica Previdenciaria.",
+  success_message: "Pronto. Enviamos o manual no seu WhatsApp.",
+};
+
 function InstagramPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<"configurar" | "leads">("configurar");
@@ -70,10 +82,17 @@ function InstagramPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  const manualMagnet = magnets.find((magnet) => magnet.slug === "manual-pericia") ?? null;
+
   const publicUrl = useMemo(() => {
-    if (typeof window === "undefined") return `/captura/${form.slug}`;
-    return `${window.location.origin}/captura/${form.slug}`;
+    const path = form.slug === "manual-pericia" ? "/manual-pericia" : `/captura/${form.slug}`;
+    if (typeof window === "undefined") return path;
+    return `${window.location.origin}${path}`;
   }, [form.slug]);
+  const manualPublicUrl = useMemo(() => {
+    if (typeof window === "undefined") return "/manual-pericia";
+    return `${window.location.origin}/manual-pericia`;
+  }, []);
 
   const load = async () => {
     if (!user) return;
@@ -108,6 +127,20 @@ function InstagramPage() {
       success_message: magnet.success_message,
       instance_id: magnet.instance_id ?? "",
       is_active: magnet.is_active,
+    });
+    setTab("configurar");
+  };
+
+  const useManualPericia = () => {
+    if (manualMagnet) {
+      edit(manualMagnet);
+      return;
+    }
+
+    const preferredInstance = instances.find((inst) => inst.status === "connected") ?? instances[0];
+    setForm({
+      ...manualPericiaPreset,
+      instance_id: preferredInstance?.id ?? "",
     });
     setTab("configurar");
   };
@@ -191,6 +224,30 @@ function InstagramPage() {
       {tab === "configurar" ? (
         <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_380px]">
           <section className="space-y-5">
+            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-background/50 px-2.5 py-1 text-xs font-medium text-rose-400">
+                    <Instagram className="h-3.5 w-3.5" />
+                    Landing conectada
+                  </div>
+                  <h2 className="text-lg font-semibold text-foreground">Manual da Pericia Medica</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Esta e a pagina pronta que veio do HTML: o formulario envia pelo WhatsApp usando a configuracao de slug <strong>manual-pericia</strong>.
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button variant="outline" onClick={() => copy(manualPublicUrl)} className="gap-2">
+                    <Copy className="h-4 w-4" /> Copiar link
+                  </Button>
+                  <Button onClick={useManualPericia} className="gap-2">
+                    {manualMagnet ? <CheckCircle2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                    {manualMagnet ? "Editar configuracao" : "Configurar"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-lg border border-border bg-card p-5">
               <div className="mb-4 flex items-center gap-2">
                 <Link2 className="h-4 w-4 text-primary" />
@@ -279,7 +336,7 @@ function InstagramPage() {
                     <CheckCircle2 className={cn("mt-0.5 h-4 w-4", magnet.is_active ? "text-emerald-500" : "text-slate-400")} />
                     <button onClick={() => edit(magnet)} className="min-w-0 flex-1 text-left">
                       <p className="truncate text-sm font-semibold">{magnet.title}</p>
-                      <p className="truncate text-xs text-muted-foreground">/captura/{magnet.slug}</p>
+                      <p className="truncate text-xs text-muted-foreground">{magnet.slug === "manual-pericia" ? "/manual-pericia" : `/captura/${magnet.slug}`}</p>
                     </button>
                     <button onClick={() => remove(magnet.id)} className="text-muted-foreground hover:text-red-500">
                       <Trash2 className="h-4 w-4" />
