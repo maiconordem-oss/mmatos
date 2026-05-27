@@ -231,7 +231,7 @@ function InstagramPage() {
     const { error } = await query;
     setSaving(false);
 
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(friendlySupabaseError(error.message));
     toast.success("Landing salva");
     setForm(emptyForm);
     load();
@@ -319,6 +319,17 @@ function InstagramPage() {
       {tab === "configurar" ? (
         <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_380px]">
           <section className="space-y-5">
+            <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 rounded-lg border border-border bg-background/95 p-3 shadow-sm backdrop-blur">
+              <div>
+                <p className="text-sm font-semibold text-foreground">{form.id ? "Editando landing" : "Nova landing"}</p>
+                <p className="text-xs text-muted-foreground">Salve depois de alterar arquivo, mensagem ou follow-up.</p>
+              </div>
+              <Button onClick={save} disabled={saving} className="gap-2">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </div>
+
             <div className="grid gap-3 md:grid-cols-2">
               {productLandings.map((product) => {
                 const configured = magnets.some((magnet) => magnet.slug === product.slug);
@@ -542,4 +553,11 @@ function inferFileType(file: File) {
   if (file.type.startsWith("video/")) return "video";
   if (file.type.startsWith("audio/")) return "audio";
   return "document";
+}
+
+function friendlySupabaseError(message: string) {
+  if (message.includes("instagram_lead_magnets") && message.includes("schema cache")) {
+    return "O banco publicado ainda nao recebeu as tabelas do Instagram. Aplique as migrations do Supabase e tente salvar novamente.";
+  }
+  return message;
 }
