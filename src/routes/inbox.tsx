@@ -1147,7 +1147,7 @@ function InboxPage() {
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: false })
       .limit(8);
-    setAssignmentEvents((data ?? []) as AssignmentEvent[]);
+    setAssignmentEvents(((data ?? []) as unknown) as AssignmentEvent[]);
   }, []);
 
   const logAssignmentEvent = async (conversationId: string, eventType: string, note?: string | null, assignedTo?: string | null) => {
@@ -1176,10 +1176,10 @@ function InboxPage() {
     const openItems = items.filter(c => (c.ticket_status ?? "pending") !== "resolved");
     const hotLeads = items.filter(c => c.priority_flag === "alta" || c.needs_human).length;
     const resolved = items.filter(c => (c.ticket_status ?? "pending") === "resolved").length;
-    const withFirstResponse = items.filter(c => c.first_response_at && c.created_at);
+    const withFirstResponse = items.filter(c => c.first_response_at && (c as any).created_at);
     const avgFirstResponseMin = withFirstResponse.length
       ? Math.round(withFirstResponse.reduce((sum, c) =>
-          sum + Math.max(0, new Date(c.first_response_at!).getTime() - new Date(c.created_at).getTime()) / 60000, 0) / withFirstResponse.length)
+          sum + Math.max(0, new Date(c.first_response_at!).getTime() - new Date((c as any).created_at).getTime()) / 60000, 0) / withFirstResponse.length)
       : 0;
 
     const recentIds = openItems.map(c => c.id).slice(0, 100);
@@ -1462,7 +1462,7 @@ function InboxPage() {
         assigned_to: user.id,
       };
       if (!active.assigned_to) conversationPatch.accepted_at = new Date().toISOString();
-      await supabase.from("conversations").update(conversationPatch).eq("id", active.id);
+      await supabase.from("conversations").update(conversationPatch as any).eq("id", active.id);
       await logAssignmentEvent(active.id, "funnel_assisted", "Funil assistido aplicado", user.id);
       await refreshActiveFunnelState(active.id);
       await loadConvs();

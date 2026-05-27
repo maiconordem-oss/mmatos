@@ -116,7 +116,7 @@ async function consultarDatajud(numeroCnj: string) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `APIKey ${DATAJUD_API_KEY_DEFAULT}`,
+      "Authorization": `APIKey ${process.env.DATAJUD_API_KEY ?? ""}`,
     },
     body: JSON.stringify(body),
   });

@@ -106,6 +106,7 @@ export type Database = {
       }
       appointments: {
         Row: {
+          attended: boolean
           client_id: string | null
           conversation_id: string | null
           created_at: string
@@ -114,12 +115,15 @@ export type Database = {
           google_event_id: string | null
           id: string
           notes: string | null
+          reminder_d0_sent: boolean
+          reminder_d1_sent: boolean
           start_at: string
           status: string
           title: string
           user_id: string
         }
         Insert: {
+          attended?: boolean
           client_id?: string | null
           conversation_id?: string | null
           created_at?: string
@@ -128,12 +132,15 @@ export type Database = {
           google_event_id?: string | null
           id?: string
           notes?: string | null
+          reminder_d0_sent?: boolean
+          reminder_d1_sent?: boolean
           start_at: string
           status?: string
           title: string
           user_id: string
         }
         Update: {
+          attended?: boolean
           client_id?: string | null
           conversation_id?: string | null
           created_at?: string
@@ -142,6 +149,8 @@ export type Database = {
           google_event_id?: string | null
           id?: string
           notes?: string | null
+          reminder_d0_sent?: boolean
+          reminder_d1_sent?: boolean
           start_at?: string
           status?: string
           title?: string
@@ -610,8 +619,10 @@ export type Database = {
           assigned_to: string | null
           blocked: boolean
           client_id: string | null
+          consulta_at: string | null
           contact_name: string | null
           created_at: string
+          deadline_context: string | null
           first_response_at: string | null
           follow_up_required: boolean
           id: string
@@ -621,6 +632,7 @@ export type Database = {
           needs_human: boolean
           phone: string
           photo_url: string | null
+          post_consulta_stage: string | null
           priority_flag: string | null
           resolved_at: string | null
           sentiment: string | null
@@ -641,8 +653,10 @@ export type Database = {
           assigned_to?: string | null
           blocked?: boolean
           client_id?: string | null
+          consulta_at?: string | null
           contact_name?: string | null
           created_at?: string
+          deadline_context?: string | null
           first_response_at?: string | null
           follow_up_required?: boolean
           id?: string
@@ -652,6 +666,7 @@ export type Database = {
           needs_human?: boolean
           phone: string
           photo_url?: string | null
+          post_consulta_stage?: string | null
           priority_flag?: string | null
           resolved_at?: string | null
           sentiment?: string | null
@@ -672,8 +687,10 @@ export type Database = {
           assigned_to?: string | null
           blocked?: boolean
           client_id?: string | null
+          consulta_at?: string | null
           contact_name?: string | null
           created_at?: string
+          deadline_context?: string | null
           first_response_at?: string | null
           follow_up_required?: boolean
           id?: string
@@ -683,6 +700,7 @@ export type Database = {
           needs_human?: boolean
           phone?: string
           photo_url?: string | null
+          post_consulta_stage?: string | null
           priority_flag?: string | null
           resolved_at?: string | null
           sentiment?: string | null
@@ -812,6 +830,8 @@ export type Database = {
           prompt_variant: string | null
           updated_at: string
           user_id: string
+          viability_notes: string | null
+          viability_score: number | null
         }
         Insert: {
           conversation_id: string
@@ -826,6 +846,8 @@ export type Database = {
           prompt_variant?: string | null
           updated_at?: string
           user_id: string
+          viability_notes?: string | null
+          viability_score?: number | null
         }
         Update: {
           conversation_id?: string
@@ -840,6 +862,8 @@ export type Database = {
           prompt_variant?: string | null
           updated_at?: string
           user_id?: string
+          viability_notes?: string | null
+          viability_score?: number | null
         }
         Relationships: [
           {
@@ -892,6 +916,9 @@ export type Database = {
           notify_phone: string | null
           outside_hours_msg: string | null
           persona_prompt: string
+          post_consulta_d1_msg: string | null
+          post_consulta_d3_msg: string | null
+          post_consulta_d7_msg: string | null
           prompt_b: string | null
           proposal_is_free: boolean
           proposal_value: number | null
@@ -935,6 +962,9 @@ export type Database = {
           notify_phone?: string | null
           outside_hours_msg?: string | null
           persona_prompt?: string
+          post_consulta_d1_msg?: string | null
+          post_consulta_d3_msg?: string | null
+          post_consulta_d7_msg?: string | null
           prompt_b?: string | null
           proposal_is_free?: boolean
           proposal_value?: number | null
@@ -978,6 +1008,9 @@ export type Database = {
           notify_phone?: string | null
           outside_hours_msg?: string | null
           persona_prompt?: string
+          post_consulta_d1_msg?: string | null
+          post_consulta_d3_msg?: string | null
+          post_consulta_d7_msg?: string | null
           prompt_b?: string | null
           proposal_is_free?: boolean
           proposal_value?: number | null

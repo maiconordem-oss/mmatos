@@ -21,8 +21,8 @@ export const Route = createFileRoute("/api/diagnostico")({
           // Status da instância
           const statusRes = await fetch(
             `${inst.api_url.replace(/\/$/, "")}/instance/connectionState/${inst.instance_name}`,
-            { headers: { apikey: inst.api_key } }
-          ).catch(e => null);
+            { headers: { apikey: inst.api_key ?? "" } }
+          ).catch(_e => null);
           const status = statusRes?.ok ? await statusRes.json() : null;
 
           if (!numero) return Response.json({ ok: true, status, etapas: ["✅ Instância encontrada", `✅ Evolution API respondeu: ${status?.instance?.state || "?"}`, "⏭ Número não informado — envio pulado"] });
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/api/diagnostico")({
           // Enviar mensagem de teste
           const sendRes = await fetch(
             `${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`,
-            { method: "POST", headers: { "Content-Type": "application/json", apikey: inst.api_key },
+            { method: "POST", headers: { "Content-Type": "application/json", apikey: inst.api_key ?? "" },
               body: JSON.stringify({ number: numero.replace(/\D/g, ""), text: "✅ Lex CRM — teste de envio funcionando!", options: { delay: 500 } }) }
           ).catch(() => null);
           const sendData = sendRes ? await sendRes.json().catch(() => ({})) : null;
@@ -62,7 +62,7 @@ export const Route = createFileRoute("/api/diagnostico")({
           if (participants.length === 0) return Response.json({ ok: false, erro: "Informe ao menos um número válido (mín. 10 dígitos)" });
 
           const base = inst.api_url.replace(/\/$/, "");
-          const headers = { "Content-Type": "application/json", apikey: inst.api_key };
+          const headers = { "Content-Type": "application/json", apikey: inst.api_key ?? "" };
 
           // Tentar criar o grupo
           const res = await fetch(`${base}/group/create/${inst.instance_name}`,
@@ -88,7 +88,7 @@ export const Route = createFileRoute("/api/diagnostico")({
             await new Promise(r => setTimeout(r, 1500));
             const msgRes = await fetch(
               `${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`,
-              { method: "POST", headers: { "Content-Type": "application/json", apikey: inst.api_key },
+              { method: "POST", headers: { "Content-Type": "application/json", apikey: inst.api_key ?? "" },
                 body: JSON.stringify({ number: groupId, text: "👋 Olá! Este é um grupo de teste do Lex CRM.", options: { delay: 500 } }) }
             ).catch(() => null);
             etapas.push(`${msgRes?.ok ? "✅" : "❌"} Mensagem de boas-vindas no grupo: ${msgRes?.ok ? "enviada" : "falhou"}`);

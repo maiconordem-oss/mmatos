@@ -73,7 +73,7 @@ export const Route = createFileRoute("/api/media-proxy")({
         if (!msg?.media_url) return new Response("Media not found", { status: 404 });
         if (msg.user_id !== userId) return new Response("Forbidden", { status: 403 });
 
-        const storagePath = storagePathFromUrl(msg.media_url);
+        const storagePath = storagePathFromUrl(msg.media_url as string);
         if (storagePath) {
           const { data, error } = await admin.storage
             .from(WHATSAPP_BUCKET)
