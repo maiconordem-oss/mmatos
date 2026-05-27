@@ -1,34 +1,22 @@
+/**
+ * Agentes de IA (qualificador, extração, proposta) — migrados para AI SDK.
+ *
+ * Mantém a mesma assinatura (server fns chamadas pelo Inbox), mas:
+ *  - Substitui fetch manual + parser frágil de JSON por generateText + tools tipadas (Zod).
+ *  - Usa o gateway via createLovableAiGatewayProvider (header Lovable-API-Key).
+ *  - Mantém safety, debug logs, memória do cliente e KB existentes.
+ */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { generateText, tool, stepCountIs } from "ai";
+import { createLovableAiGatewayProvider, describeAiError, DEFAULT_LOVABLE_MODEL } from "@/lib/ai-gateway.server";
 import { checkSafety, logAIDebug, incrementAICounter } from "@/server/intelligence.functions";
 
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-async function callAI(model: string, messages: Array<{ role: string; content: string }>, tools?: any[]) {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
-
-  const body: any = { model, messages };
-  if (tools) {
-    body.tools = tools;
-    body.tool_choice = { type: "function", function: { name: tools[0].function.name } };
-  }
-
-  const res = await fetch(GATEWAY_URL, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (res.status === 429) throw new Error("Limite de requisições excedido. Aguarde alguns segundos.");
-  if (res.status === 402) throw new Error("Créditos de IA esgotados. Adicione créditos em Workspace > Usage.");
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`Erro IA [${res.status}]: ${t}`);
-  }
-
-  return res.json();
+function gatewayModel(modelId: string) {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) throw new Error("LOVABLE_API_KEY não configurada");
+  return createLovableAiGatewayProvider(key)(modelId);
 }
 
 /** Agente Qualificador: responde ao lead via WhatsApp e tenta qualificar */
@@ -52,7 +40,7 @@ export const qualifierReply = createServerFn({ method: "POST" })
     const useB = abEnabled && Math.random() * 100 < abSplit;
     const qualifierPrompt = useB ? (qualifierPromptB as string) : qualifierPromptA;
     const variant: string | null = abEnabled ? (useB ? "B" : "A") : null;
-    const model = settings?.ai_model ?? "google/gemini-3-flash-preview";
+    const modelId = settings?.ai_model ?? DEFAULT_LOVABLE_MODEL;
 
     const { data: msgs } = await supabase
       .from("messages")
@@ -62,11 +50,11 @@ export const qualifierReply = createServerFn({ method: "POST" })
       .limit(30);
 
     const history = (msgs ?? []).map((m: any) => ({
-      role: m.direction === "inbound" ? "user" : "assistant",
+      role: (m.direction === "inbound" ? "user" : "assistant") as "user" | "assistant",
       content: m.transcription ? `[áudio transcrito] ${m.transcription}` : (m.content ?? ""),
     }));
 
-    // Enriquece com Base de Conhecimento + Memória do cliente
+    // Base de conhecimento + memória do cliente
     const { data: conv } = await supabase
       .from("conversations").select("client_id").eq("id", data.conversationId).maybeSingle();
 
@@ -100,33 +88,34 @@ export const qualifierReply = createServerFn({ method: "POST" })
       if (mem?.summary) memoryContext = `\n\nO que sabemos deste cliente:\n${mem.summary}`;
     }
 
-    // Última mensagem do usuário para checagem de segurança
-    const lastUserText = [...history].reverse().find((h) => h.role === "user")?.content ?? "";
-    const safety = await checkSafety(userId, data.conversationId, lastUserText);
+    // Safety check antes de gerar resposta
+    const safety = await checkSafety(userId, data.conversationId, lastUser);
     if (safety.block) {
       await logAIDebug({
         userId,
         conversationId: data.conversationId,
         kind: "blocked",
-        model,
+        model: modelId,
         prompt: { reason: safety.reason },
-        response: null as any,
+        response: null,
       });
       return { reply: null, blocked: true, reason: safety.reason };
     }
 
+    const systemPrompt = qualifierPrompt + kbContext + memoryContext;
     const t0 = Date.now();
-    const messagesForAI = [
-      { role: "system", content: qualifierPrompt + kbContext + memoryContext },
-      ...history,
-    ];
     let reply = "Desculpe, não consegui responder agora.";
     let errorMsg: string | null = null;
+
     try {
-      const aiRes = await callAI(model, messagesForAI);
-      reply = aiRes.choices?.[0]?.message?.content ?? reply;
-    } catch (e: any) {
-      errorMsg = e?.message ?? "erro IA";
+      const res = await generateText({
+        model: gatewayModel(modelId),
+        system: systemPrompt,
+        messages: history,
+      });
+      reply = (res.text ?? "").trim() || reply;
+    } catch (e) {
+      errorMsg = describeAiError(e);
     }
     const latencyMs = Date.now() - t0;
 
@@ -134,8 +123,8 @@ export const qualifierReply = createServerFn({ method: "POST" })
       userId,
       conversationId: data.conversationId,
       kind: "reply",
-      model,
-      prompt: messagesForAI,
+      model: modelId,
+      prompt: { system: systemPrompt, messages: history },
       response: reply,
       latencyMs,
       error: errorMsg ?? undefined,
@@ -144,11 +133,9 @@ export const qualifierReply = createServerFn({ method: "POST" })
 
     if (errorMsg) throw new Error(errorMsg);
 
-    // Detectar baixa confiança / pedido de handoff
     const replyLow = reply.toLowerCase();
     const lowConfidence = /\b(não sei|nao sei|não posso|consulte um advogado|encaminhar|equipe entrará|entrar.*contato)\b/.test(replyLow);
 
-    // Salvar resposta como mensagem outbound
     await supabase.from("messages").insert({
       user_id: userId,
       conversation_id: data.conversationId,
@@ -164,7 +151,6 @@ export const qualifierReply = createServerFn({ method: "POST" })
       ...(lowConfidence ? { needs_human: true } : {}),
     }).eq("id", data.conversationId);
 
-    // Incrementa contador anti-loop
     await incrementAICounter(data.conversationId);
 
     return { reply, lowConfidence };
@@ -179,7 +165,7 @@ export const extractQualification = createServerFn({ method: "POST" })
 
     const { data: settings } = await supabase
       .from("ai_agent_settings").select("ai_model").eq("user_id", userId).maybeSingle();
-    const model = settings?.ai_model ?? "google/gemini-3-flash-preview";
+    const modelId = settings?.ai_model ?? DEFAULT_LOVABLE_MODEL;
 
     const { data: msgs } = await supabase
       .from("messages").select("direction, content")
@@ -189,30 +175,40 @@ export const extractQualification = createServerFn({ method: "POST" })
       `${m.direction === "inbound" ? "Lead" : "Atendente"}: ${m.content ?? ""}`
     ).join("\n");
 
-    const aiRes = await callAI(model, [
-      { role: "system", content: "Extraia dados de qualificação jurídica da conversa abaixo." },
-      { role: "user", content: transcript },
-    ], [{
-      type: "function",
-      function: {
-        name: "extract_lead",
-        description: "Extrai dados de qualificação do lead",
-        parameters: {
-          type: "object",
-          properties: {
-            legal_area: { type: "string", description: "Área: trabalhista, civil, criminal, familia, tributario, empresarial, previdenciario, consumidor, outro" },
-            urgency: { type: "string", enum: ["baixa", "media", "alta"] },
-            description: { type: "string", description: "Resumo do caso" },
-            estimated_value: { type: "number", description: "Valor estimado da causa em BRL, 0 se desconhecido" },
-            score: { type: "integer", description: "0-100, qualidade do lead" },
-            qualified: { type: "boolean", description: "true se há informação suficiente para gerar proposta" },
-          },
-          required: ["legal_area", "urgency", "description", "score", "qualified"],
-        },
-      },
-    }]);
+    const extractSchema = z.object({
+      legal_area: z.string().describe("Área: trabalhista, civil, criminal, familia, tributario, empresarial, previdenciario, consumidor, outro"),
+      urgency: z.enum(["baixa", "media", "alta"]),
+      description: z.string().describe("Resumo do caso"),
+      estimated_value: z.number().nullable().optional().describe("Valor estimado da causa em BRL"),
+      score: z.number().int().min(0).max(100).describe("Qualidade do lead 0-100"),
+      qualified: z.boolean().describe("true se há informação suficiente para gerar proposta"),
+    });
 
-    const args = JSON.parse(aiRes.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments ?? "{}");
+    let extracted: z.infer<typeof extractSchema> | null = null;
+
+    try {
+      await generateText({
+        model: gatewayModel(modelId),
+        system: "Extraia dados de qualificação jurídica da conversa fornecida pelo usuário. Use a ferramenta extract_lead.",
+        prompt: transcript,
+        tools: {
+          extract_lead: tool({
+            description: "Salva os dados de qualificação do lead",
+            inputSchema: extractSchema,
+            execute: async (args) => {
+              extracted = args;
+              return { ok: true };
+            },
+          }),
+        },
+        toolChoice: "required",
+        stopWhen: stepCountIs(50),
+      });
+    } catch (e) {
+      throw new Error(describeAiError(e));
+    }
+
+    if (!extracted) throw new Error("IA não retornou qualificação");
 
     const { data: conv } = await supabase.from("conversations").select("client_id").eq("id", data.conversationId).single();
 
@@ -220,13 +216,13 @@ export const extractQualification = createServerFn({ method: "POST" })
       user_id: userId,
       conversation_id: data.conversationId,
       client_id: conv?.client_id ?? null,
-      legal_area: args.legal_area,
-      urgency: args.urgency,
-      description: args.description,
-      estimated_value: args.estimated_value ?? null,
-      score: args.score ?? 0,
-      qualified: args.qualified ?? false,
-      raw_data: args,
+      legal_area: extracted.legal_area,
+      urgency: extracted.urgency,
+      description: extracted.description,
+      estimated_value: extracted.estimated_value ?? null,
+      score: extracted.score ?? 0,
+      qualified: extracted.qualified ?? false,
+      raw_data: extracted,
     }).select().single();
 
     if (error) throw new Error(error.message);
@@ -236,53 +232,68 @@ export const extractQualification = createServerFn({ method: "POST" })
 /** Agente Proposta: gera proposta com base em uma qualificação */
 export const generateProposal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ __token: z.string().optional(), qualificationId: z.string().uuid(), clientId: z.string().uuid().optional(), caseId: z.string().uuid().optional() }).parse)
+  .inputValidator(z.object({
+    __token: z.string().optional(),
+    qualificationId: z.string().uuid(),
+    clientId: z.string().uuid().optional(),
+    caseId: z.string().uuid().optional(),
+  }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
 
     const { data: settings } = await supabase
       .from("ai_agent_settings").select("*").eq("user_id", userId).maybeSingle();
-    const model = settings?.ai_model ?? "google/gemini-3-flash-preview";
+    const modelId = settings?.ai_model ?? DEFAULT_LOVABLE_MODEL;
     const proposalPrompt = settings?.proposal_prompt ??
-      "Você é um advogado experiente. Gere uma proposta de honorários profissional.";
+      "Você é um advogado experiente. Gere uma proposta de honorários profissional usando a ferramenta create_proposal.";
 
     const { data: qual } = await supabase
       .from("lead_qualifications").select("*").eq("id", data.qualificationId).single();
     if (!qual) throw new Error("Qualificação não encontrada");
 
-    const aiRes = await callAI(model, [
-      { role: "system", content: proposalPrompt },
-      { role: "user", content: `Área: ${qual.legal_area}\nUrgência: ${qual.urgency}\nDescrição: ${qual.description}\nValor estimado: R$ ${qual.estimated_value ?? "não informado"}` },
-    ], [{
-      type: "function",
-      function: {
-        name: "create_proposal",
-        description: "Cria proposta de honorários",
-        parameters: {
-          type: "object",
-          properties: {
-            title: { type: "string" },
-            scope: { type: "string", description: "Escopo de atuação detalhado" },
-            value: { type: "number", description: "Valor dos honorários em BRL" },
-            payment_terms: { type: "string", description: "Forma de pagamento" },
-            estimated_duration: { type: "string", description: "Prazo estimado" },
-          },
-          required: ["title", "scope", "value", "payment_terms", "estimated_duration"],
-        },
-      },
-    }]);
+    const proposalSchema = z.object({
+      title: z.string(),
+      scope: z.string().describe("Escopo de atuação detalhado"),
+      value: z.number().describe("Valor dos honorários em BRL"),
+      payment_terms: z.string().describe("Forma de pagamento"),
+      estimated_duration: z.string().describe("Prazo estimado"),
+    });
 
-    const args = JSON.parse(aiRes.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments ?? "{}");
+    let captured: z.infer<typeof proposalSchema> | null = null;
+
+    try {
+      await generateText({
+        model: gatewayModel(modelId),
+        system: proposalPrompt,
+        prompt: `Área: ${qual.legal_area}\nUrgência: ${qual.urgency}\nDescrição: ${qual.description}\nValor estimado: R$ ${qual.estimated_value ?? "não informado"}`,
+        tools: {
+          create_proposal: tool({
+            description: "Cria proposta de honorários",
+            inputSchema: proposalSchema,
+            execute: async (args) => {
+              captured = args;
+              return { ok: true };
+            },
+          }),
+        },
+        toolChoice: "required",
+        stopWhen: stepCountIs(50),
+      });
+    } catch (e) {
+      throw new Error(describeAiError(e));
+    }
+
+    if (!captured) throw new Error("IA não retornou proposta");
 
     const { data: prop, error } = await supabase.from("proposals").insert({
       user_id: userId,
       case_id: data.caseId ?? qual.case_id ?? null,
       client_id: data.clientId ?? qual.client_id ?? null,
-      title: args.title,
-      scope: args.scope,
-      value: args.value,
-      payment_terms: args.payment_terms,
-      estimated_duration: args.estimated_duration,
+      title: captured.title,
+      scope: captured.scope,
+      value: captured.value,
+      payment_terms: captured.payment_terms,
+      estimated_duration: captured.estimated_duration,
       status: "rascunho",
       ai_generated: true,
     }).select().single();
