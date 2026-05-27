@@ -5,6 +5,7 @@ import {
   FileSignature, Smartphone, Bot, BookOpen, Settings,
   Zap, ChevronLeft, ChevronRight, BarChart2, ChevronDown,
   Scale, Stethoscope, BookOpen as BookOpenIcon,
+  Instagram,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -94,7 +95,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     const path = location.pathname;
     if (["/inbox", "/kanban", "/clientes", "/dashboard"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, atendimento: true }));
-    } else if (["/construtor", "/funis", "/manual"].some(p => path.startsWith(p))) {
+    } else if (["/construtor", "/funis", "/templates", "/conhecimento", "/manual", "/instagram"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, automacao: true }));
     } else if (["/contratos", "/relatorios"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, juridico: true }));
@@ -123,6 +124,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
         { to: "/construtor",   label: "Criar atendimento",  icon: Zap },
         { to: "/funis",        label: "Meus atendimentos",  icon: Bot },
         { to: "/templates",    label: "Respostas prontas",  icon: Zap },
+        { to: "/instagram",     label: "Instagram",          icon: Instagram },
         { to: "/conhecimento", label: "Conhecimento da IA", icon: BookOpenIcon },
         { to: "/manual",       label: "Ajuda de prompts",   icon: BookOpen },
       ],

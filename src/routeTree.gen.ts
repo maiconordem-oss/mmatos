@@ -18,6 +18,7 @@ import { Route as ProcessosRouteImport } from './routes/processos'
 import { Route as ManualRouteImport } from './routes/manual'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
+import { Route as InstagramRouteImport } from './routes/instagram'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as IaDebugRouteImport } from './routes/ia-debug'
 import { Route as FunisRouteImport } from './routes/funis'
@@ -30,6 +31,7 @@ import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AgentesRouteImport } from './routes/agentes'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CapturaSlugRouteImport } from './routes/captura.$slug'
 import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiSimulateRouteImport } from './routes/api/simulate'
 import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
@@ -39,6 +41,7 @@ import { Route as ApiDebugWebhookRouteImport } from './routes/api/debug-webhook'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
+import { Route as ApiPublicInstagramLeadRouteImport } from './routes/api/public/instagram-lead'
 import { Route as ApiPublicCronScheduledRouteImport } from './routes/api/public/cron-scheduled'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron-reminders'
 import { Route as ApiPublicCronReactivationRouteImport } from './routes/api/public/cron-reactivation'
@@ -88,6 +91,11 @@ const LoginRoute = LoginRouteImport.update({
 const KanbanRoute = KanbanRouteImport.update({
   id: '/kanban',
   path: '/kanban',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstagramRoute = InstagramRouteImport.update({
+  id: '/instagram',
+  path: '/instagram',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InboxRoute = InboxRouteImport.update({
@@ -150,6 +158,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CapturaSlugRoute = CapturaSlugRouteImport.update({
+  id: '/captura/$slug',
+  path: '/captura/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkflowsIdRoute = WorkflowsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -196,6 +209,12 @@ const ApiPublicWhatsappWebhookRoute =
     path: '/api/public/whatsapp-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicInstagramLeadRoute =
+  ApiPublicInstagramLeadRouteImport.update({
+    id: '/api/public/instagram-lead',
+    path: '/api/public/instagram-lead',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronScheduledRoute = ApiPublicCronScheduledRouteImport.update({
   id: '/api/public/cron-scheduled',
   path: '/api/public/cron-scheduled',
@@ -237,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/funis': typeof FunisRoute
   '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
+  '/instagram': typeof InstagramRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
@@ -251,12 +271,14 @@ export interface FileRoutesByFullPath {
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
+  '/captura/$slug': typeof CapturaSlugRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
   '/api/public/cron-post-consulta': typeof ApiPublicCronPostConsultaRoute
   '/api/public/cron-reactivation': typeof ApiPublicCronReactivationRoute
   '/api/public/cron-reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
+  '/api/public/instagram-lead': typeof ApiPublicInstagramLeadRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -274,6 +296,7 @@ export interface FileRoutesByTo {
   '/funis': typeof FunisRoute
   '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
+  '/instagram': typeof InstagramRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
@@ -288,12 +311,14 @@ export interface FileRoutesByTo {
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
+  '/captura/$slug': typeof CapturaSlugRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
   '/api/public/cron-post-consulta': typeof ApiPublicCronPostConsultaRoute
   '/api/public/cron-reactivation': typeof ApiPublicCronReactivationRoute
   '/api/public/cron-reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
+  '/api/public/instagram-lead': typeof ApiPublicInstagramLeadRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -312,6 +337,7 @@ export interface FileRoutesById {
   '/funis': typeof FunisRoute
   '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
+  '/instagram': typeof InstagramRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual': typeof ManualRoute
@@ -326,12 +352,14 @@ export interface FileRoutesById {
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
+  '/captura/$slug': typeof CapturaSlugRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/api/public/cron-datajud': typeof ApiPublicCronDatajudRoute
   '/api/public/cron-post-consulta': typeof ApiPublicCronPostConsultaRoute
   '/api/public/cron-reactivation': typeof ApiPublicCronReactivationRoute
   '/api/public/cron-reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
+  '/api/public/instagram-lead': typeof ApiPublicInstagramLeadRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
   '/api/public/zapsign-webhook': typeof ApiPublicZapsignWebhookRoute
@@ -351,6 +379,7 @@ export interface FileRouteTypes {
     | '/funis'
     | '/ia-debug'
     | '/inbox'
+    | '/instagram'
     | '/kanban'
     | '/login'
     | '/manual'
@@ -365,12 +394,14 @@ export interface FileRouteTypes {
     | '/api/generate-prompt'
     | '/api/media-proxy'
     | '/api/simulate'
+    | '/captura/$slug'
     | '/workflows/$id'
     | '/api/public/cron-datajud'
     | '/api/public/cron-post-consulta'
     | '/api/public/cron-reactivation'
     | '/api/public/cron-reminders'
     | '/api/public/cron-scheduled'
+    | '/api/public/instagram-lead'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -388,6 +419,7 @@ export interface FileRouteTypes {
     | '/funis'
     | '/ia-debug'
     | '/inbox'
+    | '/instagram'
     | '/kanban'
     | '/login'
     | '/manual'
@@ -402,12 +434,14 @@ export interface FileRouteTypes {
     | '/api/generate-prompt'
     | '/api/media-proxy'
     | '/api/simulate'
+    | '/captura/$slug'
     | '/workflows/$id'
     | '/api/public/cron-datajud'
     | '/api/public/cron-post-consulta'
     | '/api/public/cron-reactivation'
     | '/api/public/cron-reminders'
     | '/api/public/cron-scheduled'
+    | '/api/public/instagram-lead'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -425,6 +459,7 @@ export interface FileRouteTypes {
     | '/funis'
     | '/ia-debug'
     | '/inbox'
+    | '/instagram'
     | '/kanban'
     | '/login'
     | '/manual'
@@ -439,12 +474,14 @@ export interface FileRouteTypes {
     | '/api/generate-prompt'
     | '/api/media-proxy'
     | '/api/simulate'
+    | '/captura/$slug'
     | '/workflows/$id'
     | '/api/public/cron-datajud'
     | '/api/public/cron-post-consulta'
     | '/api/public/cron-reactivation'
     | '/api/public/cron-reminders'
     | '/api/public/cron-scheduled'
+    | '/api/public/instagram-lead'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
     | '/api/public/zapsign-webhook'
@@ -463,6 +500,7 @@ export interface RootRouteChildren {
   FunisRoute: typeof FunisRoute
   IaDebugRoute: typeof IaDebugRoute
   InboxRoute: typeof InboxRoute
+  InstagramRoute: typeof InstagramRoute
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
   ManualRoute: typeof ManualRoute
@@ -477,11 +515,13 @@ export interface RootRouteChildren {
   ApiGeneratePromptRoute: typeof ApiGeneratePromptRoute
   ApiMediaProxyRoute: typeof ApiMediaProxyRoute
   ApiSimulateRoute: typeof ApiSimulateRoute
+  CapturaSlugRoute: typeof CapturaSlugRoute
   ApiPublicCronDatajudRoute: typeof ApiPublicCronDatajudRoute
   ApiPublicCronPostConsultaRoute: typeof ApiPublicCronPostConsultaRoute
   ApiPublicCronReactivationRoute: typeof ApiPublicCronReactivationRoute
   ApiPublicCronRemindersRoute: typeof ApiPublicCronRemindersRoute
   ApiPublicCronScheduledRoute: typeof ApiPublicCronScheduledRoute
+  ApiPublicInstagramLeadRoute: typeof ApiPublicInstagramLeadRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicWorkflowTickRoute: typeof ApiPublicWorkflowTickRoute
   ApiPublicZapsignWebhookRoute: typeof ApiPublicZapsignWebhookRoute
@@ -557,6 +597,13 @@ declare module '@tanstack/react-router' {
       path: '/inbox'
       fullPath: '/inbox'
       preLoaderRoute: typeof InboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/instagram': {
+      id: '/instagram'
+      path: '/instagram'
+      fullPath: '/instagram'
+      preLoaderRoute: typeof InstagramRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ia-debug': {
@@ -650,6 +697,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSimulateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/captura/$slug': {
+      id: '/captura/$slug'
+      path: '/captura/$slug'
+      fullPath: '/captura/$slug'
+      preLoaderRoute: typeof CapturaSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/media-proxy': {
       id: '/api/media-proxy'
       path: '/api/media-proxy'
@@ -697,6 +751,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/whatsapp-webhook'
       fullPath: '/api/public/whatsapp-webhook'
       preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/instagram-lead': {
+      id: '/api/public/instagram-lead'
+      path: '/api/public/instagram-lead'
+      fullPath: '/api/public/instagram-lead'
+      preLoaderRoute: typeof ApiPublicInstagramLeadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cron-scheduled': {
@@ -762,6 +823,7 @@ const rootRouteChildren: RootRouteChildren = {
   FunisRoute: FunisRoute,
   IaDebugRoute: IaDebugRoute,
   InboxRoute: InboxRoute,
+  InstagramRoute: InstagramRoute,
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
   ManualRoute: ManualRoute,
@@ -776,11 +838,13 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGeneratePromptRoute: ApiGeneratePromptRoute,
   ApiMediaProxyRoute: ApiMediaProxyRoute,
   ApiSimulateRoute: ApiSimulateRoute,
+  CapturaSlugRoute: CapturaSlugRoute,
   ApiPublicCronDatajudRoute: ApiPublicCronDatajudRoute,
   ApiPublicCronPostConsultaRoute: ApiPublicCronPostConsultaRoute,
   ApiPublicCronReactivationRoute: ApiPublicCronReactivationRoute,
   ApiPublicCronRemindersRoute: ApiPublicCronRemindersRoute,
   ApiPublicCronScheduledRoute: ApiPublicCronScheduledRoute,
+  ApiPublicInstagramLeadRoute: ApiPublicInstagramLeadRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicWorkflowTickRoute: ApiPublicWorkflowTickRoute,
   ApiPublicZapsignWebhookRoute: ApiPublicZapsignWebhookRoute,
