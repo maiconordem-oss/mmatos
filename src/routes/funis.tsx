@@ -44,11 +44,16 @@ type Funil = {
   media_audio_fechamento: string | null;
   media_video_documentos: string | null;
   zapsign_template_id: string | null;
+  followup_hours: number | null;
+  followup_msg: string | null;
 };
+
+const DEFAULT_FOLLOWUP_MESSAGE = "Oi! Passaram alguns dias e eu queria saber se voce conseguiu ver minha ultima mensagem. Ainda posso te ajudar com isso?";
 
 const EMPTY: any = {
   name: "", description: "", is_active: true, is_default: false,
   persona_prompt: "", proposal_value: null, proposal_is_free: false,
+  followup_hours: 48, followup_msg: "",
   medias: {},
   media_video_abertura: null, media_video_conexao: null,
   media_audio_fechamento: null, media_video_documentos: null,
@@ -462,11 +467,12 @@ function FunisPage() {
             <div className="border rounded-lg p-4 space-y-3">
               <p className="font-medium text-sm">🔔 Follow-up automático</p>
               <div>
-                <Label className="text-xs">Horas sem resposta para reativar (0 = desativado)</Label>
-                <Input type="number" min={0} value={form.followup_hours ?? 3} onChange={(e) => setForm({ ...form, followup_hours: Number(e.target.value) })} />
+                <Label className="text-xs">Horas sem resposta para reativar (48 = 2 dias, 0 = desativado)</Label>
+                <Input type="number" min={0} value={form.followup_hours ?? 48} onChange={(e) => setForm({ ...form, followup_hours: Number(e.target.value) })} />
               </div>
               <div>
                 <Label className="text-xs">Mensagem de follow-up (opcional)</Label>
+                <p className="text-[11px] text-muted-foreground mb-1">Deixe vazio para usar: {DEFAULT_FOLLOWUP_MESSAGE}</p>
                 <Input value={form.followup_msg ?? ""} onChange={(e) => setForm({ ...form, followup_msg: e.target.value })} placeholder="Deixe vazio para usar mensagem padrão" />
               </div>
             </div>
