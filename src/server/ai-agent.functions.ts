@@ -184,7 +184,8 @@ export const extractQualification = createServerFn({ method: "POST" })
       qualified: z.boolean().describe("true se há informação suficiente para gerar proposta"),
     });
 
-    let extracted: z.infer<typeof extractSchema> | null = null;
+    type ExtractArgs = z.infer<typeof extractSchema>;
+    const extractedRef: { current: ExtractArgs | null } = { current: null };
 
     try {
       await generateText({
@@ -195,8 +196,8 @@ export const extractQualification = createServerFn({ method: "POST" })
           extract_lead: tool({
             description: "Salva os dados de qualificação do lead",
             inputSchema: extractSchema,
-            execute: async (args) => {
-              extracted = args;
+            execute: async (args: ExtractArgs) => {
+              extractedRef.current = args;
               return { ok: true };
             },
           }),
@@ -208,6 +209,7 @@ export const extractQualification = createServerFn({ method: "POST" })
       throw new Error(describeAiError(e));
     }
 
+    const extracted = extractedRef.current;
     if (!extracted) throw new Error("IA não retornou qualificação");
 
     const { data: conv } = await supabase.from("conversations").select("client_id").eq("id", data.conversationId).single();
@@ -259,7 +261,8 @@ export const generateProposal = createServerFn({ method: "POST" })
       estimated_duration: z.string().describe("Prazo estimado"),
     });
 
-    let captured: z.infer<typeof proposalSchema> | null = null;
+    type ProposalArgs = z.infer<typeof proposalSchema>;
+    const capturedRef: { current: ProposalArgs | null } = { current: null };
 
     try {
       await generateText({
@@ -270,8 +273,8 @@ export const generateProposal = createServerFn({ method: "POST" })
           create_proposal: tool({
             description: "Cria proposta de honorários",
             inputSchema: proposalSchema,
-            execute: async (args) => {
-              captured = args;
+            execute: async (args: ProposalArgs) => {
+              capturedRef.current = args;
               return { ok: true };
             },
           }),
@@ -283,6 +286,7 @@ export const generateProposal = createServerFn({ method: "POST" })
       throw new Error(describeAiError(e));
     }
 
+    const captured = capturedRef.current;
     if (!captured) throw new Error("IA não retornou proposta");
 
     const { data: prop, error } = await supabase.from("proposals").insert({
