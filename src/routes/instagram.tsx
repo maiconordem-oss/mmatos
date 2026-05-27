@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { leadMagnetLandings } from "@/components/LeadMagnetLanding";
-import { CheckCircle2, Copy, ExternalLink, FileDown, Instagram, Link2, Loader2, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, FileDown, Instagram, Link2, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/instagram")({
@@ -101,6 +101,7 @@ function InstagramPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const publicUrl = useMemo(() => {
     const product = productLandings.find((item) => item.slug === form.slug);
@@ -178,7 +179,7 @@ function InstagramPage() {
   const save = async () => {
     if (!user) return;
     if (!form.title.trim() || !form.slug.trim() || !form.file_url.trim() || !form.instance_id) {
-      toast.error("Preencha titulo, link, WhatsApp e arquivo.");
+      toast.error("Preencha titulo, WhatsApp e envie o arquivo.");
       return;
     }
 
@@ -209,6 +210,41 @@ function InstagramPage() {
     toast.success("Landing salva");
     setForm(emptyForm);
     load();
+  };
+
+  const uploadLeadMagnetFile = async (file: File) => {
+    if (!user) {
+      toast.error("Usuario nao autenticado.");
+      return;
+    }
+    const slug = slugify(form.slug || "material");
+    const safeName = file.name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9._-]/g, "-")
+      .replace(/-+/g, "-");
+    const path = `${user.id}/${slug}/${Date.now()}-${safeName}`;
+
+    setUploading(true);
+    try {
+      const { error } = await supabase.storage
+        .from("lead-magnets")
+        .upload(path, file, { contentType: file.type || "application/octet-stream", upsert: true });
+      if (error) throw error;
+
+      const { data } = supabase.storage.from("lead-magnets").getPublicUrl(path);
+      setForm((prev) => ({
+        ...prev,
+        file_url: data.publicUrl,
+        file_name: file.name,
+        file_type: inferFileType(file),
+      }));
+      toast.success("Arquivo enviado");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Nao foi possivel enviar o arquivo.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const remove = async (id: string) => {
@@ -326,8 +362,30 @@ function InstagramPage() {
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="URL publica do arquivo"><Input value={form.file_url} onChange={(e) => patch("file_url", e.target.value)} placeholder="https://..." /></Field>
-                <Field label="Nome do arquivo"><Input value={form.file_name} onChange={(e) => patch("file_name", e.target.value)} placeholder="guia.pdf" /></Field>
+                <div className="md:col-span-2">
+                  <Field label="Arquivo do produto">
+                    <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 px-4 py-5 text-center transition-colors hover:bg-muted/50">
+                      {uploading ? <Loader2 className="mb-2 h-5 w-5 animate-spin text-primary" /> : <Upload className="mb-2 h-5 w-5 text-primary" />}
+                      <span className="text-sm font-medium text-foreground">
+                        {form.file_name ? form.file_name : "Clique para enviar PDF, imagem, video ou audio"}
+                      </span>
+                      <span className="mt-1 text-xs text-muted-foreground">
+                        {form.file_url ? "Arquivo pronto para envio automatico" : "O link sera gerado automaticamente"}
+                      </span>
+                      <input
+                        type="file"
+                        className="sr-only"
+                        accept=".pdf,image/*,video/mp4,audio/*"
+                        disabled={uploading}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) uploadLeadMagnetFile(file);
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                  </Field>
+                </div>
                 <div className="md:col-span-2">
                   <Field label="Mensagem de entrega">
                     <Textarea value={form.delivery_message} onChange={(e) => patch("delivery_message", e.target.value)} rows={3} />
@@ -413,4 +471,11 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function slugify(value: string) {
   return value.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+}
+
+function inferFileType(file: File) {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("video/")) return "video";
+  if (file.type.startsWith("audio/")) return "audio";
+  return "document";
 }
