@@ -1,103 +1,133 @@
-# Melhorias — Inbox & Agente IA
 
-Foco em transformar o atendimento em algo mais rápido, inteligente e com menos cliques. Dividi em 3 ondas para você escolher por onde começar (ou aprovar tudo).
+# Modernização do sistema de atendimento por IA
 
----
-
-## Onda 1 — Produtividade no Inbox (rápido, alto impacto)
-
-1. **Respostas rápidas / Templates**
-   - Tabela `message_templates` (atalho `/`, título, conteúdo, variáveis `{{nome}}`, `{{processo}}`).
-   - Menu `/` dentro do input do Inbox com busca fuzzy.
-   - Variáveis preenchidas automaticamente com dados do cliente/conversa.
-
-2. **Busca global no Inbox**
-   - Campo de busca que pesquisa em conversas + mensagens + clientes.
-   - Filtros: não lidas, com IA, sem resposta há X horas, por etiqueta, por advogado.
-
-3. **Etiquetas (tags) de conversa**
-   - Tabela `conversation_tags` com cor.
-   - Aplicar/remover via menu, exibir como chips no card e no header.
-
-4. **Sinalizadores rápidos**
-   - Marcar como "Importante", "Aguardando cliente", "Aguardando advogado".
-   - Ordenação e filtros usam esses estados.
-
-5. **Agendar envio de mensagem**
-   - Tabela `scheduled_messages` + cron tick (reaproveita `workflow-tick`) que dispara no horário.
-
-6. **Anotações internas na conversa**
-   - Aba "Notas" lateral, mensagens privadas que não vão para o cliente.
+Plano incremental, sem quebrar fluxos atuais. Backend migra para **AI SDK + tools tipadas** e frontend ganha uma **Inbox moderna estilo Intercom/Front**. As duas trilhas avançam em paralelo, onda por onda.
 
 ---
 
-## Onda 2 — Agente IA mais inteligente
+## Princípios
 
-1. **Memória por cliente**
-   - Tabela `client_memory` (fatos persistidos: área de interesse, processos, preferências, dores).
-   - Cada resposta da IA atualiza e consulta essa memória → para de "esquecer" entre conversas.
-
-2. **Base de conhecimento do escritório (RAG simples)**
-   - Tabela `kb_documents` (perguntas frequentes, valores, áreas atendidas, horários, endereço).
-   - Editor em `/configuracoes` para adicionar trechos.
-   - Antes de responder, IA busca trechos relevantes (match textual / embeddings opcionais) e injeta no system prompt.
-
-3. **Sugestões de resposta em tempo real (copiloto)**
-   - Em qualquer mensagem recebida, painel lateral mostra 2–3 sugestões de resposta geradas pela IA.
-   - Atendente clica → vai para o input → edita → envia. Não envia sozinho.
-
-4. **Análise de sentimento + alertas**
-   - Para cada mensagem inbound, classifica: neutro / positivo / negativo / urgente.
-   - Conversa com sentimento negativo ou palavras-chave ("processar", "reclamar", "PROCON") destaca em vermelho e notifica.
-
-5. **Resumo automático da conversa**
-   - Botão "Resumir" gera bullets com: objetivo do cliente, fatos relevantes, próximo passo recomendado, área jurídica.
-   - Salvo na conversa para o advogado abrir e entender em 10s.
-
-6. **Handoff humano explícito**
-   - Toggle "IA ligada / desligada" por conversa (já existe `ai_handled` — virar UI clara).
-   - Quando IA detecta que não consegue resolver (confiança baixa, pedido de humano, tema fora da base), desliga sozinha e marca "Precisa de humano".
-
-7. **Entendimento de mídia**
-   - Áudio: transcrição já existe — passar a transcrição automaticamente para o contexto da IA (hoje precisa clicar).
-   - Imagem/PDF: usar Gemini multimodal para extrair texto/descrição (contratos enviados, prints de processo, comprovantes).
-
-8. **Horário comercial + fora-do-ar**
-   - Configuração de horário por dia da semana.
-   - Fora do horário: IA responde com mensagem configurável + agenda retorno + cria tarefa.
+- Reaproveitar `funnel-executor`, `workflow-executor`, `whatsapp-webhook`, `inbox.tsx` — refator cirúrgico, não reescrita.
+- Toda chamada de IA passa a usar o helper `createLovableAiGatewayProvider` (AI SDK) — substitui `fetch` manual + parser frágil de JSON.
+- Banco preservado: só migrations aditivas (índices, colunas novas, nada de drop).
+- Cada onda termina funcional e testável de ponta a ponta.
 
 ---
 
-## Onda 3 — Qualidade e operação
+## Onda 1 — Núcleo do atendimento (backend) + skeleton da nova Inbox (frontend)
 
-1. **Métricas do atendimento** (em `/relatorios`)
-   - Tempo médio de primeira resposta, % respondido pela IA, taxa de conversão lead → cliente, conversas por etiqueta/área.
+**Backend (`src/server/ai-core.server.ts` novo, refator de `funnel-executor.server.ts`):**
+- Criar helper único `src/lib/ai-gateway.server.ts` com `createLovableAiGatewayProvider` (AI SDK + `@ai-sdk/openai-compatible`).
+- Novo módulo `ai-core.server.ts` com 3 funções centralizadas usadas por funil/qualifier/workflow:
+  - `generateFunnelReply(ctx)` → `generateText` + `tool({ name: "funnel_reply", inputSchema })` com `tool_choice` forçado. Fim do parser frágil.
+  - `classifyArea(text)` → `Output.object` Zod.
+  - `transcribeAudio(url)` → via Gemini multimodal pelo gateway (sem mais `LOVABLE_API_KEY` como chave Google).
+- Plugar no `handleFunnelMessage`:
+  - `checkSafety` (palavras proibidas + needs_human) **antes** da resposta.
+  - `acquireLock` / `releaseLock` em try/finally (race condition).
+  - `ai_debug_logs` em toda chamada (latência, modelo, tokens, decisão).
+  - `incrementAICounter` + cap de mensagens consecutivas.
 
-2. **Logs de IA por conversa**
-   - Aba "Debug IA": prompt enviado, modelo, custo estimado, latência, resposta. Ajuda a refinar prompts.
+**Frontend (`src/routes/inbox.tsx`):**
+- Refatorar layout para 3 zonas reais:
+  - **Coluna 1**: lista de conversas com filtros (Todas / IA / Humano / Pendentes).
+  - **Coluna 2**: thread com bubbles modernos (assistant sem fundo, user com `primary`), markdown, timestamps agrupados.
+  - **Coluna 3**: novo **painel de contexto** (placeholder com tabs: Cliente / IA / Funil) — preenchido nas ondas 2-3.
+- Reaproveitar componentes shadcn (`Tabs`, `Card`, `ScrollArea`, `Badge`). Sem nova lib de UI.
 
-3. **A/B de prompts**
-   - Versionar o prompt do qualificador, ver qual converte mais.
+---
 
-4. **Limites de segurança**
-   - Rate limit por conversa (IA não responde mais que N msgs seguidas sem humano), proteção contra loops, lista de palavras proibidas.
+## Onda 2 — Memória do cliente + contexto inteligente
+
+**Backend:**
+- Injetar `client_memory.summary` + `interests` + `pains` no `personaPrompt` do funil (bloco "CONTEXTO DO CLIENTE").
+- `updateClientMemory` fire-and-forget a cada 5 mensagens inbound OU em mudança de fase.
+- Para `messages.count > 40`: substituir histórico bruto por `conversation_summaries.summary` + últimas 15 msgs.
+- Migration aditiva: índice em `client_memory(client_id)`, coluna `last_synced_at`.
+
+**Frontend (painel de contexto, coluna 3):**
+- Tab **Cliente**: nome, área jurídica, dores, interesses, preferências — editáveis inline.
+- Botão "🔄 Atualizar memória agora" chamando `updateClientMemory`.
+- Timeline de fatos extraídos (com data e fonte).
+
+---
+
+## Onda 3 — Observabilidade e controle
+
+**Backend:**
+- `aiMetrics` filtrado por `ai_handled = true` ou presença em `ai_debug_logs`.
+- `classifyAndPersistSentiment` só quando `text.length >= 8` e sem palavras-chave críticas (corta ~60% de chamadas).
+- Consolidar horário comercial: `business_hours` é fonte única; `funnels.working_hours_*` vira override opcional.
+- Endpoint `/api/internal/ai-replay` para reexecutar uma mensagem com prompt novo (debug).
+
+**Frontend:**
+- Tab **IA** no painel de contexto: últimos 10 `ai_debug_logs` da conversa, badge de confiança, prompt usado, tempo de resposta.
+- Botão "🛑 Pausar IA" / "▶ Retomar IA" inline (já existe lógica, só faltam controles visíveis).
+- Página `/ia-debug`: filtro por conversa + replay button.
+- Redesign do `/configuracoes` aba IA: cards visuais de safety, A/B, limites.
+
+---
+
+## Onda 4 — Polimento e qualidade
+
+- Tab **Funil** no painel: nó atual, próximos passos, contexto da execução.
+- Sugestões inline na thread ("A IA sugere responder: …" + botão "Enviar").
+- Markdown + atalhos no composer (`/sugerir`, `/pausar`, `/handoff`).
+- Notificações em tempo real (já temos realtime habilitado em `messages`).
+- Limpeza: remover `qualifierReply` (órfão) ou redirecioná-lo para `ai-core`.
 
 ---
 
 ## Detalhes técnicos
 
-- **Backend**: tudo em `createServerFn` em `src/server/*.functions.ts`. Sem novas Edge Functions.
-- **IA**: Lovable AI Gateway, modelo padrão `google/gemini-3-flash-preview`; trocar para `gemini-2.5-pro` em resumo/sentimento se precisar mais qualidade.
-- **Banco**: novas tabelas com RLS por `user_id`. Reaproveitar `phone.ts` para normalização.
-- **Realtime**: sugestões e sentimento publicados via canal Supabase para atualizar a UI sem refresh.
-- **Cron**: `scheduled_messages` e fora-do-horário usam tick já existente.
+### Arquivos novos
+```text
+src/lib/ai-gateway.server.ts         # provider helper AI SDK
+src/server/ai-core.server.ts         # generateFunnelReply, classifyArea, transcribeAudio
+src/components/inbox/ContextPanel.tsx
+src/components/inbox/ClientMemoryTab.tsx
+src/components/inbox/AIDebugTab.tsx
+src/components/inbox/FunnelTab.tsx
+src/components/inbox/MessageBubble.tsx
+src/components/inbox/ConversationList.tsx
+src/routes/api/internal/ai-replay.ts
+```
+
+### Arquivos refatorados (cirúrgicos)
+```text
+src/server/funnel-executor.server.ts   # usa ai-core, safety, lock, debug logs
+src/server/workflow-executor.server.ts # callAI → ai-core
+src/server/ai-agent.functions.ts       # qualifierReply → ai-core ou removido
+src/server/intelligence.functions.ts   # sentiment com gate de tamanho
+src/routes/api/public/whatsapp-webhook.ts  # business_hours único
+src/routes/inbox.tsx                   # layout 3 colunas + nova UX
+src/routes/ia-debug.tsx                # filtro + replay
+src/routes/configuracoes.tsx           # aba IA redesenhada
+```
+
+### Migrations (aditivas)
+- `client_memory`: índice + `last_synced_at`.
+- `ai_debug_logs`: índice composto `(conversation_id, created_at desc)`.
+- Nenhum DROP ou rename.
+
+### Dependências
+- Adicionar: `ai`, `@ai-sdk/openai-compatible`, `zod` (já existe).
+- Nada removido nesta fase.
 
 ---
 
-## Como prosseguir
+## Critérios de sucesso por onda
 
-Me diga uma destas opções:
-- **"Onda 1"** → começo pela produtividade do Inbox (templates, busca, tags, agendar envio).
-- **"Onda 2"** → começo pela inteligência (memória + base de conhecimento + copiloto + sentimento).
-- **"Tudo"** → executo na ordem (1 → 2 → 3) em entregas separadas.
-- **"Só os itens X, Y, Z"** → lista os números que quer priorizar.
+1. **Onda 1**: enviar mensagem real no WhatsApp → `ai_debug_logs` registra entrada; safety bloqueia palavra proibida; nova Inbox renderiza thread sem regressão.
+2. **Onda 2**: ao 6ª mensagem inbound, `client_memory.summary` atualiza; painel mostra dados.
+3. **Onda 3**: `/ia-debug` mostra logs reais do funil (não só do qualifier); replay reproduz resposta.
+4. **Onda 4**: operador consegue sugerir-pausar-retomar-handoff em 1 clique sem sair do Inbox.
+
+---
+
+## Fora de escopo (não faremos agora)
+
+- Mudar provider de IA (continua Lovable AI Gateway).
+- Refatorar Datajud, ZapSign, Calendar, Kanban, Processos.
+- Multi-tenant / multi-workspace.
+- Mobile-specific redesign (responsivo apenas básico).
