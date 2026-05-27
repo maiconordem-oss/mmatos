@@ -22,6 +22,9 @@ import { Route as KanbanRouteImport } from './routes/kanban'
 import { Route as InstagramRouteImport } from './routes/instagram'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as IaDebugRouteImport } from './routes/ia-debug'
+import { Route as GuiaRecursoRouteImport } from './routes/guia-recurso'
+import { Route as GuiaAuxilioRouteImport } from './routes/guia-auxilio'
+import { Route as GuiaAposentadoriaRouteImport } from './routes/guia-aposentadoria'
 import { Route as FunisRouteImport } from './routes/funis'
 import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -112,6 +115,21 @@ const InboxRoute = InboxRouteImport.update({
 const IaDebugRoute = IaDebugRouteImport.update({
   id: '/ia-debug',
   path: '/ia-debug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuiaRecursoRoute = GuiaRecursoRouteImport.update({
+  id: '/guia-recurso',
+  path: '/guia-recurso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuiaAuxilioRoute = GuiaAuxilioRouteImport.update({
+  id: '/guia-auxilio',
+  path: '/guia-auxilio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuiaAposentadoriaRoute = GuiaAposentadoriaRouteImport.update({
+  id: '/guia-aposentadoria',
+  path: '/guia-aposentadoria',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FunisRoute = FunisRouteImport.update({
@@ -260,6 +278,9 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/funis': typeof FunisRoute
+  '/guia-aposentadoria': typeof GuiaAposentadoriaRoute
+  '/guia-auxilio': typeof GuiaAuxilioRoute
+  '/guia-recurso': typeof GuiaRecursoRoute
   '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
   '/instagram': typeof InstagramRoute
@@ -301,6 +322,9 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/funis': typeof FunisRoute
+  '/guia-aposentadoria': typeof GuiaAposentadoriaRoute
+  '/guia-auxilio': typeof GuiaAuxilioRoute
+  '/guia-recurso': typeof GuiaRecursoRoute
   '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
   '/instagram': typeof InstagramRoute
@@ -343,6 +367,9 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/funis': typeof FunisRoute
+  '/guia-aposentadoria': typeof GuiaAposentadoriaRoute
+  '/guia-auxilio': typeof GuiaAuxilioRoute
+  '/guia-recurso': typeof GuiaRecursoRoute
   '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
   '/instagram': typeof InstagramRoute
@@ -386,6 +413,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/funis'
+    | '/guia-aposentadoria'
+    | '/guia-auxilio'
+    | '/guia-recurso'
     | '/ia-debug'
     | '/inbox'
     | '/instagram'
@@ -427,6 +457,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/funis'
+    | '/guia-aposentadoria'
+    | '/guia-auxilio'
+    | '/guia-recurso'
     | '/ia-debug'
     | '/inbox'
     | '/instagram'
@@ -468,6 +501,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/funis'
+    | '/guia-aposentadoria'
+    | '/guia-auxilio'
+    | '/guia-recurso'
     | '/ia-debug'
     | '/inbox'
     | '/instagram'
@@ -510,6 +546,9 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   DiagnosticoRoute: typeof DiagnosticoRoute
   FunisRoute: typeof FunisRoute
+  GuiaAposentadoriaRoute: typeof GuiaAposentadoriaRoute
+  GuiaAuxilioRoute: typeof GuiaAuxilioRoute
+  GuiaRecursoRoute: typeof GuiaRecursoRoute
   IaDebugRoute: typeof IaDebugRoute
   InboxRoute: typeof InboxRoute
   InstagramRoute: typeof InstagramRoute
@@ -631,6 +670,27 @@ declare module '@tanstack/react-router' {
       path: '/ia-debug'
       fullPath: '/ia-debug'
       preLoaderRoute: typeof IaDebugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guia-recurso': {
+      id: '/guia-recurso'
+      path: '/guia-recurso'
+      fullPath: '/guia-recurso'
+      preLoaderRoute: typeof GuiaRecursoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guia-auxilio': {
+      id: '/guia-auxilio'
+      path: '/guia-auxilio'
+      fullPath: '/guia-auxilio'
+      preLoaderRoute: typeof GuiaAuxilioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guia-aposentadoria': {
+      id: '/guia-aposentadoria'
+      path: '/guia-aposentadoria'
+      fullPath: '/guia-aposentadoria'
+      preLoaderRoute: typeof GuiaAposentadoriaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/funis': {
@@ -841,6 +901,9 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DiagnosticoRoute: DiagnosticoRoute,
   FunisRoute: FunisRoute,
+  GuiaAposentadoriaRoute: GuiaAposentadoriaRoute,
+  GuiaAuxilioRoute: GuiaAuxilioRoute,
+  GuiaRecursoRoute: GuiaRecursoRoute,
   IaDebugRoute: IaDebugRoute,
   InboxRoute: InboxRoute,
   InstagramRoute: InstagramRoute,

@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LeadMagnetLanding, leadMagnetLandings } from "@/components/LeadMagnetLanding";
 
-const config = leadMagnetLandings["manual-pericia"];
+const config = leadMagnetLandings["guia-aposentadoria"];
 
-export const Route = createFileRoute("/manual-pericia")({
+export const Route = createFileRoute("/guia-aposentadoria")({
   head: () => ({
     meta: [
       { title: config.metaTitle },
