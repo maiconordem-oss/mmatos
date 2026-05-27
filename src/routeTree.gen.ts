@@ -39,6 +39,7 @@ import { Route as CapturaSlugRouteImport } from './routes/captura.$slug'
 import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
 import { Route as ApiSimulateRouteImport } from './routes/api/simulate'
 import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
+import { Route as ApiLeadMagnetUploadRouteImport } from './routes/api/lead-magnet-upload'
 import { Route as ApiGeneratePromptRouteImport } from './routes/api/generate-prompt'
 import { Route as ApiDiagnosticoRouteImport } from './routes/api/diagnostico'
 import { Route as ApiDebugWebhookRouteImport } from './routes/api/debug-webhook'
@@ -202,6 +203,11 @@ const ApiMediaProxyRoute = ApiMediaProxyRouteImport.update({
   path: '/api/media-proxy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiLeadMagnetUploadRoute = ApiLeadMagnetUploadRouteImport.update({
+  id: '/api/lead-magnet-upload',
+  path: '/api/lead-magnet-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGeneratePromptRoute = ApiGeneratePromptRouteImport.update({
   id: '/api/generate-prompt',
   path: '/api/generate-prompt',
@@ -297,6 +303,7 @@ export interface FileRoutesByFullPath {
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
+  '/api/lead-magnet-upload': typeof ApiLeadMagnetUploadRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
   '/captura/$slug': typeof CapturaSlugRoute
@@ -341,6 +348,7 @@ export interface FileRoutesByTo {
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
+  '/api/lead-magnet-upload': typeof ApiLeadMagnetUploadRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
   '/captura/$slug': typeof CapturaSlugRoute
@@ -386,6 +394,7 @@ export interface FileRoutesById {
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
+  '/api/lead-magnet-upload': typeof ApiLeadMagnetUploadRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/simulate': typeof ApiSimulateRoute
   '/captura/$slug': typeof CapturaSlugRoute
@@ -432,6 +441,7 @@ export interface FileRouteTypes {
     | '/api/debug-webhook'
     | '/api/diagnostico'
     | '/api/generate-prompt'
+    | '/api/lead-magnet-upload'
     | '/api/media-proxy'
     | '/api/simulate'
     | '/captura/$slug'
@@ -476,6 +486,7 @@ export interface FileRouteTypes {
     | '/api/debug-webhook'
     | '/api/diagnostico'
     | '/api/generate-prompt'
+    | '/api/lead-magnet-upload'
     | '/api/media-proxy'
     | '/api/simulate'
     | '/captura/$slug'
@@ -520,6 +531,7 @@ export interface FileRouteTypes {
     | '/api/debug-webhook'
     | '/api/diagnostico'
     | '/api/generate-prompt'
+    | '/api/lead-magnet-upload'
     | '/api/media-proxy'
     | '/api/simulate'
     | '/captura/$slug'
@@ -565,6 +577,7 @@ export interface RootRouteChildren {
   ApiDebugWebhookRoute: typeof ApiDebugWebhookRoute
   ApiDiagnosticoRoute: typeof ApiDiagnosticoRoute
   ApiGeneratePromptRoute: typeof ApiGeneratePromptRoute
+  ApiLeadMagnetUploadRoute: typeof ApiLeadMagnetUploadRoute
   ApiMediaProxyRoute: typeof ApiMediaProxyRoute
   ApiSimulateRoute: typeof ApiSimulateRoute
   CapturaSlugRoute: typeof CapturaSlugRoute
@@ -798,6 +811,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGeneratePromptRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/lead-magnet-upload': {
+      id: '/api/lead-magnet-upload'
+      path: '/api/lead-magnet-upload'
+      fullPath: '/api/lead-magnet-upload'
+      preLoaderRoute: typeof ApiLeadMagnetUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/diagnostico': {
       id: '/api/diagnostico'
       path: '/api/diagnostico'
@@ -920,6 +940,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDebugWebhookRoute: ApiDebugWebhookRoute,
   ApiDiagnosticoRoute: ApiDiagnosticoRoute,
   ApiGeneratePromptRoute: ApiGeneratePromptRoute,
+  ApiLeadMagnetUploadRoute: ApiLeadMagnetUploadRoute,
   ApiMediaProxyRoute: ApiMediaProxyRoute,
   ApiSimulateRoute: ApiSimulateRoute,
   CapturaSlugRoute: CapturaSlugRoute,

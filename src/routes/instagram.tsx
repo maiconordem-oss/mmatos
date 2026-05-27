@@ -218,26 +218,30 @@ function InstagramPage() {
       return;
     }
     const slug = slugify(form.slug || "material");
-    const safeName = file.name
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9._-]/g, "-")
-      .replace(/-+/g, "-");
-    const path = `${user.id}/${slug}/${Date.now()}-${safeName}`;
 
     setUploading(true);
     try {
-      const { error } = await supabase.storage
-        .from("lead-magnets")
-        .upload(path, file, { contentType: file.type || "application/octet-stream", upsert: true });
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Sessao expirada. Entre novamente.");
 
-      const { data } = supabase.storage.from("lead-magnets").getPublicUrl(path);
+      const body = new FormData();
+      body.append("file", file);
+      body.append("slug", slug);
+
+      const res = await fetch("/api/lead-magnet-upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Nao foi possivel enviar o arquivo.");
+
       setForm((prev) => ({
         ...prev,
-        file_url: data.publicUrl,
-        file_name: file.name,
-        file_type: inferFileType(file),
+        file_url: data.url,
+        file_name: data.fileName ?? file.name,
+        file_type: data.fileType ?? inferFileType(file),
       }));
       toast.success("Arquivo enviado");
     } catch (e: any) {
