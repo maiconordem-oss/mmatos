@@ -15,6 +15,7 @@ import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ProcessosRouteImport } from './routes/processos'
+import { Route as ManualPericiaRouteImport } from './routes/manual-pericia'
 import { Route as ManualRouteImport } from './routes/manual'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
@@ -76,6 +77,11 @@ const RelatoriosRoute = RelatoriosRouteImport.update({
 const ProcessosRoute = ProcessosRouteImport.update({
   id: '/processos',
   path: '/processos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManualPericiaRoute = ManualPericiaRouteImport.update({
+  id: '/manual-pericia',
+  path: '/manual-pericia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManualRoute = ManualRouteImport.update({
@@ -259,6 +265,7 @@ export interface FileRoutesByFullPath {
   '/instagram': typeof InstagramRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
+  '/manual-pericia': typeof ManualPericiaRoute
   '/manual': typeof ManualRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
@@ -299,6 +306,7 @@ export interface FileRoutesByTo {
   '/instagram': typeof InstagramRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
+  '/manual-pericia': typeof ManualPericiaRoute
   '/manual': typeof ManualRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
@@ -340,6 +348,7 @@ export interface FileRoutesById {
   '/instagram': typeof InstagramRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
+  '/manual-pericia': typeof ManualPericiaRoute
   '/manual': typeof ManualRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
@@ -382,6 +391,7 @@ export interface FileRouteTypes {
     | '/instagram'
     | '/kanban'
     | '/login'
+    | '/manual-pericia'
     | '/manual'
     | '/processos'
     | '/relatorios'
@@ -422,6 +432,7 @@ export interface FileRouteTypes {
     | '/instagram'
     | '/kanban'
     | '/login'
+    | '/manual-pericia'
     | '/manual'
     | '/processos'
     | '/relatorios'
@@ -462,6 +473,7 @@ export interface FileRouteTypes {
     | '/instagram'
     | '/kanban'
     | '/login'
+    | '/manual-pericia'
     | '/manual'
     | '/processos'
     | '/relatorios'
@@ -503,6 +515,7 @@ export interface RootRouteChildren {
   InstagramRoute: typeof InstagramRoute
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
+  ManualPericiaRoute: typeof ManualPericiaRoute
   ManualRoute: typeof ManualRoute
   ProcessosRoute: typeof ProcessosRoute
   RelatoriosRoute: typeof RelatoriosRoute
@@ -583,6 +596,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manual-pericia': {
+      id: '/manual-pericia'
+      path: '/manual-pericia'
+      fullPath: '/manual-pericia'
+      preLoaderRoute: typeof ManualPericiaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kanban': {
@@ -826,6 +846,7 @@ const rootRouteChildren: RootRouteChildren = {
   InstagramRoute: InstagramRoute,
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
+  ManualPericiaRoute: ManualPericiaRoute,
   ManualRoute: ManualRoute,
   ProcessosRoute: ProcessosRoute,
   RelatoriosRoute: RelatoriosRoute,
