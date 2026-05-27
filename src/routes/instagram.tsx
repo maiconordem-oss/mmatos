@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,11 +41,23 @@ type Magnet = {
   file_type: string;
   delivery_message: string;
   success_message: string;
+  followup_enabled: boolean;
+  followup_hours: number;
+  followup_message: string;
   instance_id: string | null;
   is_active: boolean;
   created_at: string;
 };
-type Submission = { id: string; magnet_id: string; name: string | null; phone: string; status: string; created_at: string };
+type Submission = {
+  id: string;
+  magnet_id: string;
+  name: string | null;
+  phone: string;
+  status: string;
+  followup_status: string | null;
+  followup_sent_at: string | null;
+  created_at: string;
+};
 
 const emptyForm = {
   id: "",
@@ -58,6 +71,9 @@ const emptyForm = {
   file_type: "document",
   delivery_message: "Oi, {{nome}}! Conforme combinado, segue o material que voce pediu.",
   success_message: "Pronto. Enviamos o material no seu WhatsApp.",
+  followup_enabled: true,
+  followup_hours: 48,
+  followup_message: "Oi, {{nome}}! Passando para saber se voce conseguiu ver o material que enviei. Ainda posso te ajudar com alguma duvida?",
   instance_id: "",
   is_active: true,
 };
@@ -90,6 +106,9 @@ const productLandings = [
     file_type: "document",
     delivery_message: `Oi, {{nome}}! Conforme combinado, segue: ${landing.title}.`,
     success_message: "Pronto. Enviamos o material no seu WhatsApp.",
+    followup_enabled: true,
+    followup_hours: 48,
+    followup_message: `Oi, {{nome}}! Passando para saber se voce conseguiu ver o material "${landing.title}". Ainda posso te ajudar com alguma duvida?`,
   };
 });
 
@@ -115,7 +134,7 @@ function InstagramPage() {
     const [instRes, magnetRes, leadRes] = await Promise.all([
       (supabase as any).from("whatsapp_instances").select("id, instance_name, status, phone_number").eq("user_id", user.id).order("created_at"),
       (supabase as any).from("instagram_lead_magnets").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-      (supabase as any).from("instagram_lead_submissions").select("id, magnet_id, name, phone, status, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(40),
+      (supabase as any).from("instagram_lead_submissions").select("id, magnet_id, name, phone, status, followup_status, followup_sent_at, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(40),
     ]);
     setInstances((instRes.data ?? []) as Instance[]);
     setMagnets((magnetRes.data ?? []) as Magnet[]);
@@ -124,7 +143,7 @@ function InstagramPage() {
 
   useEffect(() => { load(); }, [user?.id]);
 
-  const patch = (key: keyof typeof emptyForm, value: string | boolean) => {
+  const patch = (key: keyof typeof emptyForm, value: string | boolean | number) => {
     setForm((prev) => ({ ...prev, [key]: key === "slug" ? slugify(String(value)) : value }));
   };
 
@@ -141,6 +160,9 @@ function InstagramPage() {
       file_type: magnet.file_type,
       delivery_message: magnet.delivery_message,
       success_message: magnet.success_message,
+      followup_enabled: magnet.followup_enabled ?? true,
+      followup_hours: magnet.followup_hours ?? 48,
+      followup_message: magnet.followup_message || emptyForm.followup_message,
       instance_id: magnet.instance_id ?? "",
       is_active: magnet.is_active,
     });
@@ -196,6 +218,9 @@ function InstagramPage() {
       file_type: form.file_type,
       delivery_message: form.delivery_message.trim(),
       success_message: form.success_message.trim(),
+      followup_enabled: form.followup_enabled,
+      followup_hours: Math.max(1, Number(form.followup_hours) || 48),
+      followup_message: form.followup_message.trim() || emptyForm.followup_message,
       instance_id: form.instance_id,
       is_active: form.is_active,
     };
@@ -403,6 +428,38 @@ function InstagramPage() {
               </div>
             </div>
 
+            <div className="rounded-lg border border-border bg-card p-5">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-semibold">Follow-up da landing</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">Envia depois do material, somente em horario comercial.</p>
+                </div>
+                <Switch checked={form.followup_enabled} onCheckedChange={(checked) => patch("followup_enabled", checked)} />
+              </div>
+              <div className="grid gap-4 md:grid-cols-[180px_1fr]">
+                <Field label="Enviar apos">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={form.followup_hours}
+                      disabled={!form.followup_enabled}
+                      onChange={(e) => patch("followup_hours", Number(e.target.value))}
+                    />
+                    <span className="text-sm text-muted-foreground">horas</span>
+                  </div>
+                </Field>
+                <Field label="Mensagem">
+                  <Textarea
+                    value={form.followup_message}
+                    disabled={!form.followup_enabled}
+                    onChange={(e) => patch("followup_message", e.target.value)}
+                    rows={3}
+                  />
+                </Field>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-3">
               {form.id && <Button variant="outline" onClick={() => setForm(emptyForm)}>Novo</Button>}
               <Button onClick={save} disabled={saving} className="gap-2">
@@ -445,14 +502,17 @@ function InstagramPage() {
       ) : (
         <div className="p-6">
           <div className="overflow-hidden rounded-lg border border-border bg-card">
-            <div className="grid grid-cols-[1fr_160px_130px_170px] border-b border-border px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <span>Lead</span><span>Telefone</span><span>Status</span><span>Data</span>
+            <div className="grid grid-cols-[1fr_150px_110px_130px_170px] border-b border-border px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>Lead</span><span>Telefone</span><span>Status</span><span>Follow-up</span><span>Data</span>
             </div>
             {submissions.map((lead) => (
-              <div key={lead.id} className="grid grid-cols-[1fr_160px_130px_170px] border-b border-border/60 px-4 py-3 text-sm last:border-0">
+              <div key={lead.id} className="grid grid-cols-[1fr_150px_110px_130px_170px] border-b border-border/60 px-4 py-3 text-sm last:border-0">
                 <span className="font-medium">{lead.name || "Sem nome"}</span>
                 <span className="text-muted-foreground">{lead.phone}</span>
                 <span className={lead.status === "sent" ? "text-emerald-500" : lead.status === "failed" ? "text-red-500" : "text-amber-500"}>{lead.status}</span>
+                <span className={lead.followup_status === "sent" ? "text-emerald-500" : lead.followup_status === "failed" ? "text-red-500" : "text-muted-foreground"}>
+                  {lead.followup_status || "-"}
+                </span>
                 <span className="text-muted-foreground">{new Date(lead.created_at).toLocaleString("pt-BR")}</span>
               </div>
             ))}

@@ -47,6 +47,7 @@ import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
 import { Route as ApiPublicInstagramLeadRouteImport } from './routes/api/public/instagram-lead'
+import { Route as ApiPublicInstagramFollowupTickRouteImport } from './routes/api/public/instagram-followup-tick'
 import { Route as ApiPublicCronScheduledRouteImport } from './routes/api/public/cron-scheduled'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron-reminders'
 import { Route as ApiPublicCronReactivationRouteImport } from './routes/api/public/cron-reactivation'
@@ -245,6 +246,12 @@ const ApiPublicInstagramLeadRoute =
     path: '/api/public/instagram-lead',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicInstagramFollowupTickRoute =
+  ApiPublicInstagramFollowupTickRouteImport.update({
+    id: '/api/public/instagram-followup-tick',
+    path: '/api/public/instagram-followup-tick',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronScheduledRoute = ApiPublicCronScheduledRouteImport.update({
   id: '/api/public/cron-scheduled',
   path: '/api/public/cron-scheduled',
@@ -313,6 +320,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron-reactivation': typeof ApiPublicCronReactivationRoute
   '/api/public/cron-reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
+  '/api/public/instagram-followup-tick': typeof ApiPublicInstagramFollowupTickRoute
   '/api/public/instagram-lead': typeof ApiPublicInstagramLeadRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
@@ -358,6 +366,7 @@ export interface FileRoutesByTo {
   '/api/public/cron-reactivation': typeof ApiPublicCronReactivationRoute
   '/api/public/cron-reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
+  '/api/public/instagram-followup-tick': typeof ApiPublicInstagramFollowupTickRoute
   '/api/public/instagram-lead': typeof ApiPublicInstagramLeadRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
@@ -404,6 +413,7 @@ export interface FileRoutesById {
   '/api/public/cron-reactivation': typeof ApiPublicCronReactivationRoute
   '/api/public/cron-reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/cron-scheduled': typeof ApiPublicCronScheduledRoute
+  '/api/public/instagram-followup-tick': typeof ApiPublicInstagramFollowupTickRoute
   '/api/public/instagram-lead': typeof ApiPublicInstagramLeadRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/workflow-tick': typeof ApiPublicWorkflowTickRoute
@@ -451,6 +461,7 @@ export interface FileRouteTypes {
     | '/api/public/cron-reactivation'
     | '/api/public/cron-reminders'
     | '/api/public/cron-scheduled'
+    | '/api/public/instagram-followup-tick'
     | '/api/public/instagram-lead'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
@@ -496,6 +507,7 @@ export interface FileRouteTypes {
     | '/api/public/cron-reactivation'
     | '/api/public/cron-reminders'
     | '/api/public/cron-scheduled'
+    | '/api/public/instagram-followup-tick'
     | '/api/public/instagram-lead'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
@@ -541,6 +553,7 @@ export interface FileRouteTypes {
     | '/api/public/cron-reactivation'
     | '/api/public/cron-reminders'
     | '/api/public/cron-scheduled'
+    | '/api/public/instagram-followup-tick'
     | '/api/public/instagram-lead'
     | '/api/public/whatsapp-webhook'
     | '/api/public/workflow-tick'
@@ -586,6 +599,7 @@ export interface RootRouteChildren {
   ApiPublicCronReactivationRoute: typeof ApiPublicCronReactivationRoute
   ApiPublicCronRemindersRoute: typeof ApiPublicCronRemindersRoute
   ApiPublicCronScheduledRoute: typeof ApiPublicCronScheduledRoute
+  ApiPublicInstagramFollowupTickRoute: typeof ApiPublicInstagramFollowupTickRoute
   ApiPublicInstagramLeadRoute: typeof ApiPublicInstagramLeadRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicWorkflowTickRoute: typeof ApiPublicWorkflowTickRoute
@@ -860,6 +874,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicInstagramLeadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/instagram-followup-tick': {
+      id: '/api/public/instagram-followup-tick'
+      path: '/api/public/instagram-followup-tick'
+      fullPath: '/api/public/instagram-followup-tick'
+      preLoaderRoute: typeof ApiPublicInstagramFollowupTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron-scheduled': {
       id: '/api/public/cron-scheduled'
       path: '/api/public/cron-scheduled'
@@ -949,6 +970,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronReactivationRoute: ApiPublicCronReactivationRoute,
   ApiPublicCronRemindersRoute: ApiPublicCronRemindersRoute,
   ApiPublicCronScheduledRoute: ApiPublicCronScheduledRoute,
+  ApiPublicInstagramFollowupTickRoute: ApiPublicInstagramFollowupTickRoute,
   ApiPublicInstagramLeadRoute: ApiPublicInstagramLeadRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicWorkflowTickRoute: ApiPublicWorkflowTickRoute,

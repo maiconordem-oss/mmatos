@@ -51,6 +51,8 @@ export const Route = createFileRoute("/api/public/instagram-lead")({
           keyword: magnet.keyword,
           manychat_ref: manychatRef,
           status: "pending",
+          followup_scheduled_at: scheduleLandingFollowup(magnet.followup_enabled, magnet.followup_hours),
+          followup_status: magnet.followup_enabled && Number(magnet.followup_hours) > 0 ? "pending" : "disabled",
         };
 
         const { data: submission } = await (supabaseAdmin as any)
@@ -96,7 +98,12 @@ export const Route = createFileRoute("/api/public/instagram-lead")({
           if (submission?.id) {
             await (supabaseAdmin as any)
               .from("instagram_lead_submissions")
-              .update({ status: "sent" })
+              .update({
+                status: "sent",
+                conversation_id: conversationId,
+                delivery_sent_at: new Date().toISOString(),
+                delivery_message_id: messageId,
+              })
               .eq("id", submission.id);
           }
 
@@ -121,6 +128,49 @@ function cleanSlug(value: string) {
 
 function interpolate(text: string, vars: Record<string, string>) {
   return text.replace(/\{\{\s*(nome|telefone|palavra)\s*\}\}/gi, (_, key) => vars[String(key).toLowerCase()] ?? "");
+}
+
+function scheduleLandingFollowup(enabled: boolean, hours: number | null) {
+  const delayHours = Number(hours ?? 0);
+  if (!enabled || delayHours <= 0) return null;
+  const target = new Date(Date.now() + delayHours * 60 * 60 * 1000);
+  return nextBusinessTime(target).toISOString();
+}
+
+function nextBusinessTime(date: Date) {
+  const scheduled = new Date(date);
+
+  for (let guard = 0; guard < 10; guard += 1) {
+    const brt = new Date(scheduled.getTime() - 3 * 60 * 60 * 1000);
+    const day = brt.getUTCDay();
+    const hour = brt.getUTCHours();
+    const isBusinessDay = day >= 1 && day <= 6;
+
+    if (!isBusinessDay) {
+      scheduled.setUTCDate(scheduled.getUTCDate() + (day === 0 ? 1 : 2));
+      setBrtHour(scheduled, 8);
+      continue;
+    }
+
+    if (hour < 8) {
+      setBrtHour(scheduled, 8);
+      return scheduled;
+    }
+
+    if (hour >= 18) {
+      scheduled.setUTCDate(scheduled.getUTCDate() + 1);
+      setBrtHour(scheduled, 8);
+      continue;
+    }
+
+    return scheduled;
+  }
+
+  return scheduled;
+}
+
+function setBrtHour(date: Date, hour: number) {
+  date.setUTCHours(hour + 3, 0, 0, 0);
 }
 
 async function upsertClient(userId: string, phone: string, name: string | null) {
