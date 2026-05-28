@@ -6,6 +6,7 @@ import {
   avatar, formatTime, formatMsgTime, hoursUntil, playbookForPhase, groupByDate,
   manualQuestionsForPhase, phaseGuidance, FASES, FASE_LABELS, FASE_COLORS, DADO_LABELS,
 } from "@/lib/inbox-helpers";
+import { getManualPlaybook, getManualStep } from "@/lib/manual-playbooks";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -152,6 +153,7 @@ type FunnelState = {
     media_video_documentos?: string | null;
     zapsign_template_id?: string | null;
     calendar_enabled?: boolean | null;
+    manual_playbook?: any;
   } | null;
 };
 
@@ -408,7 +410,7 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
   useEffect(() => {
     setLoading(true);
     supabase.from("funnel_states")
-      .select("id, funnel_id, fase, dados, midias_enviadas, funnels(name, persona_prompt, medias, media_video_abertura, media_video_conexao, media_audio_fechamento, media_video_documentos, zapsign_template_id, calendar_enabled)")
+      .select("id, funnel_id, fase, dados, midias_enviadas, funnels(name, persona_prompt, medias, manual_playbook, media_video_abertura, media_video_conexao, media_audio_fechamento, media_video_documentos, zapsign_template_id, calendar_enabled)")
       .eq("conversation_id", conv.id).maybeSingle()
       .then(({ data }) => {
         setState(data as any);
@@ -422,7 +424,9 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
   const dados = state?.dados ?? {};
   const dadosKeys = Object.keys(dados).filter(k => dados[k] && DADO_LABELS[k]);
   const funnel = state?.funnels as FunnelState["funnels"];
-  const phaseQuestions = manualQuestionsForPhase(guidePhase);
+  const manualPlaybook = getManualPlaybook(funnel);
+  const manualStep = getManualStep(manualPlaybook, guidePhase);
+  const phaseQuestions = manualStep.questions.length ? manualStep.questions : manualQuestionsForPhase(guidePhase);
   const guidance = phaseGuidance(guidePhase);
   const mediaEntries = mediaEntriesFromFunnel(funnel);
   const sentMedia = new Set(state?.midias_enviadas ?? []);
@@ -603,18 +607,38 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                 </span>
               </div>
               <div className="mb-3 rounded-lg bg-[#f0f2f5] px-2.5 py-2">
-                <p className="text-xs font-semibold text-[#111b21]">{guidance.title}</p>
-                <p className="mt-1 text-xs leading-relaxed text-[#54656f]">{guidance.goal}</p>
+                <p className="text-xs font-semibold text-[#111b21]">{manualStep.label || guidance.title}</p>
+                <p className="mt-1 text-xs leading-relaxed text-[#54656f]">{manualStep.goal || guidance.goal}</p>
                 <p className="mt-1 text-[11px] font-medium text-[#007a60]">{guidance.next}</p>
               </div>
-              <div className="mb-2 flex flex-wrap gap-1.5">
-                {playbookForPhase(guidePhase).map(item => (
-                  <span key={item} className="rounded-full bg-[#f8fffc] border border-[#d1e7dd] px-2 py-1 text-[10px] text-[#007a60]">
-                    {item}
-                  </span>
-                ))}
+              <div className="mb-3">
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Dados para coletar</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(manualStep.infoToCollect.length ? manualStep.infoToCollect : playbookForPhase(guidePhase)).map(item => (
+                    <span key={item} className="rounded-full bg-[#f8fffc] border border-[#d1e7dd] px-2 py-1 text-[10px] text-[#007a60]">
+                      {item}
+                    </span>
+                  ))}
+                </div>
               </div>
+              {manualStep.quickReplies.length > 0 && (
+                <div className="mb-3">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Respostas prontas</p>
+                  <div className="space-y-1.5">
+                    {manualStep.quickReplies.map(reply => (
+                      <button
+                        key={reply}
+                        onClick={() => onUseText?.(reply)}
+                        className="w-full rounded-lg border border-[#e9edef] bg-white px-2.5 py-2 text-left text-xs leading-relaxed text-[#111b21] hover:bg-[#f0f2f5]"
+                      >
+                        {reply}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Perguntas da etapa</p>
                 {phaseQuestions.map(question => (
                   <button
                     key={question}
@@ -623,6 +647,46 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                   >
                     {question}
                   </button>
+                ))}
+              </div>
+              {manualStep.objections.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Quebra de objeções</p>
+                  {manualStep.objections.map(objection => (
+                    <button
+                      key={objection.label}
+                      onClick={() => onUseText?.(objection.reply)}
+                      className="w-full rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-left hover:bg-amber-100"
+                    >
+                      <span className="block text-[11px] font-semibold text-amber-800">{objection.label}</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-amber-900">{objection.reply}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {manualStep.mediaSuggestions.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Áudios e materiais sugeridos</p>
+                  {manualStep.mediaSuggestions.map(media => (
+                    <button
+                      key={media.key}
+                      onClick={() => onUseText?.(media.script)}
+                      className="w-full rounded-lg border border-[#e9edef] bg-[#f9fafb] px-2.5 py-2 text-left hover:bg-[#f0f2f5]"
+                    >
+                      <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#111b21]">
+                        {media.type === "audio" ? <Mic className="h-3.5 w-3.5 text-violet-500" /> : <Video className="h-3.5 w-3.5 text-blue-500" />}
+                        {media.title}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] leading-relaxed text-[#54656f]">{media.script}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {playbookForPhase(guidePhase).map(item => (
+                  <span key={item} className="rounded-full bg-[#f0f2f5] px-2 py-1 text-[10px] text-[#54656f]">
+                    {item}
+                  </span>
                 ))}
               </div>
             </div>
@@ -1165,7 +1229,7 @@ function InboxPage() {
 
   const refreshActiveFunnelState = useCallback(async (conversationId: string) => {
     const { data } = await supabase.from("funnel_states")
-      .select("id, funnel_id, fase, dados, midias_enviadas, funnels(name)")
+      .select("id, funnel_id, fase, dados, midias_enviadas, funnels(name, manual_playbook)")
       .eq("conversation_id", conversationId)
       .maybeSingle();
     setActiveFunnelState(data as any);
@@ -1858,6 +1922,11 @@ function InboxPage() {
     ? messages.filter(m => m.content?.toLowerCase().includes(searchMsg.toLowerCase()))
     : messages;
   const grouped = groupByDate(displayMessages);
+  const activeManualPlaybook = getManualPlaybook(activeFunnelState?.funnels as any);
+  const activeManualStep = getManualStep(activeManualPlaybook, activeFunnelState?.fase);
+  const activeManualQuestions = activeManualStep.questions.length
+    ? activeManualStep.questions
+    : manualQuestionsForPhase(activeFunnelState?.fase);
   return (
     <div className="inbox-whatsapp relative flex h-full w-full flex-1 overflow-hidden" style={{ background: "#f0f2f5" }}>
       <Toaster />
@@ -2402,7 +2471,7 @@ function InboxPage() {
                       </Badge>
                     </div>
                     <ul className="grid gap-1">
-                      {playbookForPhase(activeFunnelState?.fase).map(item => (
+                      {(activeManualStep.infoToCollect.length ? activeManualStep.infoToCollect : playbookForPhase(activeFunnelState?.fase)).map(item => (
                         <li key={item} className="flex items-start gap-2 text-xs text-[#111b21]">
                           <CheckCheck className="h-3 w-3 mt-0.5 text-[#00a884] shrink-0" />
                           <span>{item}</span>
@@ -2410,7 +2479,7 @@ function InboxPage() {
                       ))}
                     </ul>
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {manualQuestionsForPhase(activeFunnelState?.fase).map(question => (
+                      {activeManualQuestions.map(question => (
                         <button
                           key={question}
                           onClick={() => {
@@ -2423,6 +2492,22 @@ function InboxPage() {
                         </button>
                       ))}
                     </div>
+                    {activeManualStep.objections.length > 0 && (
+                      <div className="mt-3 grid gap-1.5">
+                        {activeManualStep.objections.map(objection => (
+                          <button
+                            key={objection.label}
+                            onClick={() => {
+                              setText(objection.reply);
+                              setTimeout(() => textareaRef.current?.focus(), 0);
+                            }}
+                            className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-left text-xs text-amber-900 hover:bg-amber-100"
+                          >
+                            <span className="font-semibold">{objection.label}: </span>{objection.reply}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {assignmentEvents.length > 0 && (

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { DEFAULT_BPC_MANUAL_PLAYBOOK } from "@/lib/manual-playbooks";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Plus, Bot, Video, Mic, FileText, Pencil, Trash2,
@@ -46,6 +47,7 @@ type Funil = {
   zapsign_template_id: string | null;
   followup_hours: number | null;
   followup_msg: string | null;
+  manual_playbook?: any;
 };
 
 const DEFAULT_FOLLOWUP_MESSAGE = "Oi! Passaram alguns dias e eu queria saber se voce conseguiu ver minha ultima mensagem. Ainda posso te ajudar com isso?";
@@ -58,6 +60,7 @@ const EMPTY: any = {
   media_video_abertura: null, media_video_conexao: null,
   media_audio_fechamento: null, media_video_documentos: null,
   zapsign_template_id: null,
+  manual_playbook: {},
 };
 
 const PROMPT_CRECHE = `IDENTIDADE
@@ -225,6 +228,35 @@ function FunisPage() {
     await supabase.from("funnels").update({ is_default: true }).eq("id", f.id); load();
   };
 
+  const createManualBpcFunnel = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const payload = {
+        user_id: user.id,
+        name: DEFAULT_BPC_MANUAL_PLAYBOOK.name,
+        description: DEFAULT_BPC_MANUAL_PLAYBOOK.description,
+        is_active: true,
+        is_default: false,
+        persona_prompt: "Funil manual BPC/LOAS. Use o playbook visual no Inbox para conduzir perguntas, respostas, objeções e documentos. A IA deve permanecer pausada quando o atendimento humano assumir.",
+        proposal_value: null,
+        proposal_is_free: false,
+        followup_hours: 48,
+        followup_msg: "Oi! Passaram alguns dias e eu queria saber se você conseguiu separar os documentos do BPC. Posso te ajudar a continuar por aqui?",
+        manual_playbook: DEFAULT_BPC_MANUAL_PLAYBOOK,
+        medias: {},
+      };
+      const { error } = await (supabase as any).from("funnels").insert(payload);
+      if (error) throw error;
+      toast.success("Funil manual BPC criado!");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao criar funil manual");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const openSim = (f: Funil) => {
     setSimFunil(f); setSimMsg("oi"); setSimConvId(null); setSimMessages([]); setSimInput(""); setSimOpen(true);
   };
@@ -268,7 +300,12 @@ function FunisPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Configure o atendimento automático via WhatsApp — do primeiro contato ao contrato assinado.</p>
         </div>
-        <Button onClick={() => navigate({ to: "/construtor" })} className="gap-2"><Plus className="h-4 w-4" /> Novo funil</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={createManualBpcFunnel} disabled={saving} className="gap-2">
+            <MessageSquare className="h-4 w-4" /> Manual BPC
+          </Button>
+          <Button onClick={() => navigate({ to: "/construtor" })} className="gap-2"><Plus className="h-4 w-4" /> Novo funil</Button>
+        </div>
       </header>
 
       {funis.length === 0 && (
@@ -288,6 +325,7 @@ function FunisPage() {
                   <h2 className="font-semibold text-lg">{f.name}</h2>
                   {f.is_default && <Badge className="bg-green-500/20 text-green-700 border-green-500/30">Padrão</Badge>}
                   <Badge variant={f.is_active ? "default" : "secondary"}>{f.is_active ? "Ativo" : "Inativo"}</Badge>
+                  {(f.manual_playbook as any)?.steps?.length && <Badge variant="outline" className="text-blue-600">Manual</Badge>}
                   {f.proposal_is_free
                     ? <Badge variant="outline" className="text-emerald-600">Gratuito</Badge>
                     : f.proposal_value
