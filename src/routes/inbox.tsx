@@ -1859,7 +1859,7 @@ function InboxPage() {
     : messages;
   const grouped = groupByDate(displayMessages);
   return (
-    <div className="relative flex h-full w-full flex-1 overflow-hidden" style={{ background: "#f0f2f5" }}>
+    <div className="inbox-whatsapp relative flex h-full w-full flex-1 overflow-hidden" style={{ background: "#f0f2f5" }}>
       <Toaster />
 
       {/* ── SIDEBAR ── */}

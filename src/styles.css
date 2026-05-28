@@ -142,3 +142,43 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
+
+@layer components {
+  .inbox-whatsapp {
+    font-size: 16px;
+  }
+
+  .inbox-whatsapp .text-\[9px\] {
+    font-size: 10.5px !important;
+  }
+
+  .inbox-whatsapp .text-\[10px\] {
+    font-size: 11.5px !important;
+  }
+
+  .inbox-whatsapp .text-\[11px\] {
+    font-size: 12.5px !important;
+  }
+
+  .inbox-whatsapp .text-xs {
+    font-size: 13.5px !important;
+    line-height: 1.35rem !important;
+  }
+
+  .inbox-whatsapp .text-sm {
+    font-size: 15px !important;
+    line-height: 1.45rem !important;
+  }
+
+  .inbox-whatsapp .text-base {
+    font-size: 17px !important;
+    line-height: 1.55rem !important;
+  }
+
+  .inbox-whatsapp input,
+  .inbox-whatsapp textarea,
+  .inbox-whatsapp select,
+  .inbox-whatsapp button {
+    font-size-adjust: none;
+  }
+}
