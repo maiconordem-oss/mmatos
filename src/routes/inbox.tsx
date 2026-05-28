@@ -432,7 +432,7 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
   const sentMedia = new Set(state?.midias_enviadas ?? []);
 
   return (
-    <div className="absolute inset-y-0 right-0 z-30 flex w-full max-w-[420px] flex-col border-l border-[#d1d7db] shadow-2xl" style={{ background: "#f0f2f5" }}>
+    <div className="absolute inset-y-0 right-0 z-30 flex w-full max-w-[min(640px,100vw)] flex-col border-l border-[#d1d7db] shadow-2xl" style={{ background: "#f0f2f5" }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#e9edef]" style={{ background: "#f0f2f5" }}>
         <span className="text-[#111b21] text-base font-semibold">Ficha do Lead</span>
@@ -441,7 +441,7 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
         {/* Identidade */}
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
@@ -560,38 +560,40 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
               </div>
             )}
 
-            <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
+            <div className="rounded-lg p-4 border border-[#e9edef] bg-white">
               <div className="flex items-center justify-between gap-2 mb-3">
-                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Funil de atendimento</p>
-                <span className="text-[10px] text-[#8696a0]">clique na etapa</span>
+                <div>
+                  <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Funil de atendimento</p>
+                  <p className="text-sm font-semibold text-[#111b21]">{manualPlaybook.name}</p>
+                </div>
+                <span className="text-[10px] text-[#8696a0]">clique para consultar</span>
               </div>
-              <div className="space-y-1.5">
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
                 {FASES.map((fase, i) => {
                   const done = i < faseIdx;
                   const current = i === faseIdx;
                   const selected = fase === guidePhase;
                   const color = FASE_COLORS[fase] || "#00a884";
-                  const width = `${100 - i * 5}%`;
 
                   return (
                     <button
                       key={fase}
                       type="button"
                       onClick={() => setSelectedPhase(fase)}
-                      className="relative mx-auto flex h-9 items-center justify-center px-5 text-center text-[11px] font-semibold text-white transition-transform hover:scale-[1.01]"
+                      className="flex min-h-[74px] flex-col items-center justify-start gap-1 rounded-lg border px-2 py-2 text-center transition hover:bg-[#f0f2f5]"
                       style={{
-                        width,
-                        background: color,
-                        clipPath: "polygon(8% 0, 92% 0, 84% 100%, 16% 100%)",
-                        opacity: selected || current || done ? 1 : 0.58,
-                        boxShadow: selected ? `0 0 0 2px ${color}55` : "none",
+                        borderColor: selected ? color : "#e9edef",
+                        background: selected ? `${color}12` : done ? "#f8fffc" : "white",
                       }}
                       title={phaseGuidance(fase).title}
                     >
-                      <span className="truncate drop-shadow-sm">{FASE_LABELS[fase]}</span>
-                      {current && (
-                        <span className="absolute right-5 rounded-full bg-white/25 px-1.5 py-0.5 text-[9px]">atual</span>
-                      )}
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: color }}>
+                        {done ? <CheckCheck className="h-3.5 w-3.5" /> : i + 1}
+                      </span>
+                      <span className="text-[10px] font-semibold leading-tight text-[#111b21]">{FASE_LABELS[fase]}</span>
+                      <span className="text-[9px] font-medium" style={{ color: current || selected ? color : "#8696a0" }}>
+                        {current ? "atual" : done ? "feito" : selected ? "visualizando" : "pendente"}
+                      </span>
                     </button>
                   );
                 })}
@@ -599,20 +601,22 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
             </div>
 
             {/* Perguntas do funil */}
-            <div className="rounded-lg p-3 border border-[#e9edef] bg-white">
+            <div className="rounded-lg p-4 border border-[#e9edef] bg-white">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Roteiro da etapa</p>
+                <div>
+                  <p className="text-[10px] text-[#8696a0] uppercase tracking-wide">Roteiro da etapa</p>
+                  <p className="text-base font-semibold text-[#111b21]">{manualStep.label || guidance.title}</p>
+                </div>
                 <span className="rounded-full px-1.5 py-0.5 text-[10px]" style={{ background: (FASE_COLORS[guidePhase] || "#00a884") + "24", color: FASE_COLORS[guidePhase] || "#007a60" }}>
                   {FASE_LABELS[guidePhase] || "Atendimento"}
                 </span>
               </div>
-              <div className="mb-3 rounded-lg bg-[#f0f2f5] px-2.5 py-2">
-                <p className="text-xs font-semibold text-[#111b21]">{manualStep.label || guidance.title}</p>
-                <p className="mt-1 text-xs leading-relaxed text-[#54656f]">{manualStep.goal || guidance.goal}</p>
-                <p className="mt-1 text-[11px] font-medium text-[#007a60]">{guidance.next}</p>
+              <div className="mb-3 rounded-lg bg-[#f0f2f5] px-3 py-2.5">
+                <p className="text-sm leading-relaxed text-[#54656f]">{manualStep.goal || guidance.goal}</p>
+                <p className="mt-1 text-xs font-medium text-[#007a60]">{guidance.next}</p>
               </div>
-              <div className="mb-3">
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Dados para coletar</p>
+              <div className="mb-3 rounded-lg border border-[#e9edef] bg-[#fbfbfb] p-3">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Dados para coletar</p>
                 <div className="flex flex-wrap gap-1.5">
                   {(manualStep.infoToCollect.length ? manualStep.infoToCollect : playbookForPhase(guidePhase)).map(item => (
                     <span key={item} className="rounded-full bg-[#f8fffc] border border-[#d1e7dd] px-2 py-1 text-[10px] text-[#007a60]">
@@ -622,8 +626,8 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                 </div>
               </div>
               {manualStep.quickReplies.length > 0 && (
-                <div className="mb-3">
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Respostas prontas</p>
+                <div className="mb-3 rounded-lg border border-[#e9edef] bg-[#fbfbfb] p-3">
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Respostas prontas</p>
                   <div className="space-y-1.5">
                     {manualStep.quickReplies.map(reply => (
                       <button
@@ -637,8 +641,9 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                   </div>
                 </div>
               )}
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Perguntas da etapa</p>
+              <div className="rounded-lg border border-[#e9edef] bg-[#fbfbfb] p-3">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Perguntas da etapa</p>
+                <div className="space-y-1.5">
                 {phaseQuestions.map(question => (
                   <button
                     key={question}
@@ -648,30 +653,33 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                     {question}
                   </button>
                 ))}
+                </div>
               </div>
               {manualStep.objections.length > 0 && (
-                <div className="mt-3 space-y-1.5">
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Quebra de objeções</p>
+                  <div className="space-y-1.5">
                   {manualStep.objections.map(objection => (
                     <button
                       key={objection.label}
                       onClick={() => onUseText?.(objection.reply)}
-                      className="w-full rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-left hover:bg-amber-100"
+                      className="w-full rounded-lg border border-amber-200 bg-white/70 px-2.5 py-2 text-left hover:bg-white"
                     >
                       <span className="block text-[11px] font-semibold text-amber-800">{objection.label}</span>
                       <span className="mt-0.5 block text-xs leading-relaxed text-amber-900">{objection.reply}</span>
                     </button>
                   ))}
+                  </div>
                 </div>
               )}
               {manualStep.mediaSuggestions.length > 0 && (
-                <div className="mt-3 space-y-1.5">
+                <div className="mt-3 space-y-1.5 rounded-lg border border-[#e9edef] bg-[#fbfbfb] p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Áudios e materiais sugeridos</p>
                   {manualStep.mediaSuggestions.map(media => (
                     <button
                       key={media.key}
                       onClick={() => onUseText?.(media.script)}
-                      className="w-full rounded-lg border border-[#e9edef] bg-[#f9fafb] px-2.5 py-2 text-left hover:bg-[#f0f2f5]"
+                      className="w-full rounded-lg border border-[#e9edef] bg-white px-2.5 py-2 text-left hover:bg-[#f0f2f5]"
                     >
                       <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#111b21]">
                         {media.type === "audio" ? <Mic className="h-3.5 w-3.5 text-violet-500" /> : <Video className="h-3.5 w-3.5 text-blue-500" />}
