@@ -95,6 +95,7 @@ const productLandings = [
   { slug: "guia-recurso", path: "/guia-recurso", fileName: "guia_recurso_v2.pdf" },
   { slug: "guia-aposentadoria", path: "/guia-aposentadoria", fileName: "guia_aposentadoria_v2.pdf" },
   { slug: "guia-auxilio", path: "/guia-auxilio", fileName: "guia_auxilio_doenca_v2.pdf" },
+  { slug: "bpc-loas", path: "/bpc", fileName: "guia_bpc_loas.pdf" },
 ].map((item) => {
   const landing = leadMagnetLandings[item.slug];
   return {

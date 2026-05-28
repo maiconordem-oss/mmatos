@@ -34,6 +34,7 @@ import { Route as ConteudoRouteImport } from './routes/conteudo'
 import { Route as ConhecimentoRouteImport } from './routes/conhecimento'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
+import { Route as BpcRouteImport } from './routes/bpc'
 import { Route as AgentesRouteImport } from './routes/agentes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CapturaSlugRouteImport } from './routes/captura.$slug'
@@ -181,6 +182,11 @@ const ClientesRoute = ClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BpcRoute = BpcRouteImport.update({
+  id: '/bpc',
+  path: '/bpc',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AgentesRoute = AgentesRouteImport.update({
   id: '/agentes',
   path: '/agentes',
@@ -295,6 +301,7 @@ const ApiPublicCronDatajudRoute = ApiPublicCronDatajudRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agentes': typeof AgentesRoute
+  '/bpc': typeof BpcRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/conhecimento': typeof ConhecimentoRoute
@@ -343,6 +350,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agentes': typeof AgentesRoute
+  '/bpc': typeof BpcRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/conhecimento': typeof ConhecimentoRoute
@@ -392,6 +400,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/agentes': typeof AgentesRoute
+  '/bpc': typeof BpcRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/conhecimento': typeof ConhecimentoRoute
@@ -442,6 +451,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/agentes'
+    | '/bpc'
     | '/clientes'
     | '/configuracoes'
     | '/conhecimento'
@@ -490,6 +500,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/agentes'
+    | '/bpc'
     | '/clientes'
     | '/configuracoes'
     | '/conhecimento'
@@ -538,6 +549,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/agentes'
+    | '/bpc'
     | '/clientes'
     | '/configuracoes'
     | '/conhecimento'
@@ -587,6 +599,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgentesRoute: typeof AgentesRoute
+  BpcRoute: typeof BpcRoute
   ClientesRoute: typeof ClientesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   ConhecimentoRoute: typeof ConhecimentoRoute
@@ -816,6 +829,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AgentesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bpc': {
+      id: '/bpc'
+      path: '/bpc'
+      fullPath: '/bpc'
+      preLoaderRoute: typeof BpcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -974,6 +994,7 @@ const WorkflowsRouteWithChildren = WorkflowsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgentesRoute: AgentesRoute,
+  BpcRoute: BpcRoute,
   ClientesRoute: ClientesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   ConhecimentoRoute: ConhecimentoRoute,

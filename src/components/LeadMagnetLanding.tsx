@@ -146,6 +146,39 @@ export const leadMagnetLandings: Record<string, LeadMagnetLandingConfig> = {
     keyword: "AUXILIO",
     footerProduct: "este guia",
   },
+  "bpc-loas": {
+    slug: "bpc-loas",
+    title: "Guia do BPC/LOAS",
+    metaTitle: "Guia do BPC/LOAS | Maicon Matos",
+    badge: "Material Gratuito - BPC/LOAS",
+    heroLines: ["Guia do", "BPC/LOAS", "INSS"],
+    heroSub: "Entenda quem tem direito, quais documentos importam e por que tantos pedidos são negados pelo INSS.",
+    painTitle: "Você está nessa situação?",
+    pains: [
+      "Tem idoso com 65 anos ou mais na família e não sabe se ele pode receber o BPC",
+      "A pessoa tem deficiência ou doença grave, mas o INSS negou o pedido",
+      "A renda da casa é baixa e você não sabe como provar isso corretamente",
+      "O CadÚnico está desatualizado ou você não sabe quais documentos juntar",
+    ],
+    sectionLabel: "O que está dentro do material",
+    sectionTitle: "O caminho do BPC",
+    sectionHighlight: "sem enrolação.",
+    items: [
+      "Quem pode receber BPC: idoso, pessoa com deficiência e baixa renda",
+      "CadÚnico, NIS e renda familiar: o que realmente precisa estar certo",
+      "Documentos médicos e sociais que fortalecem o pedido",
+      "O que fazer quando o INSS nega ou corta o benefício",
+      "Erros comuns que atrasam ou prejudicam a análise",
+    ],
+    questions: [
+      { question: "O BPC seria para quem?", options: ["Pessoa idosa 65+", "Pessoa com deficiência/doença", "Ainda não sei"] },
+      { question: "Qual é a situação hoje?", options: ["Ainda não pedi", "Está em análise", "Foi negado ou cortado"] },
+      { question: "A família tem CadÚnico atualizado?", options: ["Sim", "Não", "Não sei"] },
+    ],
+    whatsappTitle: "Para qual WhatsApp envio seu Guia do BPC/LOAS?",
+    keyword: "BPC",
+    footerProduct: "este guia",
+  },
 };
 
 export function LeadMagnetLanding({ config }: { config: LeadMagnetLandingConfig }) {
