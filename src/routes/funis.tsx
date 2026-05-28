@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   Plus, Bot, Video, Mic, FileText, Pencil, Trash2,
   ChevronDown, ChevronUp, ExternalLink, FlaskConical,
-  RotateCcw, MessageSquare, Send, ArrowRight,
+  RotateCcw, MessageSquare, Send, ArrowRight, ClipboardList,
 } from "lucide-react";
 
 export const Route = createFileRoute("/funis")({
@@ -51,6 +51,36 @@ type Funil = {
 };
 
 const DEFAULT_FOLLOWUP_MESSAGE = "Oi! Passaram alguns dias e eu queria saber se voce conseguiu ver minha ultima mensagem. Ainda posso te ajudar com isso?";
+
+const cloneBpcPlaybook = () => JSON.parse(JSON.stringify(DEFAULT_BPC_MANUAL_PLAYBOOK));
+
+const listToText = (items?: string[]) => (items ?? []).join("\n");
+const textToList = (value: string) => value.split("\n").map(item => item.trim()).filter(Boolean);
+
+const objectionsToText = (items?: any[]) => (items ?? [])
+  .map(item => `${item.label ?? ""} :: ${item.reply ?? ""}`.trim())
+  .filter(Boolean)
+  .join("\n");
+
+const textToObjections = (value: string) => textToList(value).map(line => {
+  const [label, ...replyParts] = line.split("::");
+  return { label: label.trim(), reply: replyParts.join("::").trim() || line.trim() };
+}).filter(item => item.label && item.reply);
+
+const mediaSuggestionsToText = (items?: any[]) => (items ?? [])
+  .map(item => `${item.key ?? ""} | ${item.type ?? "audio"} | ${item.title ?? ""} | ${item.script ?? ""}`.trim())
+  .filter(Boolean)
+  .join("\n");
+
+const textToMediaSuggestions = (value: string) => textToList(value).map(line => {
+  const [key, type, title, ...scriptParts] = line.split("|").map(part => part.trim());
+  return {
+    key,
+    type: ["audio", "video", "documento"].includes(type) ? type : "audio",
+    title: title || key,
+    script: scriptParts.join(" | ") || title || key,
+  };
+}).filter(item => item.key && item.title && item.script);
 
 const EMPTY: any = {
   name: "", description: "", is_active: true, is_default: false,
@@ -189,8 +219,25 @@ function FunisPage() {
     if ((f as any).media_video_conexao)    legacy.video_conexao    = (f as any).media_video_conexao;
     if ((f as any).media_audio_fechamento) legacy.audio_fechamento = (f as any).media_audio_fechamento;
     if ((f as any).media_video_documentos) legacy.video_documentos = (f as any).media_video_documentos;
-    setForm({ ...f, medias: Object.keys(existingMedias).length > 0 ? existingMedias : legacy });
+    setForm({
+      ...f,
+      medias: Object.keys(existingMedias).length > 0 ? existingMedias : legacy,
+      manual_playbook: (f.manual_playbook as any)?.steps?.length ? f.manual_playbook : {},
+    });
     setOpen(true);
+  };
+
+  const updateManualStep = (stepId: string, patch: Record<string, any>) => {
+    const current = (form.manual_playbook as any)?.steps?.length
+      ? form.manual_playbook
+      : cloneBpcPlaybook();
+    setForm({
+      ...form,
+      manual_playbook: {
+        ...current,
+        steps: current.steps.map((step: any) => step.id === stepId ? { ...step, ...patch } : step),
+      },
+    });
   };
 
   const save = async () => {
@@ -523,6 +570,93 @@ function FunisPage() {
               <p className="font-medium text-sm">📲 Notificação de contrato</p>
               <Label className="text-xs">Seu número WhatsApp (com DDI) para receber alerta</Label>
               <Input value={form.notify_phone ?? ""} onChange={(e) => setForm({ ...form, notify_phone: e.target.value })} placeholder="5551999999999" />
+            </div>
+
+            {/* Playbook manual */}
+            <div className="border rounded-lg p-4 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-sm flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4" /> Funil manual visual
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Edite o roteiro que aparece na Ficha do Lead dentro do Inbox.
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, manual_playbook: cloneBpcPlaybook() })}>
+                    Usar modelo BPC
+                  </Button>
+                  {(form.manual_playbook as any)?.steps?.length && (
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setForm({ ...form, manual_playbook: {} })}>
+                      Desativar
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {!(form.manual_playbook as any)?.steps?.length ? (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  Nenhum roteiro manual configurado neste funil. Clique em "Usar modelo BPC" para criar um roteiro editável.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Nome do roteiro</Label>
+                      <Input value={(form.manual_playbook as any).name ?? ""} onChange={(e) => setForm({ ...form, manual_playbook: { ...form.manual_playbook, name: e.target.value } })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Área</Label>
+                      <Input value={(form.manual_playbook as any).area ?? ""} onChange={(e) => setForm({ ...form, manual_playbook: { ...form.manual_playbook, area: e.target.value } })} />
+                    </div>
+                    <div className="col-span-2">
+                      <Label className="text-xs">Descrição</Label>
+                      <Input value={(form.manual_playbook as any).description ?? ""} onChange={(e) => setForm({ ...form, manual_playbook: { ...form.manual_playbook, description: e.target.value } })} />
+                    </div>
+                  </div>
+
+                  {(form.manual_playbook as any).steps.map((step: any) => (
+                    <details key={step.id} className="rounded-lg border bg-muted/10" open={step.id === "abertura"}>
+                      <summary className="cursor-pointer px-3 py-2 text-sm font-medium">{step.label || step.id}</summary>
+                      <div className="space-y-3 border-t p-3">
+                        <div>
+                          <Label className="text-xs">Nome da etapa</Label>
+                          <Input value={step.label ?? ""} onChange={(e) => updateManualStep(step.id, { label: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Objetivo da etapa</Label>
+                          <Textarea rows={2} value={step.goal ?? ""} onChange={(e) => updateManualStep(step.id, { goal: e.target.value })} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs">Dados para coletar, um por linha</Label>
+                            <Textarea rows={5} value={listToText(step.infoToCollect)} onChange={(e) => updateManualStep(step.id, { infoToCollect: textToList(e.target.value) })} />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Perguntas da etapa, uma por linha</Label>
+                            <Textarea rows={5} value={listToText(step.questions)} onChange={(e) => updateManualStep(step.id, { questions: textToList(e.target.value) })} />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Respostas prontas, uma por linha</Label>
+                          <Textarea rows={4} value={listToText(step.quickReplies)} onChange={(e) => updateManualStep(step.id, { quickReplies: textToList(e.target.value) })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Objeções</Label>
+                          <p className="text-[11px] text-muted-foreground mb-1">Formato: Objeção :: resposta pronta</p>
+                          <Textarea rows={4} value={objectionsToText(step.objections)} onChange={(e) => updateManualStep(step.id, { objections: textToObjections(e.target.value) })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Áudios, vídeos ou materiais sugeridos</Label>
+                          <p className="text-[11px] text-muted-foreground mb-1">Formato: chave | audio | título | roteiro ou observação</p>
+                          <Textarea rows={4} value={mediaSuggestionsToText(step.mediaSuggestions)} onChange={(e) => updateManualStep(step.id, { mediaSuggestions: textToMediaSuggestions(e.target.value) })} />
+                        </div>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Google Calendar */}
