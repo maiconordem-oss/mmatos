@@ -615,25 +615,25 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                 <p className="text-sm leading-relaxed text-[#54656f]">{manualStep.goal || guidance.goal}</p>
                 <p className="mt-1 text-xs font-medium text-[#007a60]">{guidance.next}</p>
               </div>
-              <div className="mb-3 rounded-lg border border-[#e9edef] bg-[#fbfbfb] p-3">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Dados para coletar</p>
+              <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">Dados para coletar</p>
                 <div className="flex flex-wrap gap-1.5">
                   {(manualStep.infoToCollect.length ? manualStep.infoToCollect : playbookForPhase(guidePhase)).map(item => (
-                    <span key={item} className="rounded-full bg-[#f8fffc] border border-[#d1e7dd] px-2 py-1 text-[10px] text-[#007a60]">
+                    <span key={item} className="rounded-full bg-white/80 border border-emerald-200 px-2 py-1 text-[10px] font-medium text-emerald-800">
                       {item}
                     </span>
                   ))}
                 </div>
               </div>
               {manualStep.quickReplies.length > 0 && (
-                <div className="mb-3 rounded-lg border border-[#e9edef] bg-[#fbfbfb] p-3">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Respostas prontas</p>
+                <div className="mb-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-sky-800">Respostas prontas</p>
                   <div className="space-y-1.5">
                     {manualStep.quickReplies.map(reply => (
                       <button
                         key={reply}
                         onClick={() => onUseText?.(reply)}
-                        className="w-full rounded-lg border border-[#e9edef] bg-white px-2.5 py-2 text-left text-xs leading-relaxed text-[#111b21] hover:bg-[#f0f2f5]"
+                        className="w-full rounded-lg border border-sky-200 bg-white/80 px-2.5 py-2 text-left text-xs leading-relaxed text-sky-950 hover:bg-white"
                       >
                         {reply}
                       </button>
@@ -641,14 +641,14 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                   </div>
                 </div>
               )}
-              <div className="rounded-lg border border-[#e9edef] bg-[#fbfbfb] p-3">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Perguntas da etapa</p>
+              <div className="rounded-lg border border-teal-200 bg-teal-50 p-3">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-teal-800">Perguntas da etapa</p>
                 <div className="space-y-1.5">
                 {phaseQuestions.map(question => (
                   <button
                     key={question}
                     onClick={() => onUseText?.(question)}
-                    className="w-full rounded-lg border border-[#d1e7dd] bg-[#f8fffc] px-2.5 py-2 text-left text-xs leading-relaxed text-[#007a60] hover:bg-[#e8f5f1]"
+                    className="w-full rounded-lg border border-teal-200 bg-white/80 px-2.5 py-2 text-left text-xs leading-relaxed text-teal-900 hover:bg-white"
                   >
                     {question}
                   </button>
@@ -657,7 +657,7 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
               </div>
               {manualStep.objections.length > 0 && (
                 <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Quebra de objeções</p>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Quebra de objeções</p>
                   <div className="space-y-1.5">
                   {manualStep.objections.map(objection => (
                     <button
@@ -673,13 +673,13 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                 </div>
               )}
               {manualStep.mediaSuggestions.length > 0 && (
-                <div className="mt-3 space-y-1.5 rounded-lg border border-[#e9edef] bg-[#fbfbfb] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8696a0]">Áudios e materiais sugeridos</p>
+                <div className="mt-3 space-y-1.5 rounded-lg border border-violet-200 bg-violet-50 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-800">Áudios e materiais sugeridos</p>
                   {manualStep.mediaSuggestions.map(media => (
                     <button
                       key={media.key}
                       onClick={() => onUseText?.(media.script)}
-                      className="w-full rounded-lg border border-[#e9edef] bg-white px-2.5 py-2 text-left hover:bg-[#f0f2f5]"
+                      className="w-full rounded-lg border border-violet-200 bg-white/80 px-2.5 py-2 text-left hover:bg-white"
                     >
                       <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#111b21]">
                         {media.type === "audio" ? <Mic className="h-3.5 w-3.5 text-violet-500" /> : <Video className="h-3.5 w-3.5 text-blue-500" />}
