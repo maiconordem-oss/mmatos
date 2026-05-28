@@ -98,7 +98,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     }
     if (["/inbox", "/kanban", "/clientes", "/dashboard"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, atendimento: true }));
-    } else if (["/construtor", "/funis", "/templates", "/conhecimento", "/manual", "/instagram"].some(p => path.startsWith(p))) {
+    } else if (["/construtor", "/funis", "/templates", "/conteudo", "/conhecimento", "/manual", "/instagram"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, automacao: true }));
     } else if (["/contratos", "/relatorios"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, juridico: true }));
@@ -127,6 +127,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
         { to: "/construtor",   label: "Criar atendimento",  icon: Zap },
         { to: "/funis",        label: "Meus atendimentos",  icon: Bot },
         { to: "/templates",    label: "Respostas prontas",  icon: Zap },
+        { to: "/conteudo",     label: "Conteúdo",           icon: FileText },
         { to: "/instagram",     label: "Instagram",          icon: Instagram },
         { to: "/conhecimento", label: "Conhecimento da IA", icon: BookOpenIcon },
         { to: "/manual",       label: "Ajuda de prompts",   icon: BookOpen },

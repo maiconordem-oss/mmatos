@@ -30,6 +30,7 @@ import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ConstrutorRouteImport } from './routes/construtor'
+import { Route as ConteudoRouteImport } from './routes/conteudo'
 import { Route as ConhecimentoRouteImport } from './routes/conhecimento'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
@@ -41,6 +42,7 @@ import { Route as ApiSimulateRouteImport } from './routes/api/simulate'
 import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
 import { Route as ApiLeadMagnetUploadRouteImport } from './routes/api/lead-magnet-upload'
 import { Route as ApiGeneratePromptRouteImport } from './routes/api/generate-prompt'
+import { Route as ApiContentGenerateRouteImport } from './routes/api/content-generate'
 import { Route as ApiDiagnosticoRouteImport } from './routes/api/diagnostico'
 import { Route as ApiDebugWebhookRouteImport } from './routes/api/debug-webhook'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
@@ -159,6 +161,11 @@ const ConstrutorRoute = ConstrutorRouteImport.update({
   path: '/construtor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConteudoRoute = ConteudoRouteImport.update({
+  id: '/conteudo',
+  path: '/conteudo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConhecimentoRoute = ConhecimentoRouteImport.update({
   id: '/conhecimento',
   path: '/conhecimento',
@@ -212,6 +219,11 @@ const ApiLeadMagnetUploadRoute = ApiLeadMagnetUploadRouteImport.update({
 const ApiGeneratePromptRoute = ApiGeneratePromptRouteImport.update({
   id: '/api/generate-prompt',
   path: '/api/generate-prompt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiContentGenerateRoute = ApiContentGenerateRouteImport.update({
+  id: '/api/content-generate',
+  path: '/api/content-generate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDiagnosticoRoute = ApiDiagnosticoRouteImport.update({
@@ -286,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/conhecimento': typeof ConhecimentoRoute
+  '/conteudo': typeof ConteudoRoute
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
@@ -308,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
+  '/api/content-generate': typeof ApiContentGenerateRoute
   '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/lead-magnet-upload': typeof ApiLeadMagnetUploadRoute
@@ -332,6 +346,7 @@ export interface FileRoutesByTo {
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/conhecimento': typeof ConhecimentoRoute
+  '/conteudo': typeof ConteudoRoute
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
@@ -354,6 +369,7 @@ export interface FileRoutesByTo {
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
+  '/api/content-generate': typeof ApiContentGenerateRoute
   '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/lead-magnet-upload': typeof ApiLeadMagnetUploadRoute
@@ -379,6 +395,7 @@ export interface FileRoutesById {
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/conhecimento': typeof ConhecimentoRoute
+  '/conteudo': typeof ConteudoRoute
   '/construtor': typeof ConstrutorRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
@@ -401,6 +418,7 @@ export interface FileRoutesById {
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/debug-webhook': typeof ApiDebugWebhookRoute
+  '/api/content-generate': typeof ApiContentGenerateRoute
   '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/lead-magnet-upload': typeof ApiLeadMagnetUploadRoute
@@ -427,6 +445,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/configuracoes'
     | '/conhecimento'
+    | '/conteudo'
     | '/construtor'
     | '/contratos'
     | '/dashboard'
@@ -449,6 +468,7 @@ export interface FileRouteTypes {
     | '/wizard'
     | '/workflows'
     | '/api/debug-webhook'
+    | '/api/content-generate'
     | '/api/diagnostico'
     | '/api/generate-prompt'
     | '/api/lead-magnet-upload'
@@ -473,6 +493,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/configuracoes'
     | '/conhecimento'
+    | '/conteudo'
     | '/construtor'
     | '/contratos'
     | '/dashboard'
@@ -495,6 +516,7 @@ export interface FileRouteTypes {
     | '/wizard'
     | '/workflows'
     | '/api/debug-webhook'
+    | '/api/content-generate'
     | '/api/diagnostico'
     | '/api/generate-prompt'
     | '/api/lead-magnet-upload'
@@ -519,6 +541,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/configuracoes'
     | '/conhecimento'
+    | '/conteudo'
     | '/construtor'
     | '/contratos'
     | '/dashboard'
@@ -541,6 +564,7 @@ export interface FileRouteTypes {
     | '/wizard'
     | '/workflows'
     | '/api/debug-webhook'
+    | '/api/content-generate'
     | '/api/diagnostico'
     | '/api/generate-prompt'
     | '/api/lead-magnet-upload'
@@ -566,6 +590,7 @@ export interface RootRouteChildren {
   ClientesRoute: typeof ClientesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   ConhecimentoRoute: typeof ConhecimentoRoute
+  ConteudoRoute: typeof ConteudoRoute
   ConstrutorRoute: typeof ConstrutorRoute
   ContratosRoute: typeof ContratosRoute
   DashboardRoute: typeof DashboardRoute
@@ -588,6 +613,7 @@ export interface RootRouteChildren {
   WizardRoute: typeof WizardRoute
   WorkflowsRoute: typeof WorkflowsRouteWithChildren
   ApiDebugWebhookRoute: typeof ApiDebugWebhookRoute
+  ApiContentGenerateRoute: typeof ApiContentGenerateRoute
   ApiDiagnosticoRoute: typeof ApiDiagnosticoRoute
   ApiGeneratePromptRoute: typeof ApiGeneratePromptRoute
   ApiLeadMagnetUploadRoute: typeof ApiLeadMagnetUploadRoute
@@ -762,6 +788,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConhecimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/conteudo': {
+      id: '/conteudo'
+      path: '/conteudo'
+      fullPath: '/conteudo'
+      preLoaderRoute: typeof ConteudoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/configuracoes': {
       id: '/configuracoes'
       path: '/configuracoes'
@@ -823,6 +856,13 @@ declare module '@tanstack/react-router' {
       path: '/api/generate-prompt'
       fullPath: '/api/generate-prompt'
       preLoaderRoute: typeof ApiGeneratePromptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/content-generate': {
+      id: '/api/content-generate'
+      path: '/api/content-generate'
+      fullPath: '/api/content-generate'
+      preLoaderRoute: typeof ApiContentGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/lead-magnet-upload': {
@@ -937,6 +977,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClientesRoute: ClientesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   ConhecimentoRoute: ConhecimentoRoute,
+  ConteudoRoute: ConteudoRoute,
   ConstrutorRoute: ConstrutorRoute,
   ContratosRoute: ContratosRoute,
   DashboardRoute: DashboardRoute,
@@ -959,6 +1000,7 @@ const rootRouteChildren: RootRouteChildren = {
   WizardRoute: WizardRoute,
   WorkflowsRoute: WorkflowsRouteWithChildren,
   ApiDebugWebhookRoute: ApiDebugWebhookRoute,
+  ApiContentGenerateRoute: ApiContentGenerateRoute,
   ApiDiagnosticoRoute: ApiDiagnosticoRoute,
   ApiGeneratePromptRoute: ApiGeneratePromptRoute,
   ApiLeadMagnetUploadRoute: ApiLeadMagnetUploadRoute,
