@@ -428,7 +428,7 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
   const sentMedia = new Set(state?.midias_enviadas ?? []);
 
   return (
-    <div className="w-80 shrink-0 flex flex-col border-l border-[#e9edef]" style={{ background: "#f0f2f5" }}>
+    <div className="absolute inset-y-0 right-0 z-30 flex w-full max-w-[420px] flex-col border-l border-[#d1d7db] shadow-2xl" style={{ background: "#f0f2f5" }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#e9edef]" style={{ background: "#f0f2f5" }}>
         <span className="text-[#111b21] text-base font-semibold">Ficha do Lead</span>
@@ -1346,7 +1346,7 @@ function InboxPage() {
     const { data: existing } = await existingQuery.limit(1).maybeSingle();
     if (existing) {
       setOpen(false); setNewConv({ phone: "", contact_name: "" });
-      setActiveId(existing.id); setShowLeadPanel(true);
+      setActiveId(existing.id); setShowLeadPanel(false);
       toast.info("Conversa já existente aberta");
       return;
     }
@@ -1358,7 +1358,7 @@ function InboxPage() {
     if (error) { toast.error(error.message); return; }
     setOpen(false); setNewConv({ phone: "", contact_name: "" });
     loadConvs();
-    if (data) { setActiveId(data.id); setShowLeadPanel(true); }
+    if (data) { setActiveId(data.id); setShowLeadPanel(false); }
   };
 
   // Excluir conversa (e todas as mensagens)
@@ -1859,11 +1859,11 @@ function InboxPage() {
     : messages;
   const grouped = groupByDate(displayMessages);
   return (
-    <div className="flex flex-1 overflow-hidden" style={{ background: "#f0f2f5" }}>
+    <div className="relative flex h-full w-full flex-1 overflow-hidden" style={{ background: "#f0f2f5" }}>
       <Toaster />
 
       {/* ── SIDEBAR ── */}
-      <div className="w-[420px] flex flex-col border-r border-[#e9edef] shrink-0" style={{ background: "#f0f2f5" }}>
+      <div className="w-[clamp(360px,30vw,430px)] flex flex-col border-r border-[#e9edef] shrink-0" style={{ background: "#f0f2f5" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3" style={{ background: "#f0f2f5" }}>
           <div className="flex items-center gap-3">
@@ -2063,7 +2063,7 @@ function InboxPage() {
             const av = avatar(c.contact_name, c.phone);
             const isActive = activeId === c.id;
             return (
-              <button key={c.id} onClick={() => { setActiveId(c.id); clearUnread(c.id); setShowLeadPanel(true); }}
+              <button key={c.id} onClick={() => { setActiveId(c.id); clearUnread(c.id); setShowLeadPanel(false); }}
                 className={cn("w-full flex items-center gap-3.5 px-4 py-4 border-b border-[#e9edef] hover:bg-[#f5f5f5] transition-colors text-left bg-white", isActive && "bg-[#f0f2f5]")}>
                 <div className="relative shrink-0">
                   {c.photo_url ? (
@@ -2190,7 +2190,19 @@ function InboxPage() {
                   {" · clique para ver ficha"}
                 </p>
               </button>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 overflow-x-auto pl-2">
+                <button
+                  onClick={() => setShowLeadPanel(!showLeadPanel)}
+                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                    showLeadPanel
+                      ? "bg-[#d9fdd3] text-[#008069] border-[#b7e4ca]"
+                      : "bg-white text-[#54656f] hover:bg-[#e9edef] border-[#e9edef]"
+                  )}
+                  title={showLeadPanel ? "Fechar ficha" : "Abrir ficha"}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Ficha
+                </button>
                 {/* Pausar/retomar IA */}
                 <button
                   onClick={() => toggleAiPause(active)}
@@ -2513,7 +2525,7 @@ function InboxPage() {
             )}
 
             {/* Mensagens */}
-            <div className="flex-1 overflow-y-auto px-8 py-6 space-y-2"
+            <div className="flex-1 overflow-y-auto px-6 py-6 md:px-10 lg:px-14 space-y-2"
               style={{ background: "#efeae2", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cpath fill='%23d4c9b0' fill-opacity='0.18' d='M10 20c0-1 .5-2 1.5-2.7L20 11.8V8h2v4.2l9.5 6.5c.7.5 1.5 1.5 1.5 2.8v1H10v-2zm40 0c0-1 .5-2 1.5-2.7L60 11.8V8h2v4.2l8.5 6.5c.7.5 1.5 1.5 1.5 2.8v1H50v-2z'/%3E%3C/svg%3E\")" }}>
               {grouped.length === 0 && (
                 <div className="flex justify-center py-8">
@@ -2527,7 +2539,7 @@ function InboxPage() {
                   </div>
                   {group.messages.map(m => (
                     <div key={m.id} className={cn("flex mb-2", m.direction === "outbound" ? "justify-end" : "justify-start")}>
-                      <div className={cn("max-w-[72%] rounded-lg text-base overflow-hidden", m.direction === "outbound" ? "rounded-tr-none" : "rounded-tl-none")}
+                      <div className={cn("max-w-[82%] rounded-lg text-base overflow-hidden", m.direction === "outbound" ? "rounded-tr-none" : "rounded-tl-none")}
                         style={{ background: m.direction === "outbound" ? "#d9fdd3" : "#ffffff", boxShadow: "0 1px 0.5px rgba(11,20,26,.18)" }}>
 
                         {/* IMAGEM */}

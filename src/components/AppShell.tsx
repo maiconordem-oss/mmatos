@@ -74,7 +74,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
   const navigate  = useNavigate();
   const { user }  = useAuth();
   const badges    = useBadges();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => location.pathname.startsWith("/inbox"));
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     atendimento: true,
     automacao: false,
@@ -93,6 +93,9 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
 
   useEffect(() => {
     const path = location.pathname;
+    if (path.startsWith("/inbox")) {
+      setCollapsed(true);
+    }
     if (["/inbox", "/kanban", "/clientes", "/dashboard"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, atendimento: true }));
     } else if (["/construtor", "/funis", "/templates", "/conhecimento", "/manual", "/instagram"].some(p => path.startsWith(p))) {
