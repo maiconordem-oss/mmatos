@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Kanban, MessageSquare, Users, LogOut,
-  FileSignature, Smartphone, Bot, BookOpen, Settings,
+  FileSignature, FileText, Smartphone, Bot, BookOpen, Settings,
   Zap, ChevronLeft, ChevronRight, BarChart2, ChevronDown,
   Scale, Stethoscope, BookOpen as BookOpenIcon,
   Instagram,
