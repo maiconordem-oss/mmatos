@@ -1074,7 +1074,9 @@ function InboxPage() {
   const [tags, setTags]                   = useState<ConvTag[]>([]);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [quickSearch, setQuickSearch]     = useState("");
-  const [showTagMenu, setShowTagMenu]     = useState(false);
+  const [showTagMenu, setShowTagMenu]         = useState(false);
+  const [showAtendMenu, setShowAtendMenu]     = useState(false);
+  const [showMoreMenu, setShowMoreMenu]       = useState(false);
   const [businessHours, setBusinessHours] = useState<any>(null);
   const [healthOpen, setHealthOpen]       = useState(false);
   const [assignmentEvents, setAssignmentEvents] = useState<AssignmentEvent[]>([]);
@@ -1154,6 +1156,7 @@ function InboxPage() {
     setAiSearchQ(""); setAiSearchResults([]);
     setAssignmentEvents([]);
     setActiveFunnelState(null);
+    setShowAtendMenu(false); setShowMoreMenu(false); setShowTagMenu(false);
   }, [activeId]);
 
   // Helpers de IA
@@ -2292,77 +2295,63 @@ function InboxPage() {
                   <FileText className="h-3.5 w-3.5" />
                   Ficha
                 </button>
-                <details className="chat-actions-menu relative shrink-0">
-                  <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-[#e9edef] bg-white px-3 py-1.5 text-xs font-medium text-[#54656f] transition-colors hover:bg-[#e9edef]">
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => { setShowAtendMenu(!showAtendMenu); setShowMoreMenu(false); }}
+                    className={cn("flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      showAtendMenu ? "bg-[#e9edef] border-[#e9edef] text-[#111b21]" : "border-[#e9edef] bg-white text-[#54656f] hover:bg-[#e9edef]"
+                    )}>
                     <UserCheck className="h-3.5 w-3.5" />
                     Atendimento
-                  </summary>
-                  <div className="absolute right-0 top-9 z-50 flex w-56 flex-col gap-1 rounded-xl border border-[#e9edef] bg-white p-2 shadow-xl">
-                {/* Pausar/retomar IA */}
-                <button
-                  onClick={() => toggleAiPause(active)}
-                  className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors",
-                    active.ai_paused
-                      ? "bg-red-500/20 text-red-600 hover:bg-red-500/30"
-                      : "bg-[#00a884]/20 text-[#00a884] hover:bg-[#00a884]/30"
-                  )}
-                  title={active.ai_paused ? "Reativar IA" : "Pausar IA"}
-                >
-                  <Bot className="h-3.5 w-3.5" />
-                  {active.ai_paused ? "Você responde" : "IA responde"}
-                </button>
-
-                {/* Aceitar ticket */}
-                {(active.ticket_status ?? "pending") === "pending" && (
-                  <button onClick={() => acceptTicket(active.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors">
-                    <CheckCheck className="h-3.5 w-3.5" /> Assumir
                   </button>
-                )}
-                {/* Resolver ticket */}
-                {(active.ticket_status ?? "pending") !== "resolved" && (
-                  <button onClick={() => resolveTicket(active.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-slate-500/20 text-slate-400 hover:bg-slate-500/30 transition-colors">
-                    Finalizar
-                  </button>
-                )}
-                {(active.ticket_status ?? "pending") === "resolved" && (
-                  <button onClick={() => reopenTicket(active.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors">
-                    Reabrir
-                  </button>
-                )}
-
-                {/* Tags */}
-                <div className="relative">
-                  <button onClick={() => setShowTagMenu(!showTagMenu)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-white text-[#54656f] hover:bg-[#e9edef] border border-[#e9edef] transition-colors">
-                    🏷️ Tags
-                  </button>
-                  {showTagMenu && (
-                    <div className="absolute top-8 right-0 z-50 w-48 rounded-xl border border-[#e9edef] shadow-xl overflow-hidden bg-white">
-                      <p className="text-[10px] text-[#8696a0] uppercase px-3 pt-2 pb-1">Adicionar tag</p>
+                  {showAtendMenu && (
+                    <div className="absolute right-0 top-9 z-50 w-56 flex flex-col gap-0.5 rounded-xl border border-[#e9edef] bg-white p-2 shadow-xl">
+                      <button
+                        onClick={() => { toggleAiPause(active); setShowAtendMenu(false); }}
+                        className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left",
+                          active.ai_paused ? "bg-red-500/10 text-red-600 hover:bg-red-500/20" : "bg-[#00a884]/10 text-[#00a884] hover:bg-[#00a884]/20"
+                        )}>
+                        <Bot className="h-3.5 w-3.5 shrink-0" />
+                        {active.ai_paused ? "Reativar IA" : "Pausar IA"}
+                      </button>
+                      {(active.ticket_status ?? "pending") === "pending" && (
+                        <button onClick={() => { acceptTicket(active.id); setShowAtendMenu(false); }}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors text-left">
+                          <CheckCheck className="h-3.5 w-3.5 shrink-0" /> Assumir atendimento
+                        </button>
+                      )}
+                      {(active.ticket_status ?? "pending") !== "resolved" && (
+                        <button onClick={() => { resolveTicket(active.id); setShowAtendMenu(false); }}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-slate-500/10 text-slate-600 hover:bg-slate-500/20 transition-colors text-left">
+                          <CheckCheck className="h-3.5 w-3.5 shrink-0" /> Finalizar
+                        </button>
+                      )}
+                      {(active.ticket_status ?? "pending") === "resolved" && (
+                        <button onClick={() => { reopenTicket(active.id); setShowAtendMenu(false); }}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors text-left">
+                          <RotateCcw className="h-3.5 w-3.5 shrink-0" /> Reabrir
+                        </button>
+                      )}
+                      <div className="my-1 h-px bg-[#e9edef]" />
+                      <p className="px-3 py-1 text-[10px] uppercase tracking-wide text-[#8696a0]">Tags</p>
                       {tags.length === 0 && (
-                        <p className="text-xs text-[#8696a0] px-3 pb-3">Sem tags. Crie em configurações.</p>
+                        <p className="text-xs text-[#8696a0] px-3 pb-2">Sem tags. Crie em configurações.</p>
                       )}
                       {tags.map(tag => {
                         const hasTag = (active.tags ?? []).includes(tag.name);
                         return (
                           <button key={tag.id}
                             onClick={() => toggleTag(active.id, tag.name, active.tags ?? [])}
-                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#f5f5f5] text-left transition-colors">
-                            <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: tag.color }} />
-                            <span className="text-sm text-[#111b21] flex-1">{tag.name}</span>
-                            {hasTag && <span className="text-[#00a884] text-xs">✓</span>}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#f5f5f5] text-left transition-colors">
+                            <div className="h-2 w-2 rounded-full shrink-0" style={{ background: tag.color }} />
+                            <span className="text-xs text-[#111b21] flex-1">{tag.name}</span>
+                            {hasTag && <span className="text-[#00a884] text-xs font-bold">✓</span>}
                           </button>
                         );
                       })}
                     </div>
                   )}
                 </div>
-
-                  </div>
-                </details>
 
                 <button onClick={() => setShowAiPanel(!showAiPanel)}
                   className={cn("p-2 rounded-full transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "hover:bg-[#e9edef] text-[#54656f]")}>
@@ -2373,22 +2362,28 @@ function InboxPage() {
                   <Search className="h-5 w-5" />
                 </button>
                 {/* Menu de contexto */}
-                <div className="relative group">
-                  <button className="p-2 rounded-full hover:bg-[#d9dde1] text-[#54656f]"><MoreVertical className="h-5 w-5" /></button>
-                  <div className="absolute right-0 top-10 z-50 w-52 rounded-xl border border-[#e9edef] shadow-xl overflow-hidden hidden group-hover:block bg-white">
-                    {[
-                      { label: "Ver histórico do contato", action: () => loadHistory(active.phone) },
-                      { label: "Marcar como não lido",     action: () => markUnread(active.id) },
-                      { label: "Exportar conversa",        action: () => exportConversation(active) },
-                      { label: active.blocked ? "Desbloquear contato" : "Bloquear contato", action: () => toggleBlock(active), danger: true },
-                      { label: "Excluir conversa", action: () => deleteConversation(active.id), danger: true },
-                    ].map(item => (
-                      <button key={item.label} onClick={item.action}
-                        className={cn("w-full text-left px-4 py-2.5 text-sm hover:bg-[#f5f5f5] transition-colors", item.danger ? "text-red-500" : "text-[#111b21]")}>
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => { setShowMoreMenu(!showMoreMenu); setShowAtendMenu(false); }}
+                    className={cn("p-2 rounded-full transition-colors", showMoreMenu ? "bg-[#e9edef] text-[#111b21]" : "hover:bg-[#d9dde1] text-[#54656f]")}>
+                    <MoreVertical className="h-5 w-5" />
+                  </button>
+                  {showMoreMenu && (
+                    <div className="absolute right-0 top-10 z-50 w-52 rounded-xl border border-[#e9edef] shadow-xl overflow-hidden bg-white">
+                      {[
+                        { label: "Ver histórico do contato", action: () => { loadHistory(active.phone); setShowMoreMenu(false); } },
+                        { label: "Marcar como não lido",     action: () => { markUnread(active.id); setShowMoreMenu(false); } },
+                        { label: "Exportar conversa",        action: () => { exportConversation(active); setShowMoreMenu(false); } },
+                        { label: active.blocked ? "Desbloquear contato" : "Bloquear contato", action: () => { toggleBlock(active); setShowMoreMenu(false); }, danger: true },
+                        { label: "Excluir conversa", action: () => { deleteConversation(active.id); setShowMoreMenu(false); }, danger: true },
+                      ].map(item => (
+                        <button key={item.label} onClick={item.action}
+                          className={cn("w-full text-left px-4 py-2.5 text-sm hover:bg-[#f5f5f5] transition-colors", item.danger ? "text-red-500" : "text-[#111b21]")}>
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2396,7 +2391,7 @@ function InboxPage() {
             <div className="px-4 py-1.5 border-b border-[#e9edef] bg-white flex items-center gap-2 text-xs overflow-x-auto">
               <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#f0f2f5] px-2 py-1 text-[#54656f]">
                 <UserCheck className="h-3 w-3" />
-                {active.assigned_to ? "Assumido" : "Sem responsavel"}
+                {active.assigned_to ? "Assumido" : "Sem responsável"}
               </span>
               <span className={cn("shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-1",
                 (hoursUntil(calcSlaDue(active)) ?? 1) <= 0 ? "bg-red-500/10 text-red-600" : "bg-blue-500/10 text-blue-600")}>
