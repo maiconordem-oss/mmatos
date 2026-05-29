@@ -2163,80 +2163,103 @@ function InboxPage() {
             const av = avatar(c.contact_name, c.phone);
             const isActive = activeId === c.id;
             const dueLabel = slaLabel(c);
-            const statusBadges = [
-              c.needs_human ? { label: "Humano", className: "bg-red-500/10 text-red-600" } : null,
-              !c.needs_human && c.follow_up_required ? { label: "Retorno", className: "bg-orange-500/10 text-orange-700" } : null,
-              dueLabel ? { label: dueLabel, className: (hoursUntil(calcSlaDue(c)) ?? 1) <= 0 ? "bg-red-500/10 text-red-600" : "bg-blue-500/10 text-blue-600" } : null,
-              (c.ticket_status ?? "pending") === "pending" ? { label: "Novo", className: "bg-amber-500/10 text-amber-700" } : null,
-              (c.ticket_status ?? "pending") === "resolved" ? { label: "OK", className: "bg-slate-500/10 text-slate-600" } : null,
-            ].filter(Boolean).slice(0, 2) as Array<{ label: string; className: string }>;
+            const isOverdue = (hoursUntil(calcSlaDue(c)) ?? 1) <= 0;
+            const statusLine = [
+              c.needs_human      ? { label: "Humano",   color: "#dc2626", bg: "#fef2f2" } : null,
+              c.follow_up_required && !c.needs_human
+                                 ? { label: "Retorno",  color: "#d97706", bg: "#fffbeb" } : null,
+              (c.ticket_status ?? "pending") === "pending" && !c.needs_human
+                                 ? { label: "Aguardando", color: "#2563eb", bg: "#eff6ff" } : null,
+              (c.ticket_status ?? "pending") === "resolved"
+                                 ? { label: "Finalizado", color: "#6b7280", bg: "#f9fafb" } : null,
+              dueLabel           ? { label: dueLabel,   color: isOverdue ? "#dc2626" : "#2563eb", bg: isOverdue ? "#fef2f2" : "#eff6ff" } : null,
+            ].filter(Boolean) as Array<{ label: string; color: string; bg: string }>;
+
             return (
               <button key={c.id} onClick={() => { setActiveId(c.id); clearUnread(c.id); setShowLeadPanel(false); }}
-                className={cn("w-full flex items-center gap-3 px-4 py-3 border-b border-[#e9edef] hover:bg-[#f5f5f5] transition-colors text-left bg-white", isActive && "bg-[#f0f2f5]")}>
-                <div className="relative shrink-0">
-                  {c.photo_url ? (
-                    <img src={c.photo_url} alt={c.contact_name || c.phone}
-                      className="h-10 w-10 rounded-full object-cover"
-                      onError={e => { (e.target as HTMLImageElement).src = ""; (e.target as HTMLImageElement).style.display = "none"; }} />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-base" style={{ background: av.color }}>
-                      {av.label}
-                    </div>
-                  )}
-                  {/* Indicador bloqueado */}
-                  {c.blocked && (
-                    <div className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-600 border-2 border-[#111b21] flex items-center justify-center">
-                      <span className="text-[8px] text-white font-bold">🚫</span>
-                    </div>
-                  )}
-                  {/* Indicador IA pausada */}
-                  {c.ai_paused && (
-                    <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 border-2 border-[#111b21] flex items-center justify-center">
-                      <span className="text-[8px] text-white font-bold">P</span>
-                    </div>
-                  )}
-                  {!c.ai_paused && c.ai_handled && (
-                    <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-[#25d366] border-2 border-[#111b21] flex items-center justify-center">
-                      <Bot className="h-2.5 w-2.5 text-black" />
-                    </div>
-                  )}
-                </div>
-                <div className={cn("flex-1 min-w-0", (c.needs_human || c.priority_flag === "alta") && "pl-2 border-l-2 border-red-500")}>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[#111b21] font-semibold text-base truncate">{c.contact_name || c.phone}</span>
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                      {statusBadges.map(badge => (
-                        <span key={badge.label} className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-semibold", badge.className)}>
-                          {badge.label}
-                        </span>
-                      ))}
-                      <span className={cn("text-sm", c.unread_count > 0 ? "text-[#00a884] font-semibold" : "text-[#667781]")}>
+                className={cn(
+                  "w-full text-left border-b border-[#e9edef] transition-colors",
+                  isActive ? "bg-[#e8faf4]" : "bg-white hover:bg-[#f7f8fa]"
+                )}>
+                <div className={cn(
+                  "flex items-start gap-3 px-4 pt-3 pb-2",
+                  (c.needs_human || isOverdue) && "border-l-[3px] border-red-500",
+                  !c.needs_human && !isOverdue && c.ai_paused && "border-l-[3px] border-amber-400",
+                  !c.needs_human && !isOverdue && !c.ai_paused && "border-l-[3px] border-transparent",
+                )}>
+                  {/* Avatar */}
+                  <div className="relative shrink-0 mt-0.5">
+                    {c.photo_url ? (
+                      <img src={c.photo_url} alt={c.contact_name || c.phone}
+                        className="h-10 w-10 rounded-full object-cover"
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ background: av.color }}>
+                        {av.label}
+                      </div>
+                    )}
+                    {c.blocked && (
+                      <div className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-600 border-2 border-white flex items-center justify-center text-[8px]">🚫</div>
+                    )}
+                    {c.ai_paused && !c.blocked && (
+                      <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center">
+                        <User className="h-2.5 w-2.5 text-white" />
+                      </div>
+                    )}
+                    {!c.ai_paused && c.ai_handled && !c.blocked && (
+                      <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-[#25d366] border-2 border-white flex items-center justify-center">
+                        <Bot className="h-2.5 w-2.5 text-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Conteúdo */}
+                  <div className="flex-1 min-w-0">
+                    {/* Linha 1: nome + hora */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={cn("font-semibold text-sm truncate", isActive ? "text-[#007a60]" : "text-[#111b21]",
+                        c.unread_count > 0 && "text-[#111b21]")}>
+                        {c.contact_name || c.phone}
+                      </span>
+                      <span className={cn("text-[11px] shrink-0", c.unread_count > 0 ? "text-[#00a884] font-semibold" : "text-[#8696a0]")}>
                         {c.last_message_at ? formatTime(c.last_message_at) : ""}
                       </span>
                     </div>
-                  </div>
-                  <div className="flex justify-between items-center mt-0.5">
-                    <p className="text-[#54656f] text-sm truncate flex-1">{c.last_message_preview || "Sem mensagens"}</p>
-                    {c.unread_count > 0 && (
-                      <span className="ml-2 shrink-0 h-5 min-w-5 px-1 rounded-full bg-[#00a884] text-white text-xs font-bold flex items-center justify-center">
-                        {c.unread_count}
-                      </span>
+
+                    {/* Linha 2: preview + badge não lidas */}
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p className="text-[#667781] text-xs truncate flex-1 leading-relaxed">
+                        {c.last_message_preview || "Sem mensagens"}
+                      </p>
+                      {c.unread_count > 0 && (
+                        <span className="shrink-0 h-4.5 min-w-[18px] px-1.5 rounded-full bg-[#00a884] text-white text-[10px] font-bold flex items-center justify-center">
+                          {c.unread_count > 99 ? "99+" : c.unread_count}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Linha 3: status + tags */}
+                    {(statusLine.length > 0 || (c.tags?.length ?? 0) > 0) && (
+                      <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                        {statusLine.slice(0, 2).map(s => (
+                          <span key={s.label}
+                            className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
+                            style={{ background: s.bg, color: s.color }}>
+                            {s.label}
+                          </span>
+                        ))}
+                        {c.tags?.slice(0, 2).map(tag => {
+                          const t = tags.find(x => x.name === tag);
+                          return (
+                            <span key={tag} className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-md"
+                              style={{ background: (t?.color ?? "#6366f1") + "20", color: t?.color ?? "#6366f1" }}>
+                              {tag}
+                            </span>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
-                  {/* Tags */}
-                  {c.tags?.length > 0 && (
-                    <div className="flex gap-1 mt-1 flex-wrap">
-                      {c.tags.slice(0,3).map(tag => {
-                        const t = tags.find(x => x.name === tag);
-                        return (
-                          <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
-                            style={{ background: (t?.color ?? "#6366f1") + "30", color: t?.color ?? "#6366f1" }}>
-                            {tag}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
               </button>
             );
