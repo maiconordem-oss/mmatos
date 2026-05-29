@@ -59,6 +59,12 @@ type Submission = {
   created_at: string;
 };
 
+function instanceStatusLabel(status: string) {
+  if (status === "connected") return "conectado";
+  if (status === "qr" || status === "connecting") return "conectando";
+  return "status pendente";
+}
+
 const emptyForm = {
   id: "",
   title: "Guia gratuito",
@@ -390,11 +396,20 @@ function InstagramPage() {
                     <SelectContent>
                       {instances.map((inst) => (
                         <SelectItem key={inst.id} value={inst.id}>
-                          {inst.phone_number || inst.instance_name} {inst.status === "connected" ? "" : "(desconectado)"}
+                          {inst.phone_number || inst.instance_name} ({instanceStatusLabel(inst.status)})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {form.instance_id && (() => {
+                    const selected = instances.find((inst) => inst.id === form.instance_id);
+                    if (!selected || selected.status === "connected") return null;
+                    return (
+                      <p className="mt-1 text-xs text-amber-500">
+                        O status salvo aparece como "{instanceStatusLabel(selected.status)}", mas você pode salvar mesmo assim se o número estiver funcionando.
+                      </p>
+                    );
+                  })()}
                 </Field>
                 <Field label="Tipo do arquivo">
                   <Select value={form.file_type} onValueChange={(value) => patch("file_type", value)}>
