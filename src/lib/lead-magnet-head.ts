@@ -4,7 +4,7 @@ const SITE_URL = "https://mmatos.lovable.app";
 
 export function leadMagnetHead(config: LeadMagnetLandingConfig, path: string) {
   const url = `${SITE_URL}${path}`;
-  const image = `${SITE_URL}/og/${config.slug}.png`;
+  const image = `${SITE_URL}/og/${config.slug}.png${config.ogVersion ? `?v=${config.ogVersion}` : ""}`;
   const description = config.heroSub;
 
   return {

@@ -18,6 +18,7 @@ export type LeadMagnetLandingConfig = {
   whatsappTitle: string;
   keyword: string;
   footerProduct: string;
+  ogVersion?: string;
 };
 
 export const leadMagnetLandings: Record<string, LeadMagnetLandingConfig> = {
@@ -211,6 +212,7 @@ export const leadMagnetLandings: Record<string, LeadMagnetLandingConfig> = {
     whatsappTitle: "Para qual WhatsApp envio as informações sobre BPC/LOAS?",
     keyword: "JOSE BPC",
     footerProduct: "este material informativo",
+    ogVersion: "20260529-jose-bpc",
   },
 };
 
