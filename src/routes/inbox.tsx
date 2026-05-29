@@ -2003,105 +2003,90 @@ function InboxPage() {
 
         {/* Seletor de número/instância */}
         {instances.length > 0 && (
-          <div className="px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto" style={{ background: "#f0f2f5" }}>
-            <button
-              onClick={() => setActiveInstance("all")}
-              className={cn("shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                activeInstance === "all"
-                  ? "bg-[#00a884] text-white"
-                  : "bg-white text-[#54656f] hover:bg-[#f5f5f5] border border-[#e9edef]"
-              )}>
-              <span>Todos</span>
-              <span className="text-[10px] opacity-70">({conversations.length})</span>
-            </button>
-            {instances.map(inst => {
-              const count = conversations.filter(c => (c as any).instance_id === inst.id).length;
-              const isActive = activeInstance === inst.id;
+          <div className="border-b border-[#e9edef] bg-white px-3 py-2 shrink-0">
+            <p className="text-[9px] uppercase tracking-widest text-[#8696a0] font-semibold mb-1.5">Número WhatsApp</p>
+            <div className="flex gap-2 overflow-x-auto pb-0.5">
+              <button
+                onClick={() => setActiveInstance("all")}
+                className={cn(
+                  "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border",
+                  activeInstance === "all"
+                    ? "bg-[#00a884] border-[#00a884] text-white"
+                    : "bg-[#f7f8fa] border-[#e9edef] text-[#54656f] hover:bg-[#f0f2f5]"
+                )}>
+                <span>Todos</span>
+                <span className={cn("text-[10px] font-bold px-1.5 rounded-full", activeInstance === "all" ? "bg-white/20 text-white" : "bg-[#e9edef] text-[#54656f]")}>
+                  {conversations.length}
+                </span>
+              </button>
+              {instances.map(inst => {
+                const count = conversations.filter(c => (c as any).instance_id === inst.id).length;
+                const isActive = activeInstance === inst.id;
+                const connected = inst.status === "connected";
+                return (
+                  <button key={inst.id}
+                    onClick={() => setActiveInstance(inst.id)}
+                    className={cn(
+                      "shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border",
+                      isActive
+                        ? "bg-[#e8faf4] border-[#00a884] text-[#007a60]"
+                        : "bg-[#f7f8fa] border-[#e9edef] text-[#54656f] hover:bg-[#f0f2f5]"
+                    )}>
+                    <div className={cn("h-2 w-2 rounded-full shrink-0", connected ? "bg-[#25d366]" : "bg-red-400")} />
+                    <span className="truncate max-w-[90px] font-mono">
+                      {inst.phone_number || inst.instance_name}
+                    </span>
+                    <span className={cn("text-[10px] font-bold px-1.5 rounded-full shrink-0", isActive ? "bg-[#00a884] text-white" : "bg-[#e9edef] text-[#54656f]")}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Filtros unificados */}
+        <div className="border-b border-[#e9edef] bg-white shrink-0">
+          <div className="flex gap-1.5 overflow-x-auto px-3 pt-2 pb-2">
+            {([
+              { label: "Todos",        ticketF: "all",      queueF: "all",      count: conversations.length },
+              { label: "Aguardando",   ticketF: "pending",  queueF: "all",      count: conversations.filter(c => (c.ticket_status ?? "pending") === "pending").length },
+              { label: "Você",         ticketF: "all",      queueF: "humano",   count: conversations.filter(c => queueKind(c) === "humano").length },
+              { label: "Urgente",      ticketF: "all",      queueF: "urgente",  count: conversations.filter(c => queueKind(c) === "urgente").length },
+              { label: "Atrasado",     ticketF: "all",      queueF: "sla",      count: conversations.filter(c => (hoursUntil(calcSlaDue(c)) ?? 1) <= 0).length },
+              { label: "Retorno",      ticketF: "all",      queueF: "followup", count: conversations.filter(c => queueKind(c) === "followup").length },
+              { label: "Em andamento", ticketF: "open",     queueF: "all",      count: conversations.filter(c => (c.ticket_status ?? "pending") === "open").length },
+              { label: "Finalizadas",  ticketF: "resolved", queueF: "all",      count: conversations.filter(c => (c.ticket_status ?? "pending") === "resolved").length },
+            ] as const).map(item => {
+              const isActive = ticketFilter === item.ticketF && queueFilter === item.queueF;
               return (
-                <button key={inst.id}
-                  onClick={() => setActiveInstance(inst.id)}
-                  className={cn("shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                <button key={item.label}
+                  onClick={() => { setTicketFilter(item.ticketF as any); setQueueFilter(item.queueF as any); }}
+                  className={cn("shrink-0 flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-colors",
                     isActive
-                      ? "bg-[#25d366] text-black"
-                      : "bg-white text-[#54656f] hover:bg-[#f5f5f5] border border-[#e9edef]"
-                  )}>
-                  <div className={cn("h-1.5 w-1.5 rounded-full", inst.status === "connected" ? "bg-[#25d366]" : "bg-red-400")}
-                    style={isActive ? { background: "white" } : {}} />
-                  <span className="truncate max-w-[80px]">
-                    {inst.phone_number || inst.instance_name}
-                  </span>
-                  {count > 0 && (
-                    <span className="text-[10px] opacity-70">({count})</span>
+                      ? "border-[#00a884] bg-[#00a884]/10 text-[#007a60]"
+                      : "border-[#e9edef] bg-[#f7f8fa] text-[#54656f] hover:bg-[#f0f2f5]")}>
+                  {item.label}
+                  {item.count > 0 && (
+                    <span className={cn("text-[9px] font-bold px-1 py-0.5 rounded-full min-w-[16px] text-center",
+                      isActive ? "bg-[#00a884] text-white" : "bg-[#e9edef] text-[#54656f]")}>
+                      {item.count}
+                    </span>
                   )}
                 </button>
               );
             })}
           </div>
-        )}
-
-        {/* Abas principais */}
-        <div className="flex border-b border-[#e9edef] shrink-0" style={{ background: "#f0f2f5" }}>
-          {([
-            { key: "all",      label: "Todos" },
-            { key: "pending",  label: "Responder" },
-            { key: "open",     label: "Em andamento" },
-            { key: "resolved", label: "Finalizadas" },
-          ] as const).map(tab => {
-            const count = tab.key === "all"
-              ? conversations.length
-              : conversations.filter(c => (c.ticket_status ?? "pending") === tab.key).length;
-            return (
-              <button key={tab.key} onClick={() => setTicketFilter(tab.key)}
-                className={cn("flex-1 py-2 text-[11px] font-medium transition-colors border-b-2",
-                  ticketFilter === tab.key
-                    ? "border-[#00a884] text-[#00a884]"
-                    : "border-transparent text-[#54656f] hover:text-[#111b21]")}>
-                {tab.label}
-                {count > 0 && (
-                  <span className="ml-1 px-1 py-0.5 rounded-full text-[9px] font-bold"
-                    style={{ background: ticketFilter === tab.key ? "#25d366" : "#e9edef", color: ticketFilter === tab.key ? "#000" : "#54656f" }}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Fila operacional */}
-        <div className="px-3 py-2 border-b border-[#e9edef] bg-white">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="text-[10px] uppercase tracking-wide text-[#667781] font-semibold">Fila</span>
+          <div className="flex items-center justify-end px-3 pb-1.5">
             <button onClick={() => setHealthOpen(!healthOpen)}
-              className={cn("flex items-center gap-1 rounded-full px-2 py-1 text-[10px] transition-colors",
+              className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] transition-colors",
                 healthOpen ? "bg-[#00a884]/10 text-[#007a60]" : "text-[#667781] hover:bg-[#f0f2f5]")}>
               <HeartPulse className="h-3 w-3" /> indicadores
             </button>
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-            {([
-              { key: "novo", label: "Responder" },
-              { key: "humano", label: "Você" },
-              { key: "followup", label: "Retorno" },
-              { key: "urgente", label: "Urgente" },
-              { key: "sla", label: "Atrasado" },
-              { key: "all", label: "Todos" },
-            ] as const).map(item => {
-              const count = item.key === "all"
-                ? conversations.length
-                : conversations.filter(c => item.key === "sla" ? (hoursUntil(calcSlaDue(c)) ?? 1) <= 0 : queueKind(c) === item.key).length;
-              return (
-                <button key={item.key} onClick={() => setQueueFilter(item.key)}
-                  className={cn("shrink-0 rounded-full border px-2.5 py-1 text-left transition-colors",
-                    queueFilter === item.key ? "border-[#00a884] bg-[#00a884]/10 text-[#007a60]" : "border-[#e9edef] bg-[#f7f8fa] text-[#54656f] hover:bg-[#f0f2f5]")}>
-                  <span className="text-[10px] font-semibold">{item.label}</span>
-                  <span className="ml-1 text-[10px] opacity-70">{count}</span>
-                </button>
-              );
-            })}
-          </div>
           {healthOpen && (
-            <div className="mt-2 grid grid-cols-2 gap-1.5">
+            <div className="mx-3 mb-2 grid grid-cols-2 gap-1.5">
               <div className="rounded-md bg-[#f7f8fa] border border-[#e9edef] px-2 py-1.5">
                 <p className="text-[9px] text-[#667781]">WhatsApp</p>
                 <p className="text-xs font-semibold text-[#111b21]">{instances.filter(i => i.status === "connected").length}/{instances.length} conectado(s)</p>
