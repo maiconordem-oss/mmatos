@@ -2,10 +2,10 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Kanban, MessageSquare, Users, LogOut,
-  FileSignature, FileText, Smartphone, Bot, BookOpen, Settings,
-  Zap, ChevronLeft, ChevronRight, BarChart2, ChevronDown,
-  Scale, Stethoscope, BookOpen as BookOpenIcon,
-  Instagram,
+  FileSignature, FileText, Smartphone, Settings,
+  ChevronLeft, ChevronRight, BarChart2, ChevronDown,
+  Scale, Stethoscope, Instagram, Wand2, GitBranch,
+  Reply, Brain, HelpCircle, FlaskConical,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -124,13 +124,13 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
       label: "Automação",
       color: "#7c3aed",
       items: [
-        { to: "/construtor",   label: "Criar atendimento",  icon: Zap },
-        { to: "/funis",        label: "Meus atendimentos",  icon: Bot },
-        { to: "/templates",    label: "Respostas prontas",  icon: Zap },
+        { to: "/construtor",   label: "Criar atendimento",  icon: Wand2 },
+        { to: "/funis",        label: "Meus atendimentos",  icon: GitBranch },
+        { to: "/templates",    label: "Respostas prontas",  icon: Reply },
         { to: "/conteudo",     label: "Conteúdo",           icon: FileText },
-        { to: "/instagram",     label: "Instagram",          icon: Instagram },
-        { to: "/conhecimento", label: "Conhecimento da IA", icon: BookOpenIcon },
-        { to: "/manual",       label: "Ajuda de prompts",   icon: BookOpen },
+        { to: "/instagram",    label: "Instagram",           icon: Instagram },
+        { to: "/conhecimento", label: "Conhecimento da IA", icon: Brain },
+        { to: "/manual",       label: "Ajuda de prompts",   icon: HelpCircle },
       ],
     },
     {
@@ -141,7 +141,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
         { to: "/contratos",  label: "Contratos",   icon: FileSignature },
         { to: "/processos",  label: "Processos",   icon: Scale },
         { to: "/relatorios", label: "Relatórios",  icon: BarChart2 },
-        { to: "/ia-debug",   label: "Teste da IA", icon: Bot },
+        { to: "/ia-debug",   label: "Teste da IA", icon: FlaskConical },
       ],
     },
     {
