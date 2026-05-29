@@ -2297,6 +2297,12 @@ function InboxPage() {
                   <FileText className="h-3.5 w-3.5" />
                   Ficha
                 </button>
+                <details className="chat-actions-menu relative shrink-0">
+                  <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-[#e9edef] bg-white px-3 py-1.5 text-xs font-medium text-[#54656f] transition-colors hover:bg-[#e9edef]">
+                    <UserCheck className="h-3.5 w-3.5" />
+                    Atendimento
+                  </summary>
+                  <div className="absolute right-0 top-9 z-50 flex w-56 flex-col gap-1 rounded-xl border border-[#e9edef] bg-white p-2 shadow-xl">
                 {/* Pausar/retomar IA */}
                 <button
                   onClick={() => toggleAiPause(active)}
@@ -2359,6 +2365,9 @@ function InboxPage() {
                     </div>
                   )}
                 </div>
+
+                  </div>
+                </details>
 
                 <button onClick={() => setShowAiPanel(!showAiPanel)}
                   className={cn("p-2 rounded-full transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "hover:bg-[#e9edef] text-[#54656f]")}>

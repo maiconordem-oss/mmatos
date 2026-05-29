@@ -224,4 +224,15 @@
   .inbox-whatsapp .inbox-lead-panel summary svg {
     transition: transform 160ms ease;
   }
+
+  .inbox-whatsapp .chat-actions-menu summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .inbox-whatsapp .chat-actions-menu > div > button,
+  .inbox-whatsapp .chat-actions-menu > div > div > button {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: 8px;
+  }
 }
