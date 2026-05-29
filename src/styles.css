@@ -212,4 +212,16 @@
     font-size: 16px !important;
     line-height: 1.55rem !important;
   }
+
+  .inbox-whatsapp .inbox-lead-panel summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .inbox-whatsapp .inbox-lead-panel details[open] > summary svg {
+    transform: rotate(90deg);
+  }
+
+  .inbox-whatsapp .inbox-lead-panel summary svg {
+    transition: transform 160ms ease;
+  }
 }

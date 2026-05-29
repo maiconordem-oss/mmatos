@@ -560,6 +560,16 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
               </div>
             )}
 
+            <details className="rounded-lg border border-[#e9edef] bg-white">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[#111b21]">
+                <span>
+                  <span className="block text-sm font-semibold">Funil e roteiro</span>
+                  <span className="text-xs text-[#667781]">{manualStep.label || guidance.title}</span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-[#8696a0]" />
+              </summary>
+              <div className="space-y-3 border-t border-[#e9edef] p-3">
+
             <div className="rounded-lg p-4 border border-[#e9edef] bg-white">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div>
@@ -832,10 +842,21 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
                 </div>
               </div>
             </div>
+              </div>
+            </details>
           </>
         )}
 
         {/* ── PAINEL JURÍDICO ── */}
+        <details className="rounded-lg border border-[#e9edef] bg-white">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[#111b21]">
+            <span>
+              <span className="block text-sm font-semibold">JurÃ­dico</span>
+              <span className="text-xs text-[#667781]">Briefing, viabilidade e proposta</span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-[#8696a0]" />
+          </summary>
+          <div className="border-t border-[#e9edef] p-3">
         <div className="rounded-lg border border-[#e9edef] bg-white overflow-hidden">
           <div className="px-3 py-2.5 border-b border-[#e9edef] flex items-center gap-2">
             <ScrollText className="h-3.5 w-3.5 text-[#8696a0]" />
@@ -946,6 +967,8 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
             </button>
           </div>
         </div>
+          </div>
+        </details>
 
         {/* Modal: Consulta realizada */}
         {showAttendedModal && appointment && (
