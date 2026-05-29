@@ -1062,6 +1062,7 @@ function InboxPage() {
   const [showSearchMsg, setShowSearchMsg] = useState(false);
   const [sortUnread, setSortUnread]       = useState(false);
   const [showHistory, setShowHistory]     = useState(false);
+  const [showArchived, setShowArchived]   = useState(false);
   const [historyConvs, setHistoryConvs]   = useState<any[]>([]);
   const [instances, setInstances]         = useState<any[]>([]);
   const [activeInstance, setActiveInstance] = useState<string | "all">("all");
@@ -1330,11 +1331,12 @@ function InboxPage() {
     const { data } = await q;
     const rows = (data ?? []) as Conversation[];
     setConversations(rows);
-    refreshMetrics(rows);
+    refreshMetrics(rows.filter(c => c.ticket_status !== "archived"));
   }, [activeInstance, refreshMetrics]);
 
-  // Filtrar conversas por status de ticket
+  // Filtrar conversas por status de ticket (exclui arquivadas)
   const filteredConvs = conversations.filter(c => {
+    if (c.ticket_status === "archived") return false;
     const ticketOk = ticketFilter === "all" || (c.ticket_status ?? "pending") === ticketFilter;
     const queueOk = queueFilter === "all"
       || (queueFilter === "sla" ? (hoursUntil(calcSlaDue(c)) ?? 1) <= 0 : queueKind(c) === queueFilter);
@@ -1471,6 +1473,19 @@ function InboxPage() {
   };
 
   // Excluir conversa (e todas as mensagens)
+  const archiveConversation = async (convId: string) => {
+    await supabase.from("conversations").update({ ticket_status: "archived" }).eq("id", convId);
+    if (activeId === convId) setActiveId(null);
+    loadConvs();
+    toast.success("Conversa arquivada");
+  };
+
+  const unarchiveConversation = async (convId: string) => {
+    await supabase.from("conversations").update({ ticket_status: "pending" }).eq("id", convId);
+    loadConvs();
+    toast.success("Conversa restaurada");
+  };
+
   const deleteConversation = async (convId: string) => {
     if (!confirm("Excluir esta conversa e todas as mensagens? Esta ação não pode ser desfeita.")) return;
     await supabase.from("messages").delete().eq("conversation_id", convId);
@@ -2160,7 +2175,59 @@ function InboxPage() {
         </div>
 
         {/* Lista */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-white">
+          {/* Seção arquivadas — estilo WA Web */}
+          {(() => {
+            const archivedConvs = conversations.filter(c => c.ticket_status === "archived");
+            if (archivedConvs.length === 0) return null;
+            return (
+              <>
+                <button
+                  onClick={() => setShowArchived(!showArchived)}
+                  className="w-full flex items-center gap-3 px-3 py-[10px] border-b border-[#e9edef] bg-white hover:bg-[#f5f5f5] transition-colors text-left">
+                  <div className="h-[49px] w-[49px] rounded-full bg-[#f0f2f5] flex items-center justify-center shrink-0">
+                    <svg className="h-5 w-5 text-[#54656f]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 3H8l-1 4h10l-1-4z" /></svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[15px] font-medium text-[#111b21]">Arquivadas</p>
+                  </div>
+                  <span className="text-[11px] text-[#8696a0]">{archivedConvs.length}</span>
+                </button>
+                {showArchived && archivedConvs.map(c => {
+                  const av = avatar(c.contact_name, c.phone);
+                  return (
+                    <button key={c.id}
+                      onClick={() => { setActiveId(c.id); clearUnread(c.id); }}
+                      className={cn("w-full text-left transition-colors border-b border-[#e9edef]", activeId === c.id ? "bg-[#f0f2f5]" : "bg-[#fafafa] hover:bg-[#f5f5f5]")}>
+                      <div className="flex items-center gap-3 px-3 py-[10px]">
+                        <div className="h-[49px] w-[49px] rounded-full flex items-center justify-center text-white font-semibold text-lg shrink-0"
+                          style={{ background: av.color }}>
+                          {c.photo_url
+                            ? <img src={c.photo_url} className="h-[49px] w-[49px] rounded-full object-cover" />
+                            : av.label}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline justify-between gap-1 mb-[3px]">
+                            <span className="font-medium text-[15px] text-[#667781] truncate">{c.contact_name || c.phone}</span>
+                            <span className="text-[11px] text-[#8696a0] shrink-0">{c.last_message_at ? formatTime(c.last_message_at) : ""}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-1">
+                            <p className="text-[13px] text-[#8696a0] truncate flex-1">{c.last_message_preview || ""}</p>
+                            <button
+                              onClick={e => { e.stopPropagation(); unarchiveConversation(c.id); }}
+                              className="shrink-0 text-[10px] text-[#00a884] hover:underline ml-2">
+                              Restaurar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </>
+            );
+          })()}
+
           {filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center h-40 text-[#8696a0] text-sm bg-white">
               <MessageSquare className="h-8 w-8 mb-2 opacity-40" />Nenhuma conversa
@@ -2406,6 +2473,7 @@ function InboxPage() {
                     <div className="absolute right-0 top-10 z-50 w-52 rounded-xl border border-[#e9edef] shadow-xl overflow-hidden bg-white">
                       {[
                         { label: "Ver histórico do contato", action: () => { loadHistory(active.phone); setShowMoreMenu(false); } },
+                        { label: "Arquivar conversa",        action: () => { archiveConversation(active.id); setShowMoreMenu(false); } },
                         { label: "Marcar como não lido",     action: () => { markUnread(active.id); setShowMoreMenu(false); } },
                         { label: "Exportar conversa",        action: () => { exportConversation(active); setShowMoreMenu(false); } },
                         { label: active.blocked ? "Desbloquear contato" : "Bloquear contato", action: () => { toggleBlock(active); setShowMoreMenu(false); }, danger: true },
