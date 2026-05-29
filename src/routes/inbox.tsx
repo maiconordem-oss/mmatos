@@ -2396,73 +2396,80 @@ function InboxPage() {
                   <FileText className="h-3.5 w-3.5" />
                   Ficha
                 </button>
+                {/* Menu Atendimento — estilo WA Web */}
                 <div className="relative shrink-0">
                   <button
                     onClick={() => { setShowAtendMenu(!showAtendMenu); setShowMoreMenu(false); }}
-                    className={cn("flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                      showAtendMenu ? "bg-[#e9edef] border-[#e9edef] text-[#111b21]" : "border-[#e9edef] bg-white text-[#54656f] hover:bg-[#e9edef]"
-                    )}>
-                    <UserCheck className="h-3.5 w-3.5" />
-                    Atendimento
+                    className={cn("p-2 rounded-full transition-colors", showAtendMenu ? "bg-[#e9edef] text-[#111b21]" : "hover:bg-[#e9edef] text-[#54656f]")}
+                    title="Atendimento">
+                    <UserCheck className="h-5 w-5" />
                   </button>
                   {showAtendMenu && (
-                    <div className="absolute right-0 top-9 z-50 w-56 flex flex-col gap-0.5 rounded-xl border border-[#e9edef] bg-white p-2 shadow-xl">
-                      <button
-                        onClick={() => { toggleAiPause(active); setShowAtendMenu(false); }}
-                        className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left",
-                          active.ai_paused ? "bg-red-500/10 text-red-600 hover:bg-red-500/20" : "bg-[#00a884]/10 text-[#00a884] hover:bg-[#00a884]/20"
-                        )}>
-                        <Bot className="h-3.5 w-3.5 shrink-0" />
-                        {active.ai_paused ? "Reativar IA" : "Pausar IA"}
-                      </button>
-                      {(active.ticket_status ?? "pending") === "pending" && (
-                        <button onClick={() => { acceptTicket(active.id); setShowAtendMenu(false); }}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors text-left">
-                          <CheckCheck className="h-3.5 w-3.5 shrink-0" /> Assumir atendimento
+                    <div className="absolute right-0 top-11 z-50 w-60 bg-white rounded-[3px] overflow-hidden"
+                      style={{ boxShadow: "rgba(11,20,26,0.13) 0 4px 30px" }}>
+                      <div className="py-[9px]">
+                        {/* IA */}
+                        <button onClick={() => { toggleAiPause(active); setShowAtendMenu(false); }}
+                          className="w-full flex items-center gap-[15px] px-[24px] py-0 h-10 hover:bg-[#f5f5f5] transition-colors text-left">
+                          <Bot className="h-[18px] w-[18px] text-[#54656f] shrink-0" />
+                          <span className="text-[14.5px] text-[#111b21]">{active.ai_paused ? "Reativar IA" : "Pausar IA"}</span>
                         </button>
-                      )}
-                      {(active.ticket_status ?? "pending") !== "resolved" && (
-                        <button onClick={() => { resolveTicket(active.id); setShowAtendMenu(false); }}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-slate-500/10 text-slate-600 hover:bg-slate-500/20 transition-colors text-left">
-                          <CheckCheck className="h-3.5 w-3.5 shrink-0" /> Finalizar
-                        </button>
-                      )}
-                      {(active.ticket_status ?? "pending") === "resolved" && (
-                        <button onClick={() => { reopenTicket(active.id); setShowAtendMenu(false); }}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors text-left">
-                          <RotateCcw className="h-3.5 w-3.5 shrink-0" /> Reabrir
-                        </button>
-                      )}
-                      <div className="my-1 h-px bg-[#e9edef]" />
-                      <p className="px-3 py-1 text-[10px] uppercase tracking-wide text-[#8696a0]">Tags</p>
-                      {tags.length === 0 && (
-                        <p className="text-xs text-[#8696a0] px-3 pb-2">Sem tags. Crie em configurações.</p>
-                      )}
-                      {tags.map(tag => {
-                        const hasTag = (active.tags ?? []).includes(tag.name);
-                        return (
-                          <button key={tag.id}
-                            onClick={() => toggleTag(active.id, tag.name, active.tags ?? [])}
-                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#f5f5f5] text-left transition-colors">
-                            <div className="h-2 w-2 rounded-full shrink-0" style={{ background: tag.color }} />
-                            <span className="text-xs text-[#111b21] flex-1">{tag.name}</span>
-                            {hasTag && <span className="text-[#00a884] text-xs font-bold">✓</span>}
+                        {/* Assumir */}
+                        {(active.ticket_status ?? "pending") === "pending" && (
+                          <button onClick={() => { acceptTicket(active.id); setShowAtendMenu(false); }}
+                            className="w-full flex items-center gap-[15px] px-[24px] py-0 h-10 hover:bg-[#f5f5f5] transition-colors text-left">
+                            <CheckCheck className="h-[18px] w-[18px] text-[#54656f] shrink-0" />
+                            <span className="text-[14.5px] text-[#111b21]">Assumir atendimento</span>
                           </button>
-                        );
-                      })}
+                        )}
+                        {/* Finalizar */}
+                        {(active.ticket_status ?? "pending") !== "resolved" && (
+                          <button onClick={() => { resolveTicket(active.id); setShowAtendMenu(false); }}
+                            className="w-full flex items-center gap-[15px] px-[24px] py-0 h-10 hover:bg-[#f5f5f5] transition-colors text-left">
+                            <CheckCheck className="h-[18px] w-[18px] text-[#54656f] shrink-0" />
+                            <span className="text-[14.5px] text-[#111b21]">Finalizar atendimento</span>
+                          </button>
+                        )}
+                        {/* Reabrir */}
+                        {(active.ticket_status ?? "pending") === "resolved" && (
+                          <button onClick={() => { reopenTicket(active.id); setShowAtendMenu(false); }}
+                            className="w-full flex items-center gap-[15px] px-[24px] py-0 h-10 hover:bg-[#f5f5f5] transition-colors text-left">
+                            <RotateCcw className="h-[18px] w-[18px] text-[#54656f] shrink-0" />
+                            <span className="text-[14.5px] text-[#111b21]">Reabrir conversa</span>
+                          </button>
+                        )}
+                        {/* Divisor */}
+                        {tags.length > 0 && <div className="my-[5px] h-px bg-[#e9edef]" />}
+                        {/* Tags */}
+                        {tags.map(tag => {
+                          const hasTag = (active.tags ?? []).includes(tag.name);
+                          return (
+                            <button key={tag.id}
+                              onClick={() => toggleTag(active.id, tag.name, active.tags ?? [])}
+                              className="w-full flex items-center gap-[15px] px-[24px] py-0 h-10 hover:bg-[#f5f5f5] transition-colors text-left">
+                              <div className="h-[18px] w-[18px] flex items-center justify-center shrink-0">
+                                <div className="h-3 w-3 rounded-full" style={{ background: tag.color }} />
+                              </div>
+                              <span className="text-[14.5px] text-[#111b21] flex-1">{tag.name}</span>
+                              {hasTag && <span className="text-[#00a884] mr-4">✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
 
                 <button onClick={() => setShowAiPanel(!showAiPanel)}
-                  className={cn("p-2 rounded-full transition-colors", showAiPanel ? "bg-[#25d366] text-black" : "hover:bg-[#e9edef] text-[#54656f]")}>
+                  className={cn("p-2 rounded-full transition-colors", showAiPanel ? "bg-[#e9edef] text-[#111b21]" : "hover:bg-[#e9edef] text-[#54656f]")}>
                   <Sparkles className="h-5 w-5" />
                 </button>
                 <button onClick={() => setShowSearchMsg(!showSearchMsg)}
-                  className={cn("p-2 rounded-full transition-colors", showSearchMsg ? "bg-[#d9fdd3] text-[#008069]" : "hover:bg-[#e9edef] text-[#54656f]")}>
+                  className={cn("p-2 rounded-full transition-colors", showSearchMsg ? "bg-[#e9edef] text-[#111b21]" : "hover:bg-[#e9edef] text-[#54656f]")}>
                   <Search className="h-5 w-5" />
                 </button>
-                {/* Menu de contexto */}
+
+                {/* Menu ⋮ — estilo WA Web */}
                 <div className="relative shrink-0">
                   <button
                     onClick={() => { setShowMoreMenu(!showMoreMenu); setShowAtendMenu(false); }}
@@ -2470,20 +2477,33 @@ function InboxPage() {
                     <MoreVertical className="h-5 w-5" />
                   </button>
                   {showMoreMenu && (
-                    <div className="absolute right-0 top-10 z-50 w-52 rounded-xl border border-[#e9edef] shadow-xl overflow-hidden bg-white">
-                      {[
-                        { label: "Ver histórico do contato", action: () => { loadHistory(active.phone); setShowMoreMenu(false); } },
-                        { label: "Arquivar conversa",        action: () => { archiveConversation(active.id); setShowMoreMenu(false); } },
-                        { label: "Marcar como não lido",     action: () => { markUnread(active.id); setShowMoreMenu(false); } },
-                        { label: "Exportar conversa",        action: () => { exportConversation(active); setShowMoreMenu(false); } },
-                        { label: active.blocked ? "Desbloquear contato" : "Bloquear contato", action: () => { toggleBlock(active); setShowMoreMenu(false); }, danger: true },
-                        { label: "Excluir conversa", action: () => { deleteConversation(active.id); setShowMoreMenu(false); }, danger: true },
-                      ].map(item => (
-                        <button key={item.label} onClick={item.action}
-                          className={cn("w-full text-left px-4 py-2.5 text-sm hover:bg-[#f5f5f5] transition-colors", item.danger ? "text-red-500" : "text-[#111b21]")}>
-                          {item.label}
-                        </button>
-                      ))}
+                    <div className="absolute right-0 top-11 z-50 w-60 bg-white rounded-[3px] overflow-hidden"
+                      style={{ boxShadow: "rgba(11,20,26,0.13) 0 4px 30px" }}>
+                      <div className="py-[9px]">
+                        {[
+                          { label: "Ver histórico",           icon: ClipboardList, action: () => { loadHistory(active.phone); setShowMoreMenu(false); } },
+                          { label: "Arquivar conversa",       icon: FileText,       action: () => { archiveConversation(active.id); setShowMoreMenu(false); } },
+                          { label: "Marcar como não lido",    icon: MessageSquare,  action: () => { markUnread(active.id); setShowMoreMenu(false); } },
+                          { label: "Exportar conversa",       icon: ExternalLink,   action: () => { exportConversation(active); setShowMoreMenu(false); } },
+                        ].map(item => (
+                          <button key={item.label} onClick={item.action}
+                            className="w-full flex items-center gap-[15px] px-[24px] py-0 h-10 hover:bg-[#f5f5f5] transition-colors text-left">
+                            <item.icon className="h-[18px] w-[18px] text-[#54656f] shrink-0" />
+                            <span className="text-[14.5px] text-[#111b21]">{item.label}</span>
+                          </button>
+                        ))}
+                        <div className="my-[5px] h-px bg-[#e9edef]" />
+                        {[
+                          { label: active.blocked ? "Desbloquear contato" : "Bloquear contato", icon: AlertTriangle, action: () => { toggleBlock(active); setShowMoreMenu(false); } },
+                          { label: "Excluir conversa", icon: X, action: () => { deleteConversation(active.id); setShowMoreMenu(false); } },
+                        ].map(item => (
+                          <button key={item.label} onClick={item.action}
+                            className="w-full flex items-center gap-[15px] px-[24px] py-0 h-10 hover:bg-[#f5f5f5] transition-colors text-left">
+                            <item.icon className="h-[18px] w-[18px] text-[#54656f] shrink-0" />
+                            <span className="text-[14.5px] text-[#d32f2f]">{item.label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
