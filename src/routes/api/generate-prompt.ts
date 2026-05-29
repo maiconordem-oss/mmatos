@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/api/generate-prompt")({
   server: {
@@ -12,16 +12,16 @@ export const Route = createFileRoute("/api/generate-prompt")({
             return Response.json({ error: "Missing prompts" }, { status: 400 });
           }
 
-          const apiKey = process.env.LOVABLE_API_KEY ?? "lovable-internal";
+          const apiKey = process.env.GOOGLE_AI_KEY ?? "";
 
-          const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-              model: "google/gemini-3-flash-preview",
+              model: "gemini-2.0-flash",
               messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user",   content: userMsg },

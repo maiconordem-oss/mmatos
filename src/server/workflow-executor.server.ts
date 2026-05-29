@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Workflow Executor - runs steps for an execution.
  * Called from the WhatsApp webhook (after each inbound message) and from the cron endpoint (for waits).
  * Uses supabaseAdmin since it runs in trusted server contexts.
@@ -10,7 +10,7 @@ type Ctx = {
   userId: string;
 };
 
-const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const AI_GATEWAY = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 function interpolate(text: string, vars: Record<string, any>): string {
   return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => String(vars[k] ?? ""));
@@ -79,9 +79,9 @@ async function sendWhatsAppMedia(adminParam: SupabaseClient<any, any, any>, user
   }).eq("id", conversationId);
 }
 
-async function callAI(messages: any[], tools?: any[], model = "google/gemini-3-flash-preview") {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+async function callAI(messages: any[], tools?: any[], model = "gemini-2.0-flash") {
+  const apiKey = process.env.GOOGLE_AI_KEY;
+  if (!apiKey) throw new Error("GOOGLE_AI_KEY missing");
   const body: any = { model, messages };
   if (tools) {
     body.tools = tools;

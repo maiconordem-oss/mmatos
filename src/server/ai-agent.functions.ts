@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Agentes de IA (qualificador, extração, proposta) — migrados para AI SDK.
  *
  * Mantém a mesma assinatura (server fns chamadas pelo Inbox), mas:
@@ -14,8 +14,8 @@ import { createLovableAiGatewayProvider, describeAiError, DEFAULT_LOVABLE_MODEL 
 import { checkSafety, logAIDebug, incrementAICounter } from "@/server/intelligence.functions";
 
 function gatewayModel(modelId: string) {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("LOVABLE_API_KEY não configurada");
+  const key = process.env.GOOGLE_AI_KEY;
+  if (!key) throw new Error("GOOGLE_AI_KEY não configurada");
   return createLovableAiGatewayProvider(key)(modelId);
 }
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Funnel Executor — Motor de atendimento automático via WhatsApp
  *
  * Fluxo por mensagem recebida:
@@ -14,8 +14,8 @@ import { getAvailableSlots, createCalendarEvent } from "@/server/google-calendar
 import { analyzeMoment, directiveToPromptBlock, type MomentDirective } from "@/server/funnel-timing.server";
 import { checkSafety, incrementAICounter, logAIDebug } from "@/server/intelligence.functions";
 
-const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const FUNNEL_AI_MODEL = "google/gemini-3-flash-preview";
+const AI_GATEWAY = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const FUNNEL_AI_MODEL = "gemini-2.0-flash";
 const LOW_CONFIDENCE_RE = /\b(n[aã]o sei|n[aã]o posso|consulte um advogado|encaminhar|equipe entrar[aá]|entrar.*contato)\b/i;
 
 // ── Tipos ──────────────────────────────────────────────────────
@@ -611,7 +611,7 @@ async function refreshClientMemory(
   convId: string,
 ) {
   try {
-    const apiKey = process.env.LOVABLE_API_KEY;
+    const apiKey = process.env.GOOGLE_AI_KEY;
     if (!apiKey) return;
 
     const { data: conv } = await admin
@@ -638,7 +638,7 @@ async function refreshClientMemory(
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: "Atualize a memoria persistente de um cliente juridico em 2-4 frases. Nao inclua dados sensiveis desnecessarios." },
           { role: "user", content: `Memoria atual: ${existing?.summary ?? "(vazia)"}\n\nConversa recente:\n${transcript}` },
@@ -689,7 +689,7 @@ async function callAI(
   extraContext: { memory?: string; summary?: string } = {},
   retries = 2
 ): Promise<AiReply> {
-  const apiKey = process.env.LOVABLE_API_KEY ?? "lovable-internal";
+  const apiKey = process.env.GOOGLE_AI_KEY ?? "";
   const longHistory = state.historico.length > 40;
   const history = longHistory ? state.historico.slice(-15) : state.historico.slice(-30);
   const memoryBlock = extraContext.memory ? `\n\nCONTEXTO DO CLIENTE\n${extraContext.memory}` : "";

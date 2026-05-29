@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
@@ -65,8 +65,8 @@ export const transcribeAudioMessage = createServerFn({ method: "POST" })
   .inputValidator(z.object({ __token: z.string().optional(), messageId: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
     const { supabase } = context as any;
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
+    const apiKey = process.env.GOOGLE_AI_KEY;
+    if (!apiKey) throw new Error("GOOGLE_AI_KEY não configurada");
 
     const { data: msg, error: e1 } = await supabase
       .from("messages")
@@ -89,11 +89,11 @@ export const transcribeAudioMessage = createServerFn({ method: "POST" })
                   : mime.includes("mp4") || mime.includes("m4a") ? "mp4"
                   : "ogg";
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         messages: [
           {
             role: "user",

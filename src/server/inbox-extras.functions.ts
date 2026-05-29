@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Funções de produtividade do Inbox + inteligência da IA.
  * - Mensagens agendadas, notas internas
  * - Copiloto (sugestões), resumo, memória do cliente, sentimento
@@ -7,15 +7,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const GATEWAY_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 async function callAI(
   model: string,
   messages: Array<{ role: string; content: string }>,
   tools?: any[],
 ) {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
+  const apiKey = process.env.GOOGLE_AI_KEY;
+  if (!apiKey) throw new Error("GOOGLE_AI_KEY não configurada");
   const body: any = { model, messages };
   if (tools) {
     body.tools = tools;
@@ -160,7 +160,7 @@ export const copilotSuggest = createServerFn({ method: "POST" })
       .select("ai_model, qualifier_prompt")
       .eq("user_id", userId)
       .maybeSingle();
-    const model = settings?.ai_model ?? "google/gemini-3-flash-preview";
+    const model = settings?.ai_model ?? "gemini-2.0-flash";
 
     const { data: msgs } = await supabase
       .from("messages")
@@ -269,7 +269,7 @@ export const summarizeAndSave = createServerFn({ method: "POST" })
       .select("ai_model")
       .eq("user_id", userId)
       .maybeSingle();
-    const model = settings?.ai_model ?? "google/gemini-2.5-flash";
+    const model = settings?.ai_model ?? "gemini-2.5-flash";
 
     const { data: msgs } = await supabase
       .from("messages")
@@ -376,7 +376,7 @@ export const updateClientMemory = createServerFn({ method: "POST" })
 
     const { data: settings } = await supabase
       .from("ai_agent_settings").select("ai_model").eq("user_id", userId).maybeSingle();
-    const model = settings?.ai_model ?? "google/gemini-2.5-flash";
+    const model = settings?.ai_model ?? "gemini-2.5-flash";
 
     const { data: existing } = await supabase
       .from("client_memory")

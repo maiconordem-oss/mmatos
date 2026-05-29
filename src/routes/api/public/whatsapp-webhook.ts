@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { handleFunnelMessage } from "@/server/funnel-executor.server";
 import { normalizeBRPhone, phoneVariants } from "@/lib/phone";
@@ -445,8 +445,8 @@ async function transcribeAudio(
 
 /*
   try {
-    const geminiKey = process.env.GEMINI_API_KEY ?? process.env.LOVABLE_API_KEY ?? null;
-    if (!geminiKey || geminiKey === "lovable-internal") {
+    const geminiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_AI_KEY ?? null;
+    if (!geminiKey || geminiKey === "") {
       // Sem chave Gemini nativa — tentar baixar e converter via gateway
       return await transcribeViaGateway(audioUrl, mimetype, instApiUrl, instApiKey);
     }
@@ -515,7 +515,7 @@ async function transcribeViaGateway(
   instApiKey: string
 ): Promise<string | null> {
   try {
-    const apiKey  = process.env.LOVABLE_API_KEY ?? "lovable-internal";
+    const apiKey  = process.env.GOOGLE_AI_KEY ?? "";
     const audioRes = await fetch(audioUrl, {
       headers: instApiKey ? { apikey: instApiKey } : {},
     });
@@ -534,11 +534,11 @@ async function transcribeViaGateway(
       : mimetype.includes("webm") ? "audio/webm"
       : "audio/ogg";
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method:  "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gemini-2.0-flash",
         messages: [{
           role: "user",
           content: [

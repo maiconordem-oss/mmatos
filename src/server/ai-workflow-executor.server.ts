@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AI Workflow Executor — Arquitetura de Estado Semântico
  * Baseado no prompt v3.0 de Maicon Matos Advocacia.
  *
@@ -11,7 +11,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const AI_GATEWAY = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 type AiResponse = {
   texto: string;
@@ -155,8 +155,8 @@ async function callAI(
   state: ConvState,
   newUserMessage: string
 ): Promise<AiResponse> {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
+  const apiKey = process.env.GOOGLE_AI_KEY;
+  if (!apiKey) throw new Error("GOOGLE_AI_KEY não configurada");
 
   // Injetar contexto de estado no system prompt
   const stateContext = `
@@ -189,7 +189,7 @@ Não envie a mesma mídia que já está em midiasJaEnviadas.
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash-preview",
+      model: "gemini-2.5-flash",
       messages,
       temperature: 0.7,
       max_tokens: 1000,

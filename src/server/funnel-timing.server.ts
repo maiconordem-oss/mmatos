@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Funnel Timing — Camada de IA que decide:
  *  - É o momento ideal para enviar áudio/vídeo agora?
  *  - Existe alguma OBJEÇÃO ESCONDIDA na última mensagem do cliente?
@@ -7,8 +7,8 @@
  *
  * Roda em paralelo ao prompt principal e injeta uma "diretiva" curta no system.
  */
-const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const FAST_MODEL = "google/gemini-3-flash-preview";
+const AI_GATEWAY = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const FAST_MODEL = "gemini-2.0-flash";
 
 export type MomentDirective = {
   send_media_now: boolean;
@@ -44,7 +44,7 @@ export async function analyzeMoment(params: {
   historico: Array<{ role: string; content: string }>;
   ultimaMensagem: string;
 }): Promise<MomentDirective> {
-  const apiKey = process.env.LOVABLE_API_KEY;
+  const apiKey = process.env.GOOGLE_AI_KEY;
   if (!apiKey) return FALLBACK;
 
   const ultimasTrocas = params.historico

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Onda 2/3 — Inteligência, segurança e debug do agente IA.
  * - Sentimento auto (chamado pelo webhook)
  * - Rate limit / loop / palavras proibidas
@@ -11,7 +11,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const GATEWAY_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 // Palavras-chave críticas (acionam alerta independente de sentimento da IA)
 export const CRITICAL_KEYWORDS = [
@@ -56,7 +56,7 @@ export async function classifyAndPersistSentiment(
     return { sentiment: critical ? "urgente" : sentiment, critical };
   }
 
-  const apiKey = process.env.LOVABLE_API_KEY;
+  const apiKey = process.env.GOOGLE_AI_KEY;
   if (!apiKey) return null;
 
   try {
@@ -64,7 +64,7 @@ export async function classifyAndPersistSentiment(
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gemini-2.0-flash",
         messages: [
           {
             role: "system",
