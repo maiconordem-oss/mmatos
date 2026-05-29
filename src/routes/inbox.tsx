@@ -432,7 +432,7 @@ function LeadPanel({ conv, onClose, onConvUpdated, onUseText }: {
   const sentMedia = new Set(state?.midias_enviadas ?? []);
 
   return (
-    <div className="absolute inset-y-0 right-0 z-30 flex w-full max-w-[min(640px,100vw)] flex-col border-l border-[#d1d7db] shadow-2xl" style={{ background: "#f0f2f5" }}>
+    <div className="inbox-lead-panel absolute inset-y-0 right-0 z-30 flex w-full max-w-[min(640px,100vw)] flex-col border-l border-[#d1d7db] shadow-2xl" style={{ background: "#f0f2f5" }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#e9edef]" style={{ background: "#f0f2f5" }}>
         <span className="text-[#111b21] text-base font-semibold">Ficha do Lead</span>
