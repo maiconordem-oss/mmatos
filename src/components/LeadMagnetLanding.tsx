@@ -183,9 +183,9 @@ export const leadMagnetLandings: Record<string, LeadMagnetLandingConfig> = {
     slug: "jose-bpc",
     title: "José pode ter direito ao BPC/LOAS?",
     metaTitle: "José e o BPC/LOAS | Maicon Matos",
-    badge: "Triagem Gratuita - BPC/LOAS",
+    badge: "Questionário Informativo - BPC/LOAS",
     heroLines: ["José,", "você pode ter", "direito ao BPC?"],
-    heroSub: "Uma triagem simples para idosos, pessoas com deficiência ou familiares que querem entender o caminho do BPC/LOAS.",
+    heroSub: "Um questionário educativo para idosos, pessoas com deficiência ou familiares que querem entender os critérios gerais do BPC/LOAS.",
     painTitle: "Essa triagem é para você?",
     pains: [
       "Você se chama José ou está ajudando um José da família",
@@ -208,9 +208,9 @@ export const leadMagnetLandings: Record<string, LeadMagnetLandingConfig> = {
       { question: "Qual é a situação principal?", options: ["Idoso 65+", "Pessoa com deficiência/doença", "Não sei qual encaixa"] },
       { question: "Como está o pedido no INSS?", options: ["Ainda não pediu", "Está em análise", "Foi negado ou cortado"] },
     ],
-    whatsappTitle: "Para qual WhatsApp envio a triagem do BPC/LOAS?",
+    whatsappTitle: "Para qual WhatsApp envio as informações sobre BPC/LOAS?",
     keyword: "JOSE BPC",
-    footerProduct: "esta triagem",
+    footerProduct: "este material informativo",
   },
 };
 

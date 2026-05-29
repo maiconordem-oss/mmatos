@@ -96,18 +96,21 @@ const productLandings = [
   { slug: "guia-aposentadoria", path: "/guia-aposentadoria", fileName: "guia_aposentadoria_v2.pdf" },
   { slug: "guia-auxilio", path: "/guia-auxilio", fileName: "guia_auxilio_doenca_v2.pdf" },
   { slug: "bpc-loas", path: "/bpc", fileName: "guia_bpc_loas.pdf" },
-  { slug: "jose-bpc", path: "/jose-bpc", fileName: "triagem_jose_bpc.pdf" },
+  { slug: "jose-bpc", path: "/jose-bpc", fileName: "questionario_jose_bpc.pdf" },
 ].map((item) => {
   const landing = leadMagnetLandings[item.slug];
+  const isJoseBpc = item.slug === "jose-bpc";
   return {
     ...item,
     title: landing.title,
     keyword: landing.keyword,
     description: landing.heroSub,
-    button_label: "Quero o material gratuito",
+    button_label: isJoseBpc ? "Receber informações" : "Quero o material gratuito",
     file_type: "document",
-    delivery_message: `Oi, {{nome}}! Conforme combinado, segue: ${landing.title}.`,
-    success_message: "Pronto. Enviamos o material no seu WhatsApp.",
+    delivery_message: isJoseBpc
+      ? "Oi, {{nome}}! Recebemos suas respostas sobre BPC/LOAS. Seguem informações iniciais sobre os critérios gerais do benefício."
+      : `Oi, {{nome}}! Conforme combinado, segue: ${landing.title}.`,
+    success_message: isJoseBpc ? "Pronto. Recebemos suas respostas e enviaremos as informações pelo WhatsApp." : "Pronto. Enviamos o material no seu WhatsApp.",
     followup_enabled: true,
     followup_hours: 48,
     followup_message: `Oi, {{nome}}! Passando para saber se você conseguiu ver o material "${landing.title}". Ainda posso te ajudar com alguma dúvida?`,

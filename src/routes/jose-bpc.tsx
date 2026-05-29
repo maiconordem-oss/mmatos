@@ -66,7 +66,7 @@ function JoseBpcLanding() {
           slug: "jose-bpc",
           name: name.trim(),
           phone: `55${nums}`,
-          ref: `jose-bpc: ${answers.filter(Boolean).join(" | ")}`,
+          ref: `questionario-jose-bpc: ${answers.filter(Boolean).join(" | ")}`,
         }),
       });
       const data = await res.json();
@@ -83,7 +83,7 @@ function JoseBpcLanding() {
     <main className="jose-page">
       <style>{css}</style>
       <section className="hero">
-        <div className="topline">Triagem gratuita BPC/LOAS</div>
+        <div className="topline">Questionário informativo BPC/LOAS</div>
         <div className="hero-grid">
           <div>
             <p className="eyebrow">IBGE + BPC/LOAS</p>
@@ -93,7 +93,7 @@ function JoseBpcLanding() {
               Em 2022, <strong>10,9%</strong> da população brasileira tinha 65 anos ou mais. O nome não dá direito ao benefício,
               mas se existe idade, deficiência, baixa renda e CadÚnico, vale conferir.
             </p>
-            <a className="cta" href="#triagem">Fazer triagem agora</a>
+            <a className="cta" href="#triagem">Responder questionário</a>
           </div>
           <div className="stat-card">
             <span className="stat-number">5,7 mi</span>
@@ -125,7 +125,7 @@ function JoseBpcLanding() {
           {success ? (
             <div className="success">
               <span>OK</span>
-              <h2>Triagem recebida.</h2>
+              <h2>Respostas recebidas.</h2>
               <p>{success}</p>
             </div>
           ) : (
@@ -148,11 +148,11 @@ function JoseBpcLanding() {
               ) : (
                 <form onSubmit={submit}>
                   <p className="step-label">Último passo</p>
-                  <h2>Agora deixe nome e WhatsApp para continuar a triagem.</h2>
+                  <h2>Agora deixe nome e WhatsApp para receber o retorno informativo.</h2>
                   <input value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" />
                   <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="WhatsApp com DDD" />
                   {error && <p className="error">{error}</p>}
-                  <button className="submit" disabled={sending}>{sending ? "Enviando..." : "Enviar triagem pelo WhatsApp"}</button>
+                  <button className="submit" disabled={sending}>{sending ? "Enviando..." : "Enviar respostas pelo WhatsApp"}</button>
                 </form>
               )}
             </>
@@ -162,7 +162,7 @@ function JoseBpcLanding() {
 
       <footer>
         <p>Fonte: IBGE, Nomes no Brasil/Censo 2010; MDS, Benefício de Prestação Continuada.</p>
-        <p>Esta triagem não garante concessão. A análise depende dos documentos e dos critérios legais do BPC/LOAS.</p>
+        <p>Este conteúdo é informativo, não promete resultado e não substitui análise individual por profissional habilitado. A concessão depende dos documentos e dos critérios legais do BPC/LOAS.</p>
       </footer>
     </main>
   );
