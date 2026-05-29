@@ -1977,19 +1977,19 @@ function InboxPage() {
       <Toaster />
 
       {/* ── SIDEBAR ── */}
-      <div className="w-[clamp(340px,28vw,410px)] flex flex-col border-r border-[#e9edef] shrink-0" style={{ background: "#f0f2f5" }}>
+      <div className="w-[clamp(320px,26vw,400px)] flex flex-col border-r border-[#e9edef] shrink-0 bg-white">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3" style={{ background: "#f0f2f5" }}>
+        <div className="flex items-center justify-between px-4 py-[14px] bg-[#f0f2f5]">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-[#00a884]">
+            <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-[#00a884] shrink-0">
               {user?.email?.[0]?.toUpperCase() ?? "M"}
             </div>
-            <span className="text-[#111b21] font-medium text-sm">Lex CRM</span>
+            <span className="text-[#111b21] font-semibold text-base">Lex CRM</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <button className="p-2 rounded-full hover:bg-[#d9dde1] text-[#54656f]"><Plus className="h-5 w-5" /></button>
+                <button className="p-2 rounded-full hover:bg-[#d9dde1] text-[#54656f] transition-colors"><Plus className="h-5 w-5" /></button>
               </DialogTrigger>
               <DialogContent className="bg-white border-[#e9edef]">
                 <DialogHeader><DialogTitle className="text-[#111b21]">Nova conversa</DialogTitle></DialogHeader>
@@ -2010,7 +2010,7 @@ function InboxPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <button className="p-2 rounded-full hover:bg-[#d9dde1] text-[#54656f]"><MoreVertical className="h-5 w-5" /></button>
+            <button className="p-2 rounded-full hover:bg-[#d9dde1] text-[#54656f] transition-colors"><MoreVertical className="h-5 w-5" /></button>
           </div>
         </div>
 
@@ -2137,19 +2137,26 @@ function InboxPage() {
           )}
         </div>
 
-        {/* Busca + Ordenar */}
-        <div className="px-3 py-2 flex gap-2" style={{ background: "#f0f2f5" }}>
-          <div className="flex items-center gap-2 rounded-lg px-3 py-2 flex-1" style={{ background: "#ffffff" }}>
+        {/* Busca */}
+        <div className="px-3 py-2 bg-[#f0f2f5]">
+          <div className="flex items-center gap-2 rounded-full bg-white px-4 py-[7px] shadow-sm">
             <Search className="h-4 w-4 text-[#8696a0] shrink-0" />
-            <input className="flex-1 bg-transparent text-base text-[#111b21] placeholder-[#8696a0] outline-none"
-              placeholder="Pesquisar conversas..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input
+              className="flex-1 bg-transparent text-sm text-[#111b21] placeholder-[#8696a0] outline-none"
+              placeholder="Pesquisar ou começar uma nova conversa"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="text-[#8696a0] hover:text-[#54656f]">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <button onClick={() => setSortUnread(!sortUnread)} title="Ordenar por não lidas"
+              className={cn("shrink-0 transition-colors", sortUnread ? "text-[#00a884]" : "text-[#8696a0] hover:text-[#54656f]")}>
+              <MessageSquare className="h-4 w-4" />
+            </button>
           </div>
-          <button onClick={() => setSortUnread(!sortUnread)}
-            title="Ordenar por não lidas"
-            className={cn("px-2 rounded-lg text-xs font-medium transition-colors", sortUnread ? "bg-[#00a884] text-white" : "text-[#54656f] hover:text-[#111b21]")}
-            style={{ background: sortUnread ? "#00a884" : "#f0f2f5" }}>
-            🔔
-          </button>
         </div>
 
         {/* Lista */}
@@ -2164,50 +2171,44 @@ function InboxPage() {
             const isActive = activeId === c.id;
             const dueLabel = slaLabel(c);
             const isOverdue = (hoursUntil(calcSlaDue(c)) ?? 1) <= 0;
-            const statusLine = [
-              c.needs_human      ? { label: "Humano",   color: "#dc2626", bg: "#fef2f2" } : null,
-              c.follow_up_required && !c.needs_human
-                                 ? { label: "Retorno",  color: "#d97706", bg: "#fffbeb" } : null,
-              (c.ticket_status ?? "pending") === "pending" && !c.needs_human
-                                 ? { label: "Aguardando", color: "#2563eb", bg: "#eff6ff" } : null,
-              (c.ticket_status ?? "pending") === "resolved"
-                                 ? { label: "Finalizado", color: "#6b7280", bg: "#f9fafb" } : null,
-              dueLabel           ? { label: dueLabel,   color: isOverdue ? "#dc2626" : "#2563eb", bg: isOverdue ? "#fef2f2" : "#eff6ff" } : null,
-            ].filter(Boolean) as Array<{ label: string; color: string; bg: string }>;
+            const hasUnread = c.unread_count > 0;
+            const statusChips = [
+              c.needs_human        ? { label: "Humano",    dot: "#dc2626" } : null,
+              c.follow_up_required && !c.needs_human ? { label: "Retorno", dot: "#d97706" } : null,
+              isOverdue            ? { label: "Atrasado",  dot: "#dc2626" } : dueLabel ? { label: dueLabel, dot: "#2563eb" } : null,
+            ].filter(Boolean) as Array<{ label: string; dot: string }>;
 
             return (
-              <button key={c.id} onClick={() => { setActiveId(c.id); clearUnread(c.id); setShowLeadPanel(false); }}
+              <button key={c.id}
+                onClick={() => { setActiveId(c.id); clearUnread(c.id); setShowLeadPanel(false); }}
                 className={cn(
-                  "w-full text-left border-b border-[#e9edef] transition-colors",
-                  isActive ? "bg-[#e8faf4]" : "bg-white hover:bg-[#f7f8fa]"
+                  "w-full text-left transition-colors",
+                  isActive ? "bg-[#f0f2f5]" : "bg-white hover:bg-[#f5f5f5]"
                 )}>
-                <div className={cn(
-                  "flex items-start gap-3 px-4 pt-3 pb-2",
-                  (c.needs_human || isOverdue) && "border-l-[3px] border-red-500",
-                  !c.needs_human && !isOverdue && c.ai_paused && "border-l-[3px] border-amber-400",
-                  !c.needs_human && !isOverdue && !c.ai_paused && "border-l-[3px] border-transparent",
-                )}>
+                <div className="flex items-center gap-3 px-3 py-[10px] border-b border-[#e9edef]">
                   {/* Avatar */}
-                  <div className="relative shrink-0 mt-0.5">
+                  <div className="relative shrink-0">
                     {c.photo_url ? (
                       <img src={c.photo_url} alt={c.contact_name || c.phone}
-                        className="h-10 w-10 rounded-full object-cover"
+                        className="h-[49px] w-[49px] rounded-full object-cover"
                         onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     ) : (
-                      <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ background: av.color }}>
+                      <div className="h-[49px] w-[49px] rounded-full flex items-center justify-center text-white font-semibold text-lg shrink-0"
+                        style={{ background: av.color }}>
                         {av.label}
                       </div>
                     )}
+                    {/* Indicador de status no avatar */}
                     {c.blocked && (
-                      <div className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-600 border-2 border-white flex items-center justify-center text-[8px]">🚫</div>
+                      <div className="absolute -bottom-0.5 -right-0.5 h-[18px] w-[18px] rounded-full bg-red-500 border-2 border-white flex items-center justify-center text-[9px]">🚫</div>
                     )}
-                    {c.ai_paused && !c.blocked && (
-                      <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center">
+                    {!c.blocked && c.ai_paused && (
+                      <div className="absolute -bottom-0.5 -right-0.5 h-[18px] w-[18px] rounded-full bg-[#f59e0b] border-2 border-white flex items-center justify-center">
                         <User className="h-2.5 w-2.5 text-white" />
                       </div>
                     )}
-                    {!c.ai_paused && c.ai_handled && !c.blocked && (
-                      <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-[#25d366] border-2 border-white flex items-center justify-center">
+                    {!c.blocked && !c.ai_paused && c.ai_handled && (
+                      <div className="absolute -bottom-0.5 -right-0.5 h-[18px] w-[18px] rounded-full bg-[#25d366] border-2 border-white flex items-center justify-center">
                         <Bot className="h-2.5 w-2.5 text-white" />
                       </div>
                     )}
@@ -2216,49 +2217,59 @@ function InboxPage() {
                   {/* Conteúdo */}
                   <div className="flex-1 min-w-0">
                     {/* Linha 1: nome + hora */}
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={cn("font-semibold text-sm truncate", isActive ? "text-[#007a60]" : "text-[#111b21]",
-                        c.unread_count > 0 && "text-[#111b21]")}>
+                    <div className="flex items-baseline justify-between gap-1 mb-[3px]">
+                      <span className="font-medium text-[#111b21] text-[15px] truncate leading-tight">
                         {c.contact_name || c.phone}
                       </span>
-                      <span className={cn("text-[11px] shrink-0", c.unread_count > 0 ? "text-[#00a884] font-semibold" : "text-[#8696a0]")}>
+                      <span className={cn("text-[11px] shrink-0 tabular-nums", hasUnread ? "text-[#00a884]" : "text-[#667781]")}>
                         {c.last_message_at ? formatTime(c.last_message_at) : ""}
                       </span>
                     </div>
 
-                    {/* Linha 2: preview + badge não lidas */}
-                    <div className="flex items-center justify-between gap-2 mt-0.5">
-                      <p className="text-[#667781] text-xs truncate flex-1 leading-relaxed">
-                        {c.last_message_preview || "Sem mensagens"}
+                    {/* Linha 2: preview + badge */}
+                    <div className="flex items-center justify-between gap-1">
+                      <p className={cn("text-[13px] truncate flex-1 leading-snug", hasUnread ? "text-[#111b21]" : "text-[#667781]")}>
+                        {c.last_message_preview || ""}
                       </p>
-                      {c.unread_count > 0 && (
-                        <span className="shrink-0 h-4.5 min-w-[18px] px-1.5 rounded-full bg-[#00a884] text-white text-[10px] font-bold flex items-center justify-center">
-                          {c.unread_count > 99 ? "99+" : c.unread_count}
-                        </span>
-                      )}
+                      <div className="shrink-0 flex flex-col items-end gap-1">
+                        {hasUnread && (
+                          <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#00a884] text-white text-[11px] font-semibold flex items-center justify-center tabular-nums">
+                            {c.unread_count > 99 ? "99+" : c.unread_count}
+                          </span>
+                        )}
+                        {!hasUnread && statusChips.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            {statusChips.slice(0,1).map(s => (
+                              <span key={s.label} className="flex items-center gap-0.5 text-[10px] font-medium" style={{ color: s.dot }}>
+                                <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.dot }} />
+                                {s.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Linha 3: status + tags */}
-                    {(statusLine.length > 0 || (c.tags?.length ?? 0) > 0) && (
-                      <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                        {statusLine.slice(0, 2).map(s => (
-                          <span key={s.label}
-                            className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
-                            style={{ background: s.bg, color: s.color }}>
+                    {/* Linha 3: tags + chips adicionais (só se tiver unread E status) */}
+                    {(hasUnread && statusChips.length > 0) || (c.tags?.length ?? 0) > 0 ? (
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        {hasUnread && statusChips.slice(0,2).map(s => (
+                          <span key={s.label} className="flex items-center gap-0.5 text-[10px] font-medium" style={{ color: s.dot }}>
+                            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.dot }} />
                             {s.label}
                           </span>
                         ))}
                         {c.tags?.slice(0, 2).map(tag => {
                           const t = tags.find(x => x.name === tag);
                           return (
-                            <span key={tag} className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-md"
-                              style={{ background: (t?.color ?? "#6366f1") + "20", color: t?.color ?? "#6366f1" }}>
+                            <span key={tag} className="text-[10px] px-1.5 py-px rounded-full font-medium"
+                              style={{ background: (t?.color ?? "#6366f1") + "18", color: t?.color ?? "#6366f1" }}>
                               {tag}
                             </span>
                           );
                         })}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </button>
