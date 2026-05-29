@@ -179,6 +179,39 @@ export const leadMagnetLandings: Record<string, LeadMagnetLandingConfig> = {
     keyword: "BPC",
     footerProduct: "este guia",
   },
+  "jose-bpc": {
+    slug: "jose-bpc",
+    title: "José pode ter direito ao BPC/LOAS?",
+    metaTitle: "José e o BPC/LOAS | Maicon Matos",
+    badge: "Triagem Gratuita - BPC/LOAS",
+    heroLines: ["José,", "você pode ter", "direito ao BPC?"],
+    heroSub: "Uma triagem simples para idosos, pessoas com deficiência ou familiares que querem entender o caminho do BPC/LOAS.",
+    painTitle: "Essa triagem é para você?",
+    pains: [
+      "Você se chama José ou está ajudando um José da família",
+      "A pessoa tem 65 anos ou mais e vive com baixa renda",
+      "A pessoa tem deficiência ou doença que dificulta trabalhar ou viver com autonomia",
+      "O INSS negou, cortou ou ainda não analisou o pedido de BPC",
+    ],
+    sectionLabel: "O que vamos verificar",
+    sectionTitle: "Nome não dá direito.",
+    sectionHighlight: "Requisito dá.",
+    items: [
+      "Idade: 65 anos ou mais, quando for BPC idoso",
+      "Deficiência: impedimento de longo prazo e avaliação biopsicossocial",
+      "Renda familiar por pessoa e quem mora na mesma casa",
+      "CadÚnico atualizado e CPF dos membros da família",
+      "Situação no INSS: pedido novo, negativa, suspensão ou revisão",
+    ],
+    questions: [
+      { question: "Você se chama José ou está preenchendo para um José?", options: ["Eu sou o José", "Sou familiar/cuidador", "É para outra pessoa"] },
+      { question: "Qual é a situação principal?", options: ["Idoso 65+", "Pessoa com deficiência/doença", "Não sei qual encaixa"] },
+      { question: "Como está o pedido no INSS?", options: ["Ainda não pediu", "Está em análise", "Foi negado ou cortado"] },
+    ],
+    whatsappTitle: "Para qual WhatsApp envio a triagem do BPC/LOAS?",
+    keyword: "JOSE BPC",
+    footerProduct: "esta triagem",
+  },
 };
 
 export function LeadMagnetLanding({ config }: { config: LeadMagnetLandingConfig }) {

@@ -19,6 +19,7 @@ import { Route as ManualPericiaRouteImport } from './routes/manual-pericia'
 import { Route as ManualRouteImport } from './routes/manual'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KanbanRouteImport } from './routes/kanban'
+import { Route as JoseBpcRouteImport } from './routes/jose-bpc'
 import { Route as InstagramRouteImport } from './routes/instagram'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as IaDebugRouteImport } from './routes/ia-debug'
@@ -105,6 +106,11 @@ const LoginRoute = LoginRouteImport.update({
 const KanbanRoute = KanbanRouteImport.update({
   id: '/kanban',
   path: '/kanban',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoseBpcRoute = JoseBpcRouteImport.update({
+  id: '/jose-bpc',
+  path: '/jose-bpc',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InstagramRoute = InstagramRouteImport.update({
@@ -317,6 +323,7 @@ export interface FileRoutesByFullPath {
   '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
   '/instagram': typeof InstagramRoute
+  '/jose-bpc': typeof JoseBpcRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual-pericia': typeof ManualPericiaRoute
@@ -366,6 +373,7 @@ export interface FileRoutesByTo {
   '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
   '/instagram': typeof InstagramRoute
+  '/jose-bpc': typeof JoseBpcRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual-pericia': typeof ManualPericiaRoute
@@ -416,6 +424,7 @@ export interface FileRoutesById {
   '/ia-debug': typeof IaDebugRoute
   '/inbox': typeof InboxRoute
   '/instagram': typeof InstagramRoute
+  '/jose-bpc': typeof JoseBpcRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
   '/manual-pericia': typeof ManualPericiaRoute
@@ -467,6 +476,7 @@ export interface FileRouteTypes {
     | '/ia-debug'
     | '/inbox'
     | '/instagram'
+    | '/jose-bpc'
     | '/kanban'
     | '/login'
     | '/manual-pericia'
@@ -516,6 +526,7 @@ export interface FileRouteTypes {
     | '/ia-debug'
     | '/inbox'
     | '/instagram'
+    | '/jose-bpc'
     | '/kanban'
     | '/login'
     | '/manual-pericia'
@@ -565,6 +576,7 @@ export interface FileRouteTypes {
     | '/ia-debug'
     | '/inbox'
     | '/instagram'
+    | '/jose-bpc'
     | '/kanban'
     | '/login'
     | '/manual-pericia'
@@ -615,6 +627,7 @@ export interface RootRouteChildren {
   IaDebugRoute: typeof IaDebugRoute
   InboxRoute: typeof InboxRoute
   InstagramRoute: typeof InstagramRoute
+  JoseBpcRoute: typeof JoseBpcRoute
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
   ManualPericiaRoute: typeof ManualPericiaRoute
@@ -729,6 +742,13 @@ declare module '@tanstack/react-router' {
       path: '/instagram'
       fullPath: '/instagram'
       preLoaderRoute: typeof InstagramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jose-bpc': {
+      id: '/jose-bpc'
+      path: '/jose-bpc'
+      fullPath: '/jose-bpc'
+      preLoaderRoute: typeof JoseBpcRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ia-debug': {
@@ -1010,6 +1030,7 @@ const rootRouteChildren: RootRouteChildren = {
   IaDebugRoute: IaDebugRoute,
   InboxRoute: InboxRoute,
   InstagramRoute: InstagramRoute,
+  JoseBpcRoute: JoseBpcRoute,
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
   ManualPericiaRoute: ManualPericiaRoute,
