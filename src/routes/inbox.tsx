@@ -1071,6 +1071,7 @@ function InboxPage() {
   const [newConv, setNewConv] = useState({ phone: "", contact_name: "" });
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [showLeadPanel, setShowLeadPanel] = useState(false);
+  const [showContextDetails, setShowContextDetails] = useState(false);
   const [savingFunnel, setSavingFunnel]   = useState(false);
 
   // IA — estados das ferramentas
@@ -1940,7 +1941,7 @@ function InboxPage() {
       <Toaster />
 
       {/* ── SIDEBAR ── */}
-      <div className="w-[clamp(360px,30vw,430px)] flex flex-col border-r border-[#e9edef] shrink-0" style={{ background: "#f0f2f5" }}>
+      <div className="w-[clamp(340px,28vw,410px)] flex flex-col border-r border-[#e9edef] shrink-0" style={{ background: "#f0f2f5" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3" style={{ background: "#f0f2f5" }}>
           <div className="flex items-center gap-3">
@@ -2046,14 +2047,15 @@ function InboxPage() {
 
         {/* Fila operacional */}
         <div className="px-3 py-2 border-b border-[#e9edef] bg-white">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] uppercase tracking-wide text-[#667781] font-semibold">O que fazer agora</span>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-[10px] uppercase tracking-wide text-[#667781] font-semibold">Fila</span>
             <button onClick={() => setHealthOpen(!healthOpen)}
-              className="flex items-center gap-1 text-[10px] text-[#00a884] hover:underline">
-              <HeartPulse className="h-3 w-3" /> status
+              className={cn("flex items-center gap-1 rounded-full px-2 py-1 text-[10px] transition-colors",
+                healthOpen ? "bg-[#00a884]/10 text-[#007a60]" : "text-[#667781] hover:bg-[#f0f2f5]")}>
+              <HeartPulse className="h-3 w-3" /> indicadores
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
             {([
               { key: "novo", label: "Responder" },
               { key: "humano", label: "Você" },
@@ -2067,10 +2069,10 @@ function InboxPage() {
                 : conversations.filter(c => item.key === "sla" ? (hoursUntil(calcSlaDue(c)) ?? 1) <= 0 : queueKind(c) === item.key).length;
               return (
                 <button key={item.key} onClick={() => setQueueFilter(item.key)}
-                  className={cn("rounded-md border px-2 py-1.5 text-left transition-colors",
-                    queueFilter === item.key ? "border-[#00a884] bg-[#00a884]/10" : "border-[#e9edef] bg-[#f7f8fa] hover:bg-[#f0f2f5]")}>
-                  <span className="block text-[10px] font-semibold text-[#111b21]">{item.label}</span>
-                  <span className="text-[10px] text-[#667781]">{count}</span>
+                  className={cn("shrink-0 rounded-full border px-2.5 py-1 text-left transition-colors",
+                    queueFilter === item.key ? "border-[#00a884] bg-[#00a884]/10 text-[#007a60]" : "border-[#e9edef] bg-[#f7f8fa] text-[#54656f] hover:bg-[#f0f2f5]")}>
+                  <span className="text-[10px] font-semibold">{item.label}</span>
+                  <span className="ml-1 text-[10px] opacity-70">{count}</span>
                 </button>
               );
             })}
@@ -2139,16 +2141,24 @@ function InboxPage() {
           {filtered.map(c => {
             const av = avatar(c.contact_name, c.phone);
             const isActive = activeId === c.id;
+            const dueLabel = slaLabel(c);
+            const statusBadges = [
+              c.needs_human ? { label: "Humano", className: "bg-red-500/10 text-red-600" } : null,
+              !c.needs_human && c.follow_up_required ? { label: "Retorno", className: "bg-orange-500/10 text-orange-700" } : null,
+              dueLabel ? { label: dueLabel, className: (hoursUntil(calcSlaDue(c)) ?? 1) <= 0 ? "bg-red-500/10 text-red-600" : "bg-blue-500/10 text-blue-600" } : null,
+              (c.ticket_status ?? "pending") === "pending" ? { label: "Novo", className: "bg-amber-500/10 text-amber-700" } : null,
+              (c.ticket_status ?? "pending") === "resolved" ? { label: "OK", className: "bg-slate-500/10 text-slate-600" } : null,
+            ].filter(Boolean).slice(0, 2) as Array<{ label: string; className: string }>;
             return (
               <button key={c.id} onClick={() => { setActiveId(c.id); clearUnread(c.id); setShowLeadPanel(false); }}
-                className={cn("w-full flex items-center gap-3.5 px-4 py-4 border-b border-[#e9edef] hover:bg-[#f5f5f5] transition-colors text-left bg-white", isActive && "bg-[#f0f2f5]")}>
+                className={cn("w-full flex items-center gap-3 px-4 py-3 border-b border-[#e9edef] hover:bg-[#f5f5f5] transition-colors text-left bg-white", isActive && "bg-[#f0f2f5]")}>
                 <div className="relative shrink-0">
                   {c.photo_url ? (
                     <img src={c.photo_url} alt={c.contact_name || c.phone}
-                      className="h-12 w-12 rounded-full object-cover"
+                      className="h-10 w-10 rounded-full object-cover"
                       onError={e => { (e.target as HTMLImageElement).src = ""; (e.target as HTMLImageElement).style.display = "none"; }} />
                   ) : (
-                    <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ background: av.color }}>
+                    <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-base" style={{ background: av.color }}>
                       {av.label}
                     </div>
                   )}
@@ -2174,27 +2184,11 @@ function InboxPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-[#111b21] font-semibold text-base truncate">{c.contact_name || c.phone}</span>
                     <div className="flex items-center gap-1 shrink-0 ml-2">
-                      {c.needs_human && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-600 font-bold">⚠ HUMANO</span>
-                      )}
-                      {c.follow_up_required && !c.needs_human && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-600 font-bold">RETORNO</span>
-                      )}
-                      {slaLabel(c) && (
-                        <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-bold",
-                          (hoursUntil(calcSlaDue(c)) ?? 1) <= 0
-                            ? "bg-red-500/20 text-red-600"
-                            : "bg-blue-500/20 text-blue-600")}>
-                          {slaLabel(c)}
+                      {statusBadges.map(badge => (
+                        <span key={badge.label} className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-semibold", badge.className)}>
+                          {badge.label}
                         </span>
-                      )}
-                      {/* Badge de status */}
-                      {(c.ticket_status ?? "pending") === "pending" && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold">NOVO</span>
-                      )}
-                      {(c.ticket_status ?? "pending") === "resolved" && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-500/20 text-slate-400 font-bold">✓</span>
-                      )}
+                      ))}
                       <span className={cn("text-sm", c.unread_count > 0 ? "text-[#00a884] font-semibold" : "text-[#667781]")}>
                         {c.last_message_at ? formatTime(c.last_message_at) : ""}
                       </span>
@@ -2372,7 +2366,26 @@ function InboxPage() {
               </div>
             </div>
 
-            <div className="px-4 py-2 border-y border-[#e9edef] bg-white flex items-center gap-2 text-xs overflow-x-auto">
+            <div className="px-4 py-1.5 border-b border-[#e9edef] bg-white flex items-center gap-2 text-xs overflow-x-auto">
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#f0f2f5] px-2 py-1 text-[#54656f]">
+                <UserCheck className="h-3 w-3" />
+                {active.assigned_to ? "Assumido" : "Sem responsavel"}
+              </span>
+              <span className={cn("shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-1",
+                (hoursUntil(calcSlaDue(active)) ?? 1) <= 0 ? "bg-red-500/10 text-red-600" : "bg-blue-500/10 text-blue-600")}>
+                <Clock className="h-3 w-3" /> {slaLabel(active) || "Sem prazo"}
+              </span>
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#00a884]/10 px-2 py-1 text-[#007a60]">
+                <ClipboardList className="h-3 w-3" /> {FASE_LABELS[activeFunnelState?.fase || ""] || "Sem funil"}
+              </span>
+              <button onClick={() => setShowContextDetails(!showContextDetails)}
+                className="ml-auto shrink-0 rounded-full px-2 py-1 text-[10px] text-[#667781] hover:bg-[#f0f2f5]">
+                {showContextDetails ? "Ocultar detalhes" : "Detalhes"}
+              </button>
+            </div>
+
+            {showContextDetails && (
+            <div className="px-4 py-2 border-b border-[#e9edef] bg-white flex items-center gap-2 text-xs overflow-x-auto">
               <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#f0f2f5] px-2 py-1 text-[#54656f]">
                 <UserCheck className="h-3 w-3" />
                 {active.assigned_to ? "Assumido" : "Sem responsável"}
@@ -2420,6 +2433,7 @@ function InboxPage() {
               )}
             </div>
 
+            )}
             {/* Painel de ferramentas IA — expandido */}
             {showAiPanel && (
               <div className="border-b border-[#e9edef] max-h-[50vh] overflow-y-auto bg-white">
