@@ -1149,6 +1149,7 @@ function InboxPage() {
   // Reset ao trocar de conversa
   useEffect(() => {
     activeIdRef.current = activeId;
+    setMessages([]);
     setSuggestions([]); setAiSummary(null); setAiTasks([]); setAiSentiment(null);
     setAiSearchQ(""); setAiSearchResults([]);
     setAssignmentEvents([]);
@@ -3006,6 +3007,7 @@ function InboxPage() {
 
       {active && showLeadPanel && (
         <LeadPanel
+          key={active.id}
           conv={active}
           onClose={() => setShowLeadPanel(false)}
           onConvUpdated={loadConvs}
