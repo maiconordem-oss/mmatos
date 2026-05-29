@@ -2383,18 +2383,13 @@ function InboxPage() {
                   {" · clique para ver ficha"}
                 </p>
               </button>
-              <div className="flex items-center gap-1 overflow-x-auto pl-2">
+              <div className="flex items-center gap-0 pl-2">
                 <button
                   onClick={() => setShowLeadPanel(!showLeadPanel)}
-                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                    showLeadPanel
-                      ? "bg-[#d9fdd3] text-[#008069] border-[#b7e4ca]"
-                      : "bg-white text-[#54656f] hover:bg-[#e9edef] border-[#e9edef]"
-                  )}
+                  className={cn("p-2 rounded-full transition-colors", showLeadPanel ? "bg-[#e9edef] text-[#111b21]" : "hover:bg-[#e9edef] text-[#54656f]")}
                   title={showLeadPanel ? "Fechar ficha" : "Abrir ficha"}
                 >
-                  <FileText className="h-3.5 w-3.5" />
-                  Ficha
+                  <FileText className="h-5 w-5" />
                 </button>
                 {/* Menu Atendimento — estilo WA Web */}
                 <div className="relative shrink-0">
