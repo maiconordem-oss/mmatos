@@ -1350,6 +1350,15 @@ function InboxPage() {
   }, [loadInstances, loadQuickReplies, loadFunnels, loadTags, loadBusinessHours]);
   useEffect(() => { loadConvs(); setActiveId(null); }, [loadConvs]);
 
+  // Realtime instâncias WhatsApp (status conectado/desconectado)
+  useEffect(() => {
+    if (!user?.id) return;
+    const ch = supabase.channel(`user:${user.id}:instances-rt`, { config: { private: true } })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "whatsapp_instances" }, loadInstances)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [loadInstances, user?.id]);
+
   // Realtime conversas
   useEffect(() => {
     if (!user?.id) return;
