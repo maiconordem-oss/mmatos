@@ -2756,8 +2756,8 @@ function InboxPage() {
             )}
 
             {/* Mensagens */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 md:px-10 lg:px-14 space-y-2"
-              style={{ background: "#efeae2", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cpath fill='%23d4c9b0' fill-opacity='0.18' d='M10 20c0-1 .5-2 1.5-2.7L20 11.8V8h2v4.2l9.5 6.5c.7.5 1.5 1.5 1.5 2.8v1H10v-2zm40 0c0-1 .5-2 1.5-2.7L60 11.8V8h2v4.2l8.5 6.5c.7.5 1.5 1.5 1.5 2.8v1H50v-2z'/%3E%3C/svg%3E\")" }}>
+            <div className="flex-1 overflow-y-auto px-[5vw] py-4 space-y-[2px]"
+              style={{ background: "#efeae2", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='412' height='412'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='412' height='412' filter='url(%23f)' opacity='0.03'/%3E%3C/svg%3E\"), url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='1' cy='1' r='1' fill='%23c5baa5' fill-opacity='0.15'/%3E%3C/svg%3E\")", backgroundSize: "412px 412px, 20px 20px" }}>
               {grouped.length === 0 && (
                 <div className="flex justify-center py-8">
                   <span className="px-3 py-1.5 rounded-lg text-xs text-[#54656f]" style={{ background: "#ffffff", boxShadow: "0 1px 0.5px rgba(11,20,26,.13)" }}>Nenhuma mensagem ainda</span>
@@ -2765,13 +2765,13 @@ function InboxPage() {
               )}
               {grouped.map(group => (
                 <div key={group.date}>
-                  <div className="flex justify-center my-4">
-                    <span className="px-3 py-1 rounded-lg text-xs text-[#54656f] font-medium" style={{ background: "#ffffff", boxShadow: "0 1px 0.5px rgba(11,20,26,.13)" }}>{group.date}</span>
+                  <div className="flex justify-center my-3">
+                    <span className="px-[10px] py-[5px] rounded-lg text-[12.5px] text-[#54656f]" style={{ background: "#fff", boxShadow: "0 1px 0.5px rgba(11,20,26,.13)", fontWeight: 400 }}>{group.date}</span>
                   </div>
                   {group.messages.map(m => (
-                    <div key={m.id} className={cn("flex mb-2", m.direction === "outbound" ? "justify-end" : "justify-start")}>
-                      <div className={cn("max-w-[82%] rounded-lg text-base overflow-hidden", m.direction === "outbound" ? "rounded-tr-none" : "rounded-tl-none")}
-                        style={{ background: m.direction === "outbound" ? "#d9fdd3" : "#ffffff", boxShadow: "0 1px 0.5px rgba(11,20,26,.18)" }}>
+                    <div key={m.id} className={cn("flex mb-[2px]", m.direction === "outbound" ? "justify-end" : "justify-start")}>
+                      <div className={cn("max-w-[65%] overflow-hidden", m.direction === "outbound" ? "rounded-[7.5px] rounded-tr-none" : "rounded-[7.5px] rounded-tl-none")}
+                        style={{ background: m.direction === "outbound" ? "#d9fdd3" : "#ffffff", boxShadow: "0 1px 0.5px rgba(11,20,26,.13)" }}>
 
                         {/* IMAGEM */}
                         {m.media_type === "image" && m.media_url && (
@@ -2862,14 +2862,14 @@ function InboxPage() {
 
                         {/* TEXTO */}
                         {m.content && m.media_type !== "document" && (
-                          <p className="text-[#111b21] leading-relaxed whitespace-pre-wrap break-words px-4 py-2.5">{m.content}</p>
+                          <p className="text-[#111b21] whitespace-pre-wrap break-words" style={{ fontSize: "14.2px", lineHeight: "19px", padding: "6px 7px 8px 9px" }}>{m.content}</p>
                         )}
                         {!m.content && !m.media_type && (
                           <p className="text-[#667781] text-xs px-3 py-2 italic">Mensagem</p>
                         )}
 
                         {/* Timestamp */}
-                        <div className="flex items-center gap-1 justify-end px-3 pb-2 -mt-1">
+                        <div className="flex items-center gap-1 justify-end pb-[5px] pr-[7px] pl-[9px] -mt-1">
                           {m.status === "failed" && (
                             <button onClick={() => retryMessage(m)}
                               className="mr-1 inline-flex items-center gap-1 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-600 hover:bg-red-500/20"
@@ -2969,22 +2969,23 @@ function InboxPage() {
             )}
 
             {/* Input */}
-            <div className="px-5 py-4 flex items-end gap-3 shrink-0 border-t border-[#e9edef]" style={{ background: "#f0f2f5" }}>
-              {/* Quick Replies button */}
+            <div className="px-3 py-[10px] flex items-end gap-2 shrink-0" style={{ background: "#f0f2f5" }}>
+              {/* Ícones esquerda */}
               <button onClick={() => setShowQuickReplies(!showQuickReplies)}
                 title="Respostas prontas"
-                className={cn("p-2 shrink-0 transition-colors", showQuickReplies ? "text-[#00a884]" : "text-[#54656f] hover:text-[#00a884]")}>
-                <Zap className="h-5 w-5" />
+                className={cn("p-2 shrink-0 rounded-full transition-colors", showQuickReplies ? "text-[#00a884]" : "text-[#54656f] hover:text-[#111b21]")}>
+                <Zap className="h-[26px] w-[26px]" />
               </button>
               <button onClick={() => doSuggest()} disabled={aiBusy !== null}
-                title="Sugerir 3 respostas"
-                className="p-2 text-[#54656f] hover:text-[#00a884] shrink-0 disabled:opacity-50">
-                {aiBusy === "suggest" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                title="Sugerir respostas com IA"
+                className="p-2 text-[#54656f] hover:text-[#111b21] shrink-0 rounded-full disabled:opacity-50 transition-colors">
+                {aiBusy === "suggest" ? <Loader2 className="h-[26px] w-[26px] animate-spin" /> : <Sparkles className="h-[26px] w-[26px]" />}
               </button>
-              <div className="flex-1 rounded-lg px-4 py-3 flex flex-col gap-1 bg-white shadow-sm">
+              {/* Campo de texto */}
+              <div className="flex-1 rounded-lg flex flex-col gap-1 bg-white" style={{ minHeight: 42 }}>
                 <textarea ref={textareaRef}
-                  className="flex-1 bg-transparent text-base text-[#111b21] placeholder-[#8696a0] outline-none resize-none leading-relaxed"
-                  style={{ height: "48px", maxHeight: "160px" }}
+                  className="flex-1 bg-transparent text-[#111b21] placeholder-[#8696a0] outline-none resize-none"
+                  style={{ height: "24px", maxHeight: "160px", fontSize: "15px", lineHeight: "20px", padding: "11px 12px 11px 12px" }}
                   placeholder={active.ai_paused ? "Você está respondendo" : "Digite uma mensagem"}
                   value={text} onChange={handleTextChange} onKeyDown={handleKeyDown} rows={1} />
                 {/* Barra de reescrita inline */}
