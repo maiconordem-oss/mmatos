@@ -26,6 +26,44 @@ function storagePathFromUrl(value: string | null) {
   return null;
 }
 
+async function fetchEvolutionMedia(params: {
+  apiUrl: string;
+  apiKey: string;
+  instanceName: string;
+  externalId: string;
+  fallbackMime?: string | null;
+  convertToMp4?: boolean;
+}) {
+  const evoRes = await fetch(`${params.apiUrl}/chat/getBase64FromMediaMessage/${params.instanceName}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: params.apiKey },
+    body: JSON.stringify({ message: { key: { id: params.externalId } }, convertToMp4: !!params.convertToMp4 }),
+  }).catch(() => null);
+
+  if (!evoRes?.ok) return null;
+
+  const evoData = await evoRes.json().catch(() => null);
+  const rawBase64 = evoData?.base64 || evoData?.data;
+  if (!rawBase64) return null;
+
+  const value = String(rawBase64);
+  const dataMime = value.match(/^data:([^;]+);base64,/)?.[1];
+  const clean = value.replace(/^data:[^;]+;base64,/, "");
+  const bin = atob(clean);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+  const contentType = evoData?.mimetype || dataMime || (params.convertToMp4 ? "audio/mp4" : params.fallbackMime) || "application/octet-stream";
+  return new Response(bytes.buffer, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "private, max-age=3600",
+      "Accept-Ranges": "bytes",
+    },
+  });
+}
+
 export const Route = createFileRoute("/api/media-proxy")({
   server: {
     handlers: {
@@ -34,6 +72,7 @@ export const Route = createFileRoute("/api/media-proxy")({
         const msgId = url.searchParams.get("msg");
         const docId = url.searchParams.get("doc");
         const token = url.searchParams.get("token");
+        const wantsPlayable = url.searchParams.get("playable") === "1";
 
         if (!msgId && !docId) return new Response("Missing msg or doc param", { status: 400 });
         const authRequest = token
@@ -66,12 +105,36 @@ export const Route = createFileRoute("/api/media-proxy")({
 
         const { data: msg } = await admin
           .from("messages")
-          .select("media_url, media_mime, external_id, conversation_id, user_id")
+          .select("media_url, media_type, media_mime, external_id, conversation_id, user_id")
           .eq("id", msgId)
           .single();
 
         if (!msg?.media_url) return new Response("Media not found", { status: 404 });
         if (msg.user_id !== userId) return new Response("Forbidden", { status: 403 });
+
+        const { data: conv } = await admin
+          .from("conversations").select("instance_id").eq("id", msg.conversation_id).single();
+
+        let apiKey = "", apiUrl = "", instanceName = "";
+        if (conv?.instance_id) {
+          const { data: inst } = await admin
+            .from("whatsapp_instances").select("api_key, api_url, instance_name").eq("id", conv.instance_id).single();
+          apiKey = inst?.api_key ?? "";
+          apiUrl = inst?.api_url?.replace(/\/$/, "") ?? "";
+          instanceName = inst?.instance_name ?? "";
+        }
+
+        if (wantsPlayable && msg.media_type === "audio" && apiUrl && apiKey && instanceName && msg.external_id) {
+          const playable = await fetchEvolutionMedia({
+            apiUrl,
+            apiKey,
+            instanceName,
+            externalId: msg.external_id,
+            fallbackMime: msg.media_mime,
+            convertToMp4: true,
+          });
+          if (playable) return playable;
+        }
 
         const storagePath = storagePathFromUrl(msg.media_url as string);
         if (storagePath) {
@@ -87,18 +150,6 @@ export const Route = createFileRoute("/api/media-proxy")({
         }
 
         // Buscar instância
-        const { data: conv } = await admin
-          .from("conversations").select("instance_id").eq("id", msg.conversation_id).single();
-
-        let apiKey = "", apiUrl = "", instanceName = "";
-        if (conv?.instance_id) {
-          const { data: inst } = await admin
-            .from("whatsapp_instances").select("api_key, api_url, instance_name").eq("id", conv.instance_id).single();
-          apiKey = inst?.api_key ?? "";
-          apiUrl = inst?.api_url?.replace(/\/$/, "") ?? "";
-          instanceName = inst?.instance_name ?? "";
-        }
-
         try {
           // Tentar Evolution API getBase64
           if (apiUrl && apiKey && instanceName && msg.external_id) {

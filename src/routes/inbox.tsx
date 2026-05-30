@@ -88,8 +88,8 @@ type Message = {
   last_error?: string | null;
 };
 
-const proxyUrl = (msg: Message, token: string | null) =>
-  msg.media_url && token ? `/api/media-proxy?msg=${msg.id}&token=${encodeURIComponent(token)}` : null;
+const proxyUrl = (msg: Message, token: string | null, playable = false) =>
+  msg.media_url && token ? `/api/media-proxy?msg=${msg.id}&token=${encodeURIComponent(token)}${playable ? "&playable=1" : ""}` : null;
 
 const storageUri = (path: string) => `whatsapp-media://${path}`;
 
@@ -2805,7 +2805,7 @@ function InboxPage() {
                         {/* ÁUDIO — player nativo */}
                         {m.media_type === "audio" && m.media_url && (
                           <div className="px-2 py-2 space-y-1">
-                            <audio controls src={proxyUrl(m, mediaToken) ?? ""} className="h-8 w-48" style={{ filter: "invert(0.8)" }} />
+                            <audio controls preload="metadata" src={proxyUrl(m, mediaToken, true) ?? ""} className="h-8 w-48" style={{ filter: "invert(0.8)" }} />
                             {m.transcription ? (
                               <p className="text-[#111b21] text-sm leading-relaxed bg-white/70 rounded p-2 whitespace-pre-wrap">
                                 <span className="text-[#667781] text-xs block mb-0.5">Transcrição</span>
