@@ -30,23 +30,23 @@ import { Route as FunisRouteImport } from './routes/funis'
 import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContratosRouteImport } from './routes/contratos'
-import { Route as ConstrutorRouteImport } from './routes/construtor'
 import { Route as ConteudoRouteImport } from './routes/conteudo'
+import { Route as ConstrutorRouteImport } from './routes/construtor'
 import { Route as ConhecimentoRouteImport } from './routes/conhecimento'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as BpcRouteImport } from './routes/bpc'
 import { Route as AgentesRouteImport } from './routes/agentes'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as CapturaSlugRouteImport } from './routes/captura.$slug'
 import { Route as WorkflowsIdRouteImport } from './routes/workflows.$id'
+import { Route as CapturaSlugRouteImport } from './routes/captura.$slug'
 import { Route as ApiSimulateRouteImport } from './routes/api/simulate'
 import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
 import { Route as ApiLeadMagnetUploadRouteImport } from './routes/api/lead-magnet-upload'
 import { Route as ApiGeneratePromptRouteImport } from './routes/api/generate-prompt'
-import { Route as ApiContentGenerateRouteImport } from './routes/api/content-generate'
 import { Route as ApiDiagnosticoRouteImport } from './routes/api/diagnostico'
 import { Route as ApiDebugWebhookRouteImport } from './routes/api/debug-webhook'
+import { Route as ApiContentGenerateRouteImport } from './routes/api/content-generate'
 import { Route as ApiPublicZapsignWebhookRouteImport } from './routes/api/public/zapsign-webhook'
 import { Route as ApiPublicWorkflowTickRouteImport } from './routes/api/public/workflow-tick'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
@@ -163,14 +163,14 @@ const ContratosRoute = ContratosRouteImport.update({
   path: '/contratos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ConstrutorRoute = ConstrutorRouteImport.update({
-  id: '/construtor',
-  path: '/construtor',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ConteudoRoute = ConteudoRouteImport.update({
   id: '/conteudo',
   path: '/conteudo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConstrutorRoute = ConstrutorRouteImport.update({
+  id: '/construtor',
+  path: '/construtor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConhecimentoRoute = ConhecimentoRouteImport.update({
@@ -203,15 +203,15 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CapturaSlugRoute = CapturaSlugRouteImport.update({
-  id: '/captura/$slug',
-  path: '/captura/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const WorkflowsIdRoute = WorkflowsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => WorkflowsRoute,
+} as any)
+const CapturaSlugRoute = CapturaSlugRouteImport.update({
+  id: '/captura/$slug',
+  path: '/captura/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSimulateRoute = ApiSimulateRouteImport.update({
   id: '/api/simulate',
@@ -233,11 +233,6 @@ const ApiGeneratePromptRoute = ApiGeneratePromptRouteImport.update({
   path: '/api/generate-prompt',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiContentGenerateRoute = ApiContentGenerateRouteImport.update({
-  id: '/api/content-generate',
-  path: '/api/content-generate',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiDiagnosticoRoute = ApiDiagnosticoRouteImport.update({
   id: '/api/diagnostico',
   path: '/api/diagnostico',
@@ -246,6 +241,11 @@ const ApiDiagnosticoRoute = ApiDiagnosticoRouteImport.update({
 const ApiDebugWebhookRoute = ApiDebugWebhookRouteImport.update({
   id: '/api/debug-webhook',
   path: '/api/debug-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiContentGenerateRoute = ApiContentGenerateRouteImport.update({
+  id: '/api/content-generate',
+  path: '/api/content-generate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicZapsignWebhookRoute = ApiPublicZapsignWebhookRouteImport.update({
@@ -264,12 +264,11 @@ const ApiPublicWhatsappWebhookRoute =
     path: '/api/public/whatsapp-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicInstagramLeadRoute =
-  ApiPublicInstagramLeadRouteImport.update({
-    id: '/api/public/instagram-lead',
-    path: '/api/public/instagram-lead',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const ApiPublicInstagramLeadRoute = ApiPublicInstagramLeadRouteImport.update({
+  id: '/api/public/instagram-lead',
+  path: '/api/public/instagram-lead',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicInstagramFollowupTickRoute =
   ApiPublicInstagramFollowupTickRouteImport.update({
     id: '/api/public/instagram-followup-tick',
@@ -311,8 +310,8 @@ export interface FileRoutesByFullPath {
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/conhecimento': typeof ConhecimentoRoute
-  '/conteudo': typeof ConteudoRoute
   '/construtor': typeof ConstrutorRoute
+  '/conteudo': typeof ConteudoRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
   '/diagnostico': typeof DiagnosticoRoute
@@ -326,16 +325,16 @@ export interface FileRoutesByFullPath {
   '/jose-bpc': typeof JoseBpcRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
-  '/manual-pericia': typeof ManualPericiaRoute
   '/manual': typeof ManualRoute
+  '/manual-pericia': typeof ManualPericiaRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/templates': typeof TemplatesRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
-  '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/content-generate': typeof ApiContentGenerateRoute
+  '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/lead-magnet-upload': typeof ApiLeadMagnetUploadRoute
@@ -361,8 +360,8 @@ export interface FileRoutesByTo {
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/conhecimento': typeof ConhecimentoRoute
-  '/conteudo': typeof ConteudoRoute
   '/construtor': typeof ConstrutorRoute
+  '/conteudo': typeof ConteudoRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
   '/diagnostico': typeof DiagnosticoRoute
@@ -376,16 +375,16 @@ export interface FileRoutesByTo {
   '/jose-bpc': typeof JoseBpcRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
-  '/manual-pericia': typeof ManualPericiaRoute
   '/manual': typeof ManualRoute
+  '/manual-pericia': typeof ManualPericiaRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/templates': typeof TemplatesRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
-  '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/content-generate': typeof ApiContentGenerateRoute
+  '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/lead-magnet-upload': typeof ApiLeadMagnetUploadRoute
@@ -412,8 +411,8 @@ export interface FileRoutesById {
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/conhecimento': typeof ConhecimentoRoute
-  '/conteudo': typeof ConteudoRoute
   '/construtor': typeof ConstrutorRoute
+  '/conteudo': typeof ConteudoRoute
   '/contratos': typeof ContratosRoute
   '/dashboard': typeof DashboardRoute
   '/diagnostico': typeof DiagnosticoRoute
@@ -427,16 +426,16 @@ export interface FileRoutesById {
   '/jose-bpc': typeof JoseBpcRoute
   '/kanban': typeof KanbanRoute
   '/login': typeof LoginRoute
-  '/manual-pericia': typeof ManualPericiaRoute
   '/manual': typeof ManualRoute
+  '/manual-pericia': typeof ManualPericiaRoute
   '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/templates': typeof TemplatesRoute
   '/whatsapp': typeof WhatsappRoute
   '/wizard': typeof WizardRoute
   '/workflows': typeof WorkflowsRouteWithChildren
-  '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/content-generate': typeof ApiContentGenerateRoute
+  '/api/debug-webhook': typeof ApiDebugWebhookRoute
   '/api/diagnostico': typeof ApiDiagnosticoRoute
   '/api/generate-prompt': typeof ApiGeneratePromptRoute
   '/api/lead-magnet-upload': typeof ApiLeadMagnetUploadRoute
@@ -464,8 +463,8 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/configuracoes'
     | '/conhecimento'
-    | '/conteudo'
     | '/construtor'
+    | '/conteudo'
     | '/contratos'
     | '/dashboard'
     | '/diagnostico'
@@ -479,16 +478,16 @@ export interface FileRouteTypes {
     | '/jose-bpc'
     | '/kanban'
     | '/login'
-    | '/manual-pericia'
     | '/manual'
+    | '/manual-pericia'
     | '/processos'
     | '/relatorios'
     | '/templates'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
-    | '/api/debug-webhook'
     | '/api/content-generate'
+    | '/api/debug-webhook'
     | '/api/diagnostico'
     | '/api/generate-prompt'
     | '/api/lead-magnet-upload'
@@ -514,8 +513,8 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/configuracoes'
     | '/conhecimento'
-    | '/conteudo'
     | '/construtor'
+    | '/conteudo'
     | '/contratos'
     | '/dashboard'
     | '/diagnostico'
@@ -529,16 +528,16 @@ export interface FileRouteTypes {
     | '/jose-bpc'
     | '/kanban'
     | '/login'
-    | '/manual-pericia'
     | '/manual'
+    | '/manual-pericia'
     | '/processos'
     | '/relatorios'
     | '/templates'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
-    | '/api/debug-webhook'
     | '/api/content-generate'
+    | '/api/debug-webhook'
     | '/api/diagnostico'
     | '/api/generate-prompt'
     | '/api/lead-magnet-upload'
@@ -564,8 +563,8 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/configuracoes'
     | '/conhecimento'
-    | '/conteudo'
     | '/construtor'
+    | '/conteudo'
     | '/contratos'
     | '/dashboard'
     | '/diagnostico'
@@ -579,16 +578,16 @@ export interface FileRouteTypes {
     | '/jose-bpc'
     | '/kanban'
     | '/login'
-    | '/manual-pericia'
     | '/manual'
+    | '/manual-pericia'
     | '/processos'
     | '/relatorios'
     | '/templates'
     | '/whatsapp'
     | '/wizard'
     | '/workflows'
-    | '/api/debug-webhook'
     | '/api/content-generate'
+    | '/api/debug-webhook'
     | '/api/diagnostico'
     | '/api/generate-prompt'
     | '/api/lead-magnet-upload'
@@ -615,8 +614,8 @@ export interface RootRouteChildren {
   ClientesRoute: typeof ClientesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   ConhecimentoRoute: typeof ConhecimentoRoute
-  ConteudoRoute: typeof ConteudoRoute
   ConstrutorRoute: typeof ConstrutorRoute
+  ConteudoRoute: typeof ConteudoRoute
   ContratosRoute: typeof ContratosRoute
   DashboardRoute: typeof DashboardRoute
   DiagnosticoRoute: typeof DiagnosticoRoute
@@ -630,16 +629,16 @@ export interface RootRouteChildren {
   JoseBpcRoute: typeof JoseBpcRoute
   KanbanRoute: typeof KanbanRoute
   LoginRoute: typeof LoginRoute
-  ManualPericiaRoute: typeof ManualPericiaRoute
   ManualRoute: typeof ManualRoute
+  ManualPericiaRoute: typeof ManualPericiaRoute
   ProcessosRoute: typeof ProcessosRoute
   RelatoriosRoute: typeof RelatoriosRoute
   TemplatesRoute: typeof TemplatesRoute
   WhatsappRoute: typeof WhatsappRoute
   WizardRoute: typeof WizardRoute
   WorkflowsRoute: typeof WorkflowsRouteWithChildren
-  ApiDebugWebhookRoute: typeof ApiDebugWebhookRoute
   ApiContentGenerateRoute: typeof ApiContentGenerateRoute
+  ApiDebugWebhookRoute: typeof ApiDebugWebhookRoute
   ApiDiagnosticoRoute: typeof ApiDiagnosticoRoute
   ApiGeneratePromptRoute: typeof ApiGeneratePromptRoute
   ApiLeadMagnetUploadRoute: typeof ApiLeadMagnetUploadRoute
@@ -702,6 +701,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProcessosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/manual-pericia': {
+      id: '/manual-pericia'
+      path: '/manual-pericia'
+      fullPath: '/manual-pericia'
+      preLoaderRoute: typeof ManualPericiaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/manual': {
       id: '/manual'
       path: '/manual'
@@ -716,13 +722,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/manual-pericia': {
-      id: '/manual-pericia'
-      path: '/manual-pericia'
-      fullPath: '/manual-pericia'
-      preLoaderRoute: typeof ManualPericiaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/kanban': {
       id: '/kanban'
       path: '/kanban'
@@ -730,11 +729,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KanbanRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/inbox': {
-      id: '/inbox'
-      path: '/inbox'
-      fullPath: '/inbox'
-      preLoaderRoute: typeof InboxRouteImport
+    '/jose-bpc': {
+      id: '/jose-bpc'
+      path: '/jose-bpc'
+      fullPath: '/jose-bpc'
+      preLoaderRoute: typeof JoseBpcRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/instagram': {
@@ -744,11 +743,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstagramRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/jose-bpc': {
-      id: '/jose-bpc'
-      path: '/jose-bpc'
-      fullPath: '/jose-bpc'
-      preLoaderRoute: typeof JoseBpcRouteImport
+    '/inbox': {
+      id: '/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof InboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ia-debug': {
@@ -807,6 +806,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContratosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/conteudo': {
+      id: '/conteudo'
+      path: '/conteudo'
+      fullPath: '/conteudo'
+      preLoaderRoute: typeof ConteudoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/construtor': {
       id: '/construtor'
       path: '/construtor'
@@ -819,13 +825,6 @@ declare module '@tanstack/react-router' {
       path: '/conhecimento'
       fullPath: '/conhecimento'
       preLoaderRoute: typeof ConhecimentoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/conteudo': {
-      id: '/conteudo'
-      path: '/conteudo'
-      fullPath: '/conteudo'
-      preLoaderRoute: typeof ConteudoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracoes': {
@@ -842,18 +841,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/agentes': {
-      id: '/agentes'
-      path: '/agentes'
-      fullPath: '/agentes'
-      preLoaderRoute: typeof AgentesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/bpc': {
       id: '/bpc'
       path: '/bpc'
       fullPath: '/bpc'
       preLoaderRoute: typeof BpcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agentes': {
+      id: '/agentes'
+      path: '/agentes'
+      fullPath: '/agentes'
+      preLoaderRoute: typeof AgentesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -870,18 +869,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsIdRouteImport
       parentRoute: typeof WorkflowsRoute
     }
-    '/api/simulate': {
-      id: '/api/simulate'
-      path: '/api/simulate'
-      fullPath: '/api/simulate'
-      preLoaderRoute: typeof ApiSimulateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/captura/$slug': {
       id: '/captura/$slug'
       path: '/captura/$slug'
       fullPath: '/captura/$slug'
       preLoaderRoute: typeof CapturaSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/simulate': {
+      id: '/api/simulate'
+      path: '/api/simulate'
+      fullPath: '/api/simulate'
+      preLoaderRoute: typeof ApiSimulateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/media-proxy': {
@@ -891,25 +890,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMediaProxyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/generate-prompt': {
-      id: '/api/generate-prompt'
-      path: '/api/generate-prompt'
-      fullPath: '/api/generate-prompt'
-      preLoaderRoute: typeof ApiGeneratePromptRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/content-generate': {
-      id: '/api/content-generate'
-      path: '/api/content-generate'
-      fullPath: '/api/content-generate'
-      preLoaderRoute: typeof ApiContentGenerateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/lead-magnet-upload': {
       id: '/api/lead-magnet-upload'
       path: '/api/lead-magnet-upload'
       fullPath: '/api/lead-magnet-upload'
       preLoaderRoute: typeof ApiLeadMagnetUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/generate-prompt': {
+      id: '/api/generate-prompt'
+      path: '/api/generate-prompt'
+      fullPath: '/api/generate-prompt'
+      preLoaderRoute: typeof ApiGeneratePromptRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/diagnostico': {
@@ -924,6 +916,13 @@ declare module '@tanstack/react-router' {
       path: '/api/debug-webhook'
       fullPath: '/api/debug-webhook'
       preLoaderRoute: typeof ApiDebugWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/content-generate': {
+      id: '/api/content-generate'
+      path: '/api/content-generate'
+      fullPath: '/api/content-generate'
+      preLoaderRoute: typeof ApiContentGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/zapsign-webhook': {
@@ -1018,8 +1017,8 @@ const rootRouteChildren: RootRouteChildren = {
   ClientesRoute: ClientesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   ConhecimentoRoute: ConhecimentoRoute,
-  ConteudoRoute: ConteudoRoute,
   ConstrutorRoute: ConstrutorRoute,
+  ConteudoRoute: ConteudoRoute,
   ContratosRoute: ContratosRoute,
   DashboardRoute: DashboardRoute,
   DiagnosticoRoute: DiagnosticoRoute,
@@ -1033,16 +1032,16 @@ const rootRouteChildren: RootRouteChildren = {
   JoseBpcRoute: JoseBpcRoute,
   KanbanRoute: KanbanRoute,
   LoginRoute: LoginRoute,
-  ManualPericiaRoute: ManualPericiaRoute,
   ManualRoute: ManualRoute,
+  ManualPericiaRoute: ManualPericiaRoute,
   ProcessosRoute: ProcessosRoute,
   RelatoriosRoute: RelatoriosRoute,
   TemplatesRoute: TemplatesRoute,
   WhatsappRoute: WhatsappRoute,
   WizardRoute: WizardRoute,
   WorkflowsRoute: WorkflowsRouteWithChildren,
-  ApiDebugWebhookRoute: ApiDebugWebhookRoute,
   ApiContentGenerateRoute: ApiContentGenerateRoute,
+  ApiDebugWebhookRoute: ApiDebugWebhookRoute,
   ApiDiagnosticoRoute: ApiDiagnosticoRoute,
   ApiGeneratePromptRoute: ApiGeneratePromptRoute,
   ApiLeadMagnetUploadRoute: ApiLeadMagnetUploadRoute,
@@ -1063,3 +1062,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
