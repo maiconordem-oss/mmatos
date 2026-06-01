@@ -826,6 +826,7 @@ export type Database = {
           historico: Json
           id: string
           lead_score: number | null
+          manual_progress: Json
           midias_enviadas: string[]
           prompt_variant: string | null
           updated_at: string
@@ -842,6 +843,7 @@ export type Database = {
           historico?: Json
           id?: string
           lead_score?: number | null
+          manual_progress?: Json
           midias_enviadas?: string[]
           prompt_variant?: string | null
           updated_at?: string
@@ -858,6 +860,7 @@ export type Database = {
           historico?: Json
           id?: string
           lead_score?: number | null
+          manual_progress?: Json
           midias_enviadas?: string[]
           prompt_variant?: string | null
           updated_at?: string
@@ -907,6 +910,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_default: boolean
+          manual_playbook: Json
           media_audio_fechamento: string | null
           media_video_abertura: string | null
           media_video_conexao: string | null
@@ -953,6 +957,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_default?: boolean
+          manual_playbook?: Json
           media_audio_fechamento?: string | null
           media_video_abertura?: string | null
           media_video_conexao?: string | null
@@ -999,6 +1004,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_default?: boolean
+          manual_playbook?: Json
           media_audio_fechamento?: string | null
           media_video_abertura?: string | null
           media_video_conexao?: string | null
@@ -1022,6 +1028,168 @@ export type Database = {
           zapsign_template_id?: string | null
         }
         Relationships: []
+      }
+      instagram_lead_magnets: {
+        Row: {
+          button_label: string
+          created_at: string
+          delivery_message: string
+          description: string | null
+          file_name: string | null
+          file_type: string
+          file_url: string
+          followup_enabled: boolean
+          followup_hours: number
+          followup_message: string
+          id: string
+          instance_id: string | null
+          is_active: boolean
+          keyword: string | null
+          slug: string
+          success_message: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          button_label?: string
+          created_at?: string
+          delivery_message?: string
+          description?: string | null
+          file_name?: string | null
+          file_type?: string
+          file_url: string
+          followup_enabled?: boolean
+          followup_hours?: number
+          followup_message?: string
+          id?: string
+          instance_id?: string | null
+          is_active?: boolean
+          keyword?: string | null
+          slug: string
+          success_message?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          button_label?: string
+          created_at?: string
+          delivery_message?: string
+          description?: string | null
+          file_name?: string | null
+          file_type?: string
+          file_url?: string
+          followup_enabled?: boolean
+          followup_hours?: number
+          followup_message?: string
+          id?: string
+          instance_id?: string | null
+          is_active?: boolean
+          keyword?: string | null
+          slug?: string
+          success_message?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_lead_magnets_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instagram_lead_submissions: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          delivery_message_id: string | null
+          delivery_sent_at: string | null
+          error_message: string | null
+          followup_error: string | null
+          followup_scheduled_at: string | null
+          followup_sent_at: string | null
+          followup_status: string
+          id: string
+          instance_id: string | null
+          keyword: string | null
+          magnet_id: string
+          manychat_ref: string | null
+          name: string | null
+          phone: string
+          source: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          delivery_message_id?: string | null
+          delivery_sent_at?: string | null
+          error_message?: string | null
+          followup_error?: string | null
+          followup_scheduled_at?: string | null
+          followup_sent_at?: string | null
+          followup_status?: string
+          id?: string
+          instance_id?: string | null
+          keyword?: string | null
+          magnet_id: string
+          manychat_ref?: string | null
+          name?: string | null
+          phone: string
+          source?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          delivery_message_id?: string | null
+          delivery_sent_at?: string | null
+          error_message?: string | null
+          followup_error?: string | null
+          followup_scheduled_at?: string | null
+          followup_sent_at?: string | null
+          followup_status?: string
+          id?: string
+          instance_id?: string | null
+          keyword?: string | null
+          magnet_id?: string
+          manychat_ref?: string | null
+          name?: string | null
+          phone?: string
+          source?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_lead_submissions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instagram_lead_submissions_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instagram_lead_submissions_magnet_id_fkey"
+            columns: ["magnet_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_lead_magnets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       internal_notes: {
         Row: {
