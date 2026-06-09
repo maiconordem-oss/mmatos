@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Kanban, MessageSquare, Users, LogOut,
   FileSignature, Smartphone, Settings,
   ChevronLeft, ChevronRight, BarChart2, ChevronDown,
-  Scale, Instagram, GitBranch, Brain,
+  Scale, Instagram, GitBranch, Brain, BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -126,6 +126,7 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
         { to: "/funis",        label: "Atendimentos IA",    icon: GitBranch },
         { to: "/conhecimento", label: "Informações da IA",  icon: Brain },
         { to: "/instagram",    label: "Captação Instagram", icon: Instagram },
+        { to: "/manual",       label: "Manual da IA",        icon: BookOpen },
       ],
     },
     {
