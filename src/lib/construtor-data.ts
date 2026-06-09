@@ -10,7 +10,7 @@ export type Fase = {
   perguntas: string[];
   opcoesPergunta?: Record<number, string[]>;
   exclusoes: { condicao: string; motivo: string }[];
-  midias: { chave: string; script: string; momento: string }[];
+  midias: { chave: string; script: string; momento: string; delayAposSegundos?: number }[];
   textoAposMidia: string;
   acao: AcaoTipo;
   camposColeta: string[];

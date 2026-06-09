@@ -90,7 +90,7 @@ function FluxoVisual({ fases, onSelectFase, onChangeFase }: FluxoVisualProps) {
   const adicionarMidia = (fase: Fase) => {
     const base = fase.id === "fechamento" ? "audio_fechamento" : `video_${fase.id}`;
     const chave = fase.midias.some(m => m.chave === base) ? `${base}_${fase.midias.length + 1}` : base;
-    patch(fase, { midias: [...fase.midias, { chave, script: "", momento: fase.label }] });
+    patch(fase, { midias: [...fase.midias, { chave, script: "", momento: fase.label, delayAposSegundos: chave.startsWith("audio_") ? 30 : 60 }] });
     abrirFase(fase.id);
   };
 
@@ -151,6 +151,7 @@ function FluxoVisual({ fases, onSelectFase, onChangeFase }: FluxoVisualProps) {
                     <div key={`${m.chave}-${i}`} className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
                       {m.chave.startsWith("audio_") ? <Mic className="h-3.5 w-3.5 shrink-0" /> : <Video className="h-3.5 w-3.5 shrink-0" />}
                       <span className="truncate font-medium">{m.chave || "arquivo sem nome"}</span>
+                      {m.delayAposSegundos ? <span className="ml-auto shrink-0 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold">{m.delayAposSegundos}s</span> : null}
                     </div>
                   ))}
 
@@ -246,7 +247,7 @@ function FaseConfig({ fase, onChange }: { fase: Fase; onChange: (f: Fase) => voi
       <div>
         <div className="flex items-center justify-between mb-3">
           <Label className="text-xs font-semibold flex items-center gap-1.5"><Video className="h-3.5 w-3.5 text-blue-500" />Mídias</Label>
-          <button onClick={() => patch({ midias: [...fase.midias, { chave: "", script: "", momento: "" }] })}
+          <button onClick={() => patch({ midias: [...fase.midias, { chave: "", script: "", momento: "", delayAposSegundos: 60 }] })}
             className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="h-3 w-3" />Adicionar</button>
         </div>
         {fase.midias.length === 0 && <p className="text-xs text-muted-foreground italic">Nenhuma mídia nesta fase.</p>}
@@ -270,6 +271,27 @@ function FaseConfig({ fase, onChange }: { fase: Fase; onChange: (f: Fase) => voi
                   <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wide font-semibold">⏱ Momento de envio:</p>
                   <Input value={m.momento} onChange={e => { const a = [...fase.midias]; a[i] = { ...a[i], momento: e.target.value }; patch({ midias: a }); }}
                     className="text-xs h-7" placeholder="Ex: Primeira mensagem do lead" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wide font-semibold">Tempo antes da proxima mensagem:</p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={600}
+                      value={m.delayAposSegundos ?? ""}
+                      onChange={e => {
+                        const a = [...fase.midias];
+                        const value = e.target.value === "" ? undefined : Math.max(0, Number(e.target.value));
+                        a[i] = { ...a[i], delayAposSegundos: value };
+                        patch({ midias: a });
+                      }}
+                      className="text-xs h-7"
+                      placeholder="60"
+                    />
+                    <span className="text-xs text-muted-foreground">segundos</span>
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Ex: se o video tem 1 minuto, use 60 para a IA esperar antes de perguntar.</p>
                 </div>
               </div>
             )}
@@ -527,8 +549,8 @@ function ConstrutorPage() {
         body: JSON.stringify({
           systemPrompt: `Você é especialista em funis de atendimento jurídico via WhatsApp.
 Retorne APENAS JSON válido (sem markdown):
-{"nome":"string","fases":[{"id":"abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado","perguntas":[],"opcoesPergunta":{"0":["Sim","Não"]},"exclusoes":[{"condicao":"","motivo":""}],"midias":[{"chave":"","script":"","momento":""}],"textoAposMidia":"","acao":"nenhuma|contrato|agendamento|criar_grupo|handoff","camposColeta":[]}]}
-REGRAS: video_abertura na abertura, video_conexao na conexão, audio_fechamento no fechamento, video_documentos na assinatura. acao contrato só na coleta. criar_grupo só na assinatura. Inclua todas as 7 fases. Use opcoesPergunta nas perguntas objetivas de triagem, com 2 ou 3 opções curtas.`,
+{"nome":"string","fases":[{"id":"abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado","perguntas":[],"opcoesPergunta":{"0":["Sim","Não"]},"exclusoes":[{"condicao":"","motivo":""}],"midias":[{"chave":"","script":"","momento":"","delayAposSegundos":60}],"textoAposMidia":"","acao":"nenhuma|contrato|agendamento|criar_grupo|handoff","camposColeta":[]}]}
+REGRAS: video_abertura na abertura, video_conexao na conexão, audio_fechamento no fechamento, video_documentos na assinatura. delayAposSegundos deve representar a duração aproximada da mídia antes da próxima mensagem. acao contrato só na coleta. criar_grupo só na assinatura. Inclua todas as 7 fases. Use opcoesPergunta nas perguntas objetivas de triagem, com 2 ou 3 opções curtas.`,
           userMsg: `BRIEFING E REGRAS:\n${briefingTexto()}\n\nDESCRICAO LIVRE COMPLEMENTAR:\n${descLivre || "sem complemento"}`,
         }),
       });
@@ -609,8 +631,8 @@ Notas de 0 a 100. Problemas e sugestoes devem ser praticos, curtos e acionaveis.
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           systemPrompt: `Melhore um funil juridico de WhatsApp. Retorne APENAS JSON valido:
-{"nome":"string","descricao":"string","fases":[{"id":"abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado","perguntas":[],"opcoesPergunta":{"0":["Sim","Não"]},"exclusoes":[{"condicao":"","motivo":""}],"midias":[{"chave":"","script":"","momento":""}],"textoAposMidia":"","acao":"nenhuma|contrato|agendamento|criar_grupo|handoff","camposColeta":[]}]}
-Mantenha todas as 7 fases. Corrija riscos juridicos, adicione criterios de exclusao, perguntas melhores, scripts de midia e handoff humano quando necessario. Use opcoesPergunta em perguntas objetivas de triagem. Nao prometa resultado.`,
+{"nome":"string","descricao":"string","fases":[{"id":"abertura|triagem|conexao|fechamento|coleta|assinatura|encerrado","perguntas":[],"opcoesPergunta":{"0":["Sim","Não"]},"exclusoes":[{"condicao":"","motivo":""}],"midias":[{"chave":"","script":"","momento":"","delayAposSegundos":60}],"textoAposMidia":"","acao":"nenhuma|contrato|agendamento|criar_grupo|handoff","camposColeta":[]}]}
+Mantenha todas as 7 fases. Corrija riscos juridicos, adicione criterios de exclusao, perguntas melhores, scripts de midia, delayAposSegundos realista e handoff humano quando necessario. Use opcoesPergunta em perguntas objetivas de triagem. Nao prometa resultado.`,
           userMsg: `BRIEFING:\n${briefingTexto()}\n\nANALISE ATUAL:\n${analise || "sem analise"}\n\nFUNIL ATUAL:\n${JSON.stringify(fases)}`,
         }),
       });
@@ -632,7 +654,7 @@ Mantenha todas as 7 fases. Corrija riscos juridicos, adicione criterios de exclu
     try {
       const fasesDesc = fases.map(f => {
         const p = [];
-        f.midias.forEach(m => p.push(`Enviar ${m.chave}`));
+        f.midias.forEach(m => p.push(`Enviar ${m.chave}${m.delayAposSegundos ? ` | DELAY_APOS_MIDIA ${m.chave}=${m.delayAposSegundos}s` : ""}`));
         if (f.textoAposMidia) p.push(`Após: "${f.textoAposMidia}"`);
         f.perguntas.forEach((q, i) => {
           const opcoes = f.opcoesPergunta?.[i]?.filter(Boolean) ?? [];
@@ -650,6 +672,7 @@ Mantenha todas as 7 fases. Corrija riscos juridicos, adicione criterios de exclu
           systemPrompt: `Crie prompt operacional para agente IA de advocacia WhatsApp.
 REGRA CRÍTICA: campo "texto" SEMPRE termina com pergunta ou call-to-action. Nunca "Entendido." sem continuar.
 Quando fizer uma pergunta com "Respostas rápidas", retorne também "botoes":[{"id":"valor","titulo":"Texto"}] no JSON da resposta. Use no máximo 3 botões curtos. Para perguntas sem opções, use "botoes":null.
+Preserve literalmente qualquer marcador DELAY_APOS_MIDIA chave=Ns no prompt final. Ele controla quantos segundos o sistema espera depois de enviar uma mídia antes da próxima mensagem.
 Retorne APENAS o texto do prompt, sem markdown.`,
           userMsg: `Advogado: ${nomeDr}\nFunil: ${nomeFunil}\n${descricao}\n\nBRIEFING E REGRAS:\n${briefingTexto()}\n\nChecklist de qualidade: ${scoreLocal()}%\n\nFluxo:\n${fasesDesc}`,
         }),

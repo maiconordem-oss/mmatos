@@ -44,6 +44,7 @@ type Funnel = {
   id: string;
   name: string;
   persona_prompt: string;
+  medias?: Record<string, string> | null;
   proposal_value: number | null;
   proposal_is_free: boolean;
   zapsign_template_id: string | null;
@@ -63,6 +64,17 @@ const FASE_TO_STAGE: Record<string, string> = {
   assinatura: "em_andamento",
   encerrado:  "em_andamento",
 };
+
+function mediaDelayMs(personaPrompt: string, mediaKeys: string[]): number {
+  const delays = new Map<string, number>();
+  const re = /DELAY_APOS_MIDIA\s+([a-zA-Z0-9_-]+)\s*=\s*(\d+)\s*s?/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(personaPrompt)) !== null) {
+    delays.set(match[1], Number(match[2]) * 1000);
+  }
+  const configured = mediaKeys.map(key => delays.get(key) ?? 0).filter(ms => ms > 0);
+  return configured.length ? configured.reduce((total, ms) => total + ms, 0) : 2000;
+}
 
 // ── Verificar horário de atendimento ───────────────────────────
 function isWithinWorkingHours(funnel: any): boolean {
@@ -1384,6 +1396,7 @@ async function handleFunnelMessageInner(
       }
     }
     if (reply.texto?.trim()) {
+      if (novasMidias.length > 0) await new Promise(r => setTimeout(r, mediaDelayMs(funnel.persona_prompt, novasMidias)));
       if (replyButtons.length) await sendChoiceMessage(admin, userId, convId, reply.texto, replyButtons);
       else await sendText(admin, userId, convId, reply.texto);
     }
@@ -1404,7 +1417,7 @@ async function handleFunnelMessageInner(
 
   // 6. texto_pos_midia com delay (após todas as mídias)
   if (reply.texto_pos_midia?.trim() && novasMidias.length > 0) {
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, mediaDelayMs(funnel.persona_prompt, novasMidias)));
     await sendText(admin, userId, convId, reply.texto_pos_midia);
   }
 

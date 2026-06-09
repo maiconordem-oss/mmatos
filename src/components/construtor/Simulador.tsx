@@ -5,6 +5,8 @@ import {
 import { cn } from "@/lib/utils";
 import { type Fase, type SimMsg, CAMPOS } from "@/lib/construtor-data";
 
+const previewDelayMs = (seconds?: number) => Math.min(Math.max(seconds ?? 2, 0) * 80, 5000);
+
 export function Simulador({ fases, nomeDr, onClose }: { fases: Fase[]; nomeDr: string; onClose: () => void }) {
   const [msgs, setMsgs]         = useState<SimMsg[]>([]);
   const [input, setInput]       = useState("");
@@ -82,6 +84,7 @@ export function Simulador({ fases, nomeDr, onClose }: { fases: Fase[]; nomeDr: s
           addLog(`📤 Enviado: ${m.chave}`);
         }, i * 1400);
       });
+      const delayAposMidias = f.midias.reduce((total, m) => total + previewDelayMs(m.delayAposSegundos), 0);
       setTimeout(() => {
         if (f.textoAposMidia) {
           iaFala(f.textoAposMidia);
@@ -93,7 +96,7 @@ export function Simulador({ fases, nomeDr, onClose }: { fases: Fase[]; nomeDr: s
         } else if (temPerg)  { setEtapa("pergunta"); setTimeout(() => iaFala(f.perguntas[0]), 600); }
         else if (temColeta) { setEtapa("coleta"); const c = CAMPOS.find(x => x.key === f.camposColeta[0]); setTimeout(() => iaFala(`Qual é o seu ${c?.label ?? f.camposColeta[0]}?`), 600); }
         else { setEtapa("acao"); setTimeout(() => processarAcao(f, idx, avancarFase), 600); }
-      }, f.midias.length * 1400 + 200);
+      }, f.midias.length * 1400 + delayAposMidias + 200);
     } else if (temPerg) {
       setEtapa("pergunta");
       setTimeout(() => iaFala(f.perguntas[0]), 600);

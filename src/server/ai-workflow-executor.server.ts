@@ -31,6 +31,17 @@ type ConvState = {
   workflow_id: string | null;
 };
 
+function mediaDelayMs(personaPrompt: string, mediaKeys: string[]): number {
+  const delays = new Map<string, number>();
+  const re = /DELAY_APOS_MIDIA\s+([a-zA-Z0-9_-]+)\s*=\s*(\d+)\s*s?/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(personaPrompt)) !== null) {
+    delays.set(match[1], Number(match[2]) * 1000);
+  }
+  const configured = mediaKeys.map(key => delays.get(key) ?? 0).filter(ms => ms > 0);
+  return configured.length ? configured.reduce((total, ms) => total + ms, 0) : 2000;
+}
+
 // ── Envio de texto via Evolution API ─────────────────────────
 async function sendText(
   admin: SupabaseClient<any, any, any>,
@@ -441,6 +452,7 @@ Responda SEMPRE com JSON válido no formato:
 
   // 6. Enviar texto_pos_midia (após mídias)
   if (aiResponse.texto_pos_midia?.trim() && novasMidias.length > 0) {
+    await new Promise(r => setTimeout(r, mediaDelayMs(personaPrompt, novasMidias)));
     await sendText(admin, userId, conversationId, aiResponse.texto_pos_midia);
   }
 

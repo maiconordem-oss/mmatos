@@ -33,7 +33,8 @@ Sem WhatsApp conectado, a IA pode ate ser configurada, mas nao consegue atender 
    - **Pergunta**: adiciona uma pergunta que a IA fara ao lead.
    - **Arquivo**: adiciona um video ou audio que a IA pode enviar.
    - **Acao**: abre a fase para escolher contrato, agendamento, grupo ou chamada humana.
-4. Clique em qualquer fase para ajustar detalhes como script do video, respostas rapidas, criterios de exclusao e dados para contrato.
+4. Clique em qualquer fase para ajustar detalhes como script do video, tempo antes da proxima mensagem, respostas rapidas, criterios de exclusao e dados para contrato.
+   - Exemplo: se o video de abertura tem 1 minuto, coloque **60 segundos** no campo de tempo da midia.
 5. Defina:
    - **Nome do atendimento**: exemplo, `BPC/LOAS`, `Vaga em Creche`, `Auxilio-doenca`.
    - **Descricao**: explique para a equipe o objetivo daquele fluxo.
