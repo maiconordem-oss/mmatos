@@ -2,10 +2,9 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Kanban, MessageSquare, Users, LogOut,
-  FileSignature, FileText, Smartphone, Settings,
+  FileSignature, Smartphone, Settings,
   ChevronLeft, ChevronRight, BarChart2, ChevronDown,
-  Scale, Stethoscope, Instagram, Wand2, GitBranch,
-  Reply, Brain, HelpCircle, FlaskConical,
+  Scale, Instagram, GitBranch, Brain,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -98,11 +97,11 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
     }
     if (["/inbox", "/kanban", "/clientes", "/dashboard"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, atendimento: true }));
-    } else if (["/construtor", "/funis", "/templates", "/conteudo", "/conhecimento", "/manual", "/instagram"].some(p => path.startsWith(p))) {
+    } else if (["/construtor", "/funis", "/conhecimento", "/instagram"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, automacao: true }));
     } else if (["/contratos", "/relatorios"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, juridico: true }));
-    } else if (["/whatsapp", "/configuracoes", "/diagnostico"].some(p => path.startsWith(p))) {
+    } else if (["/whatsapp", "/configuracoes"].some(p => path.startsWith(p))) {
       setOpenGroups(prev => ({ ...prev, config: true }));
     }
   }, [location.pathname]);
@@ -124,13 +123,9 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
       label: "Automação",
       color: "#7c3aed",
       items: [
-        { to: "/construtor",   label: "Criar atendimento",  icon: Wand2 },
-        { to: "/funis",        label: "Meus atendimentos",  icon: GitBranch },
-        { to: "/templates",    label: "Respostas prontas",  icon: Reply },
-        { to: "/conteudo",     label: "Conteúdo",           icon: FileText },
-        { to: "/instagram",    label: "Instagram",           icon: Instagram },
-        { to: "/conhecimento", label: "Conhecimento da IA", icon: Brain },
-        { to: "/manual",       label: "Ajuda de prompts",   icon: HelpCircle },
+        { to: "/funis",        label: "Atendimentos IA",    icon: GitBranch },
+        { to: "/conhecimento", label: "Informações da IA",  icon: Brain },
+        { to: "/instagram",    label: "Captação Instagram", icon: Instagram },
       ],
     },
     {
@@ -141,7 +136,6 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
         { to: "/contratos",  label: "Contratos",   icon: FileSignature },
         { to: "/processos",  label: "Processos",   icon: Scale },
         { to: "/relatorios", label: "Relatórios",  icon: BarChart2 },
-        { to: "/ia-debug",   label: "Teste da IA", icon: FlaskConical },
       ],
     },
     {
@@ -151,7 +145,6 @@ export function AppShell({ children, noPadding }: { children: React.ReactNode; n
       items: [
         { to: "/whatsapp",      label: "Conectar WhatsApp", icon: Smartphone },
         { to: "/configuracoes", label: "Configurações",     icon: Settings },
-        { to: "/diagnostico",   label: "Diagnóstico",       icon: Stethoscope },
       ],
     },
   ];

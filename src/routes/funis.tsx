@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type React from "react";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
@@ -16,7 +17,7 @@ import { DEFAULT_BPC_MANUAL_PLAYBOOK } from "@/lib/manual-playbooks";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Plus, Bot, Video, Mic, FileText, Pencil, Trash2,
-  ChevronDown, ChevronUp, ExternalLink, FlaskConical,
+  ExternalLink, FlaskConical,
   RotateCcw, MessageSquare, Send, ArrowRight, ClipboardList,
 } from "lucide-react";
 
@@ -93,6 +94,20 @@ const EMPTY: any = {
   manual_playbook: {},
 };
 
+function AdvancedSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <details className="rounded-lg border bg-muted/10">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+        <span>{title}</span>
+        {description && <span className="block text-xs font-normal text-muted-foreground mt-0.5">{description}</span>}
+      </summary>
+      <div className="space-y-4 border-t p-4">
+        {children}
+      </div>
+    </details>
+  );
+}
+
 const PROMPT_CRECHE = `IDENTIDADE
 Você é o Dr. Maicon Matos, advogado especialista em direito da criança e do adolescente, com foco em casos de vaga em creche negada pelo município.
 Fale em primeira pessoa, como o próprio Dr. Maicon. Tom: próximo, direto, seguro, sem juridiquês.
@@ -163,7 +178,6 @@ function FunisPage() {
   const [editing, setEditing]           = useState<Funil | null>(null);
   const [form, setForm]                 = useState<any>({ ...EMPTY });
   const [saving, setSaving]             = useState(false);
-  const [expandedPrompt, setExpandedPrompt] = useState<string | null>(null);
   const [simOpen, setSimOpen]           = useState(false);
   const [simFunil, setSimFunil]         = useState<Funil | null>(null);
   const [simMsg, setSimMsg]             = useState("oi");
@@ -408,17 +422,6 @@ function FunisPage() {
                 ))}
               </div>
             )}
-
-            <div className="border rounded-lg overflow-hidden">
-              <button className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium bg-muted/50 hover:bg-muted transition-colors"
-                onClick={() => setExpandedPrompt(expandedPrompt === f.id ? null : f.id)}>
-                <span className="flex items-center gap-2"><FileText className="h-4 w-4" /> Prompt da persona</span>
-                {expandedPrompt === f.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-              {expandedPrompt === f.id && (
-                <pre className="p-4 text-xs font-mono whitespace-pre-wrap bg-muted/20 max-h-60 overflow-y-auto">{f.persona_prompt}</pre>
-              )}
-            </div>
           </div>
         ))}
       </div>
@@ -565,6 +568,10 @@ function FunisPage() {
               </div>
             </div>
 
+            <AdvancedSection
+              title="Configurações avançadas"
+              description="Integrações, prompt técnico, roteiros manuais e automações especiais ficam aqui."
+            >
             {/* Notificação */}
             <div className="border rounded-lg p-4 space-y-2">
               <p className="font-medium text-sm">📲 Notificação de contrato</p>
@@ -858,6 +865,8 @@ function FunisPage() {
                 />
               </div>
             </div>
+
+            </AdvancedSection>
 
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
