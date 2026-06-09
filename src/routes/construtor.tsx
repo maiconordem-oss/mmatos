@@ -71,6 +71,149 @@ function VisaoGeral({ fases, onSelectFase }: { fases: Fase[]; onSelectFase: (id:
 }
 
 // ── Config de fase ─────────────────────────────────────────────
+type FluxoVisualProps = {
+  fases: Fase[];
+  onSelectFase: (id: string) => void;
+  onChangeFase: (id: string, fase: Fase) => void;
+};
+
+function FluxoVisual({ fases, onSelectFase, onChangeFase }: FluxoVisualProps) {
+  const patch = (fase: Fase, fields: Partial<Fase>) => onChangeFase(fase.id, { ...fase, ...fields });
+  const abrirFase = (id: string) => onSelectFase(id);
+
+  const adicionarPergunta = (fase: Fase) => {
+    const sugestao = SUGESTOES_PERGUNTAS[fase.id]?.find(s => !fase.perguntas.includes(s)) ?? "";
+    patch(fase, { perguntas: [...fase.perguntas, sugestao] });
+    abrirFase(fase.id);
+  };
+
+  const adicionarMidia = (fase: Fase) => {
+    const base = fase.id === "fechamento" ? "audio_fechamento" : `video_${fase.id}`;
+    const chave = fase.midias.some(m => m.chave === base) ? `${base}_${fase.midias.length + 1}` : base;
+    patch(fase, { midias: [...fase.midias, { chave, script: "", momento: fase.label }] });
+    abrirFase(fase.id);
+  };
+
+  const blocoVazio = (fase: Fase) => fase.midias.length === 0 && fase.perguntas.length === 0 && fase.camposColeta.length === 0 && fase.acao === "nenhuma";
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-border bg-muted/20 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Fluxo visual do atendimento</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Monte a IA em blocos: perguntas, arquivos, coleta de dados e acoes. Clique em qualquer fase para editar os detalhes.
+            </p>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-[10px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1"><MessageSquare className="h-3 w-3 text-emerald-500" />Pergunta</span>
+            <span className="inline-flex items-center gap-1"><Video className="h-3 w-3 text-blue-500" />Arquivo</span>
+            <span className="inline-flex items-center gap-1"><Zap className="h-3 w-3 text-amber-500" />Acao</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        {fases.map((fase, idx) => {
+          const pct = fasePct(fase);
+          const acao = ACOES.find(a => a.val === fase.acao);
+          return (
+            <div key={fase.id} className="relative">
+              {idx < fases.length - 1 && <div className="hidden xl:block absolute left-full top-1/2 z-0 h-px w-4 bg-border" />}
+              <button
+                type="button"
+                onClick={() => abrirFase(fase.id)}
+                className="relative z-10 w-full rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg" style={{ background: fase.cor + "18" }}>
+                    {fase.emoji}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-foreground">{fase.label}</p>
+                        <p className="text-[10px] font-semibold uppercase text-muted-foreground">Etapa {idx + 1}</p>
+                      </div>
+                      <span className={cn("rounded-full px-2 py-1 text-[10px] font-bold", pct === 100 ? "bg-emerald-50 text-emerald-700" : pct >= 50 ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700")}>
+                        {pct}%
+                      </span>
+                    </div>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? "#22c55e" : fase.cor }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  {fase.midias.map((m, i) => (
+                    <div key={`${m.chave}-${i}`} className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                      {m.chave.startsWith("audio_") ? <Mic className="h-3.5 w-3.5 shrink-0" /> : <Video className="h-3.5 w-3.5 shrink-0" />}
+                      <span className="truncate font-medium">{m.chave || "arquivo sem nome"}</span>
+                    </div>
+                  ))}
+
+                  {fase.perguntas.map((p, i) => (
+                    <div key={`${p}-${i}`} className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span className="line-clamp-2">{p || "Nova pergunta"}</span>
+                      </div>
+                      {(fase.opcoesPergunta?.[i]?.filter(Boolean).length ?? 0) > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1 pl-5">
+                          {fase.opcoesPergunta?.[i]?.filter(Boolean).slice(0, 3).map(op => (
+                            <span key={op} className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] text-emerald-700">{op}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {fase.camposColeta.length > 0 && (
+                    <div className="flex items-center gap-2 rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-xs text-violet-700">
+                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{fase.camposColeta.length} dados para contrato</span>
+                    </div>
+                  )}
+
+                  {acao && fase.acao !== "nenhuma" && (
+                    <div className="flex items-center gap-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      <Zap className="h-3.5 w-3.5 shrink-0" />
+                      <span>{acao.label}</span>
+                    </div>
+                  )}
+
+                  {blocoVazio(fase) && (
+                    <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+                      Clique nos botoes abaixo para comecar esta fase.
+                    </div>
+                  )}
+                </div>
+              </button>
+
+              <div className="relative z-20 mt-2 grid grid-cols-3 gap-2">
+                <button type="button" onClick={() => adicionarPergunta(fase)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-emerald-300 hover:text-emerald-700">
+                  <MessageSquare className="h-3.5 w-3.5" />Pergunta
+                </button>
+                <button type="button" onClick={() => adicionarMidia(fase)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-blue-300 hover:text-blue-700">
+                  <Video className="h-3.5 w-3.5" />Arquivo
+                </button>
+                <button type="button" onClick={() => abrirFase(fase.id)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-amber-300 hover:text-amber-700">
+                  <Zap className="h-3.5 w-3.5" />Acao
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function FaseConfig({ fase, onChange }: { fase: Fase; onChange: (f: Fase) => void }) {
   const patch = (fields: Partial<Fase>) => onChange({ ...fase, ...fields });
   const [buscaPerg, setBuscaPerg] = useState("");
@@ -283,7 +426,7 @@ function ConstrutorPage() {
   const [descricao, setDescricao]     = useState("");
   const [descLivre, setDescLivre]     = useState("");
   const [activeId, setActiveId]       = useState<string | null>(null);
-  const [tab, setTab]                 = useState<"briefing"|"ia"|"visao"|"fase">("briefing");
+  const [tab, setTab]                 = useState<"briefing"|"ia"|"visao"|"fase">("visao");
   const [simOpen, setSimOpen]         = useState(false);
   const [gerandoFluxo, setGerandoFluxo]       = useState(false);
   const [gerandoScripts, setGerandoScripts]   = useState(false);
@@ -644,7 +787,7 @@ Retorne APENAS o texto do prompt, sem markdown.`,
           {[
             { id: "briefing", label: "Briefing",        icon: FileText },
             { id: "ia",    label: "IA gera tudo",    icon: Sparkles },
-            { id: "visao", label: "Visão geral",      icon: LayoutGrid },
+            { id: "visao", label: "Fluxo visual",     icon: LayoutGrid },
             { id: "fase",  label: activeId ? fases.find(f => f.id === activeId)?.label || "Fase" : "Configurar fase", icon: Settings },
           ].map(t => (
             <button key={t.id} onClick={() => setTab(t.id as any)}
@@ -665,7 +808,7 @@ Retorne APENAS o texto do prompt, sem markdown.`,
 
         {/* Conteúdo das tabs */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-2xl mx-auto p-6">
+          <div className={cn("mx-auto p-6", tab === "visao" ? "max-w-5xl" : "max-w-2xl")}>
 
             {/* Análise da IA */}
             {analise && (
@@ -864,9 +1007,13 @@ Retorne APENAS o texto do prompt, sem markdown.`,
               </div>
             )}
 
-            {/* Tab: Visão geral */}
+            {/* Tab: Fluxo visual */}
             {tab === "visao" && (
-              <VisaoGeral fases={fases} onSelectFase={id => { setActiveId(id); setTab("fase"); }} />
+              <FluxoVisual
+                fases={fases}
+                onSelectFase={id => { setActiveId(id); setTab("fase"); }}
+                onChangeFase={patchFase}
+              />
             )}
 
             {/* Tab: Configurar fase */}

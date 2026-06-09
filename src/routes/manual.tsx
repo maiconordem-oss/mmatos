@@ -40,6 +40,8 @@ const sections = [
     items: [
       "Acesse Automacao > Atendimentos IA.",
       "Use um atendimento existente ou clique em Novo funil.",
+      "Use a aba Fluxo visual para montar perguntas, arquivos, coleta de dados e acoes.",
+      "Clique em uma fase para ajustar scripts, respostas rapidas, exclusoes e dados do contrato.",
       "Defina nome, descricao, honorarios, horario e follow-up.",
       "Comece com um unico atendimento principal e marque como padrao.",
       "Deixe integracoes avancadas desligadas no primeiro teste.",

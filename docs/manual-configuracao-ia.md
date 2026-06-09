@@ -29,14 +29,19 @@ Sem WhatsApp conectado, a IA pode ate ser configurada, mas nao consegue atender 
 
 1. Acesse **Automacao > Atendimentos IA**.
 2. Para comecar rapido, use um atendimento existente ou clique em **Novo funil**.
-3. Defina:
+3. A tela abre no **Fluxo visual**. Monte o atendimento por blocos:
+   - **Pergunta**: adiciona uma pergunta que a IA fara ao lead.
+   - **Arquivo**: adiciona um video ou audio que a IA pode enviar.
+   - **Acao**: abre a fase para escolher contrato, agendamento, grupo ou chamada humana.
+4. Clique em qualquer fase para ajustar detalhes como script do video, respostas rapidas, criterios de exclusao e dados para contrato.
+5. Defina:
    - **Nome do atendimento**: exemplo, `BPC/LOAS`, `Vaga em Creche`, `Auxilio-doenca`.
    - **Descricao**: explique para a equipe o objetivo daquele fluxo.
    - **Honorarios**: marque se o servico e gratuito para o cliente ou informe um valor fixo.
    - **Midias do funil**: opcional, para videos ou audios que a IA pode enviar.
    - **Horario de atendimento**: defina quando a IA deve responder.
    - **Follow-up automatico**: defina em quantas horas/dias o sistema tenta reativar o lead.
-4. Salve.
+6. Salve.
 
 Recomendacao: crie primeiro apenas um atendimento principal e deixe ele como padrao.
 
