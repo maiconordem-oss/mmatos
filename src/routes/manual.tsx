@@ -41,6 +41,7 @@ const sections = [
       "Acesse Automacao > Atendimentos IA.",
       "Use um atendimento existente ou clique em Novo funil.",
       "Use a aba Fluxo visual para montar perguntas, arquivos, coleta de dados e acoes.",
+      "Use Fluxo manual para salvar perguntas e informacoes por etapa SDR, Closer, Coleta e Assinatura.",
       "Clique em uma fase para ajustar scripts, tempo apos midia, respostas rapidas, exclusoes e dados do contrato.",
       "Se o video tem 1 minuto, configure 60 segundos antes da proxima mensagem.",
       "Defina nome, descricao, honorarios, horario e follow-up.",

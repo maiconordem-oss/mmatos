@@ -10,6 +10,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getManualPlaybook, getManualStep } from "@/lib/manual-playbooks";
 import { getAvailableSlots, createCalendarEvent } from "@/server/google-calendar.server";
 import { analyzeMoment, directiveToPromptBlock, type MomentDirective } from "@/server/funnel-timing.server";
 import { checkSafety, incrementAICounter, logAIDebug } from "@/server/intelligence.functions";
@@ -45,6 +46,7 @@ type Funnel = {
   name: string;
   persona_prompt: string;
   medias?: Record<string, string> | null;
+  manual_playbook?: any;
   proposal_value: number | null;
   proposal_is_free: boolean;
   zapsign_template_id: string | null;
@@ -1304,6 +1306,27 @@ async function handleFunnelMessageInner(
     } catch {}
   } else if (promptVariant === "b" && funnel.prompt_b) {
     personaPrompt = funnel.prompt_b;
+  }
+
+  if ((funnel.manual_playbook as any)?.steps?.length) {
+    const manualPlaybook = getManualPlaybook(funnel);
+    const manualStep = getManualStep(manualPlaybook, state.fase);
+    personaPrompt += `\n\nFLUXO MANUAL SALVO NO FUNIL
+Nome: ${manualPlaybook.name}
+Area: ${manualPlaybook.area}
+Etapa atual: ${manualStep.label}
+Objetivo da etapa: ${manualStep.goal}
+Informacoes para coletar:
+- ${manualStep.infoToCollect.join("\n- ") || "nenhuma"}
+Perguntas desta etapa:
+- ${manualStep.questions.join("\n- ") || "nenhuma"}
+Respostas prontas permitidas:
+- ${manualStep.quickReplies.join("\n- ") || "nenhuma"}
+Objecoes e respostas:
+- ${manualStep.objections.map(o => `${o.label}: ${o.reply}`).join("\n- ") || "nenhuma"}
+Materiais sugeridos:
+- ${manualStep.mediaSuggestions.map(m => `${m.key} (${m.type}): ${m.title}`).join("\n- ") || "nenhum"}
+Regra: siga este fluxo manual como roteiro principal da fase atual. Faca uma pergunta por vez, salve dados_extraidos e avance a fase somente quando as informacoes principais da etapa estiverem completas.`;
   }
 
   // ── Reconhecer lead recorrente ────────────────────────────────

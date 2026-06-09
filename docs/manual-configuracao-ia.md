@@ -83,6 +83,30 @@ Use essa area para:
 
 Se voce nao tem certeza do que uma opcao faz, deixe como esta.
 
+## 4.1. Criar fluxo manual SDR/Closer
+
+Use **Atendimentos IA > Fluxo manual** quando quiser salvar um roteiro manual para a equipe ou para a IA seguir.
+
+Esse fluxo guarda por etapa:
+
+- Perguntas que devem ser feitas ao cliente.
+- Informacoes que precisam ser coletadas.
+- Respostas prontas para o atendente.
+- Objecoes comuns e como responder.
+- Audios, videos ou materiais sugeridos.
+
+As etapas seguem o atendimento comercial:
+
+- **SDR - Abertura**: entender o motivo do contato.
+- **SDR - Triagem**: verificar requisitos e dados principais.
+- **Closer - Conexao**: explicar o caminho e gerar confianca.
+- **Closer - Fechamento**: confirmar interesse e quebrar objecoes.
+- **Backoffice - Coleta**: receber documentos e dados.
+- **Backoffice - Assinatura**: orientar contrato e procuração.
+- **Acompanhamento**: registrar proximos passos.
+
+Quando o cliente entra no WhatsApp, esse roteiro fica salvo no funil. Se a IA estiver ativa, ela usa o fluxo manual como roteiro da fase atual. Se a equipe assumir, o mesmo roteiro aparece na Ficha do Lead dentro do Inbox.
+
 ## 5. Prompt da persona
 
 O prompt e a instrucao principal da IA. Ele deve dizer:

@@ -32,12 +32,12 @@ export type ManualPlaybook = {
 
 export const DEFAULT_BPC_MANUAL_PLAYBOOK: ManualPlaybook = {
   area: "bpc_loas",
-  name: "BPC/LOAS - Atendimento manual",
-  description: "Roteiro visual para conduzir atendimentos de BPC no WhatsApp, com perguntas, respostas, objeções e mídias sugeridas.",
+  name: "Fluxo manual BPC/LOAS",
+  description: "Roteiro visual para atendimento manual no WhatsApp, com etapas de SDR, closer, coleta, assinatura e acompanhamento.",
   steps: [
     {
       id: "abertura",
-      label: "Abertura",
+      label: "SDR - Abertura",
       goal: "Entender quem é o requerente e qual foi a dor inicial sem sobrecarregar o cliente.",
       questions: [
         "Oi, tudo bem? O atendimento é sobre BPC/LOAS para você ou para outra pessoa?",
@@ -61,7 +61,7 @@ export const DEFAULT_BPC_MANUAL_PLAYBOOK: ManualPlaybook = {
     },
     {
       id: "triagem",
-      label: "Triagem",
+      label: "SDR - Triagem",
       goal: "Confirmar os requisitos principais: idade ou deficiência, renda familiar, CadÚnico e histórico do INSS.",
       questions: [
         "A pessoa tem 65 anos ou mais, ou possui alguma deficiência/doença que dificulte trabalhar ou viver de forma independente?",
@@ -92,7 +92,7 @@ export const DEFAULT_BPC_MANUAL_PLAYBOOK: ManualPlaybook = {
     },
     {
       id: "conexao",
-      label: "Conexão",
+      label: "Closer - Conexão",
       goal: "Mostrar que o escritório entendeu a situação e traduzir os próximos passos de forma segura.",
       questions: [
         "Pelo que você me contou, o principal problema hoje é a renda da casa, a parte médica ou a negativa do INSS?",
@@ -120,7 +120,7 @@ export const DEFAULT_BPC_MANUAL_PLAYBOOK: ManualPlaybook = {
     },
     {
       id: "fechamento",
-      label: "Fechamento",
+      label: "Closer - Fechamento",
       goal: "Confirmar interesse, quebrar objeções e conduzir para a análise documental.",
       questions: [
         "Faz sentido fazermos uma análise dos documentos para saber o melhor caminho?",
@@ -156,7 +156,7 @@ export const DEFAULT_BPC_MANUAL_PLAYBOOK: ManualPlaybook = {
     },
     {
       id: "coleta",
-      label: "Coleta de dados",
+      label: "Backoffice - Coleta de dados",
       goal: "Receber documentos em blocos pequenos e registrar o que falta.",
       questions: [
         "Me envie primeiro documento com foto e CPF da pessoa que vai pedir o BPC.",
@@ -187,7 +187,7 @@ export const DEFAULT_BPC_MANUAL_PLAYBOOK: ManualPlaybook = {
     },
     {
       id: "assinatura",
-      label: "Assinatura",
+      label: "Backoffice - Assinatura",
       goal: "Orientar contrato, procuração e próximos passos com linguagem simples.",
       questions: [
         "Vou te enviar os documentos de assinatura. Consegue abrir o link pelo celular?",
@@ -215,7 +215,7 @@ export const DEFAULT_BPC_MANUAL_PLAYBOOK: ManualPlaybook = {
     },
     {
       id: "encerrado",
-      label: "Encerrado",
+      label: "Acompanhamento - Encerrado",
       goal: "Fechar o atendimento inicial e manter o cliente orientado sobre acompanhamento.",
       questions: [
         "Tudo certo por aqui. Se surgir documento novo ou mensagem do INSS, me envie por aqui.",

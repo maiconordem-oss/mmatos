@@ -52,6 +52,11 @@ type Funil = {
 };
 
 const DEFAULT_FOLLOWUP_MESSAGE = "Oi! Passaram alguns dias e eu queria saber se voce conseguiu ver minha ultima mensagem. Ainda posso te ajudar com isso?";
+const MANUAL_FLOW_PROMPT = `Fluxo manual de atendimento.
+Use o playbook manual salvo neste funil como roteiro da equipe no Inbox.
+As perguntas, informacoes para coletar, respostas prontas, objecoes e materiais ficam salvos em manual_playbook.
+Quando o cliente entrar, a equipe deve seguir as etapas SDR, Closer, Coleta, Assinatura e Acompanhamento.
+Se a IA estiver ativa, ela deve apoiar com respostas curtas e seguras, sem prometer resultado e chamando humano em duvidas sensiveis.`;
 
 const cloneBpcPlaybook = () => JSON.parse(JSON.stringify(DEFAULT_BPC_MANUAL_PLAYBOOK));
 
@@ -289,33 +294,21 @@ function FunisPage() {
     await supabase.from("funnels").update({ is_default: true }).eq("id", f.id); load();
   };
 
-  const createManualBpcFunnel = async () => {
-    if (!user) return;
-    setSaving(true);
-    try {
-      const payload = {
-        user_id: user.id,
-        name: DEFAULT_BPC_MANUAL_PLAYBOOK.name,
-        description: DEFAULT_BPC_MANUAL_PLAYBOOK.description,
-        is_active: true,
-        is_default: false,
-        persona_prompt: "Funil manual BPC/LOAS. Use o playbook visual no Inbox para conduzir perguntas, respostas, objeções e documentos. A IA deve permanecer pausada quando o atendimento humano assumir.",
-        proposal_value: null,
-        proposal_is_free: false,
-        followup_hours: 48,
-        followup_msg: "Oi! Passaram alguns dias e eu queria saber se você conseguiu separar os documentos do BPC. Posso te ajudar a continuar por aqui?",
-        manual_playbook: DEFAULT_BPC_MANUAL_PLAYBOOK,
-        medias: {},
-      };
-      const { error } = await (supabase as any).from("funnels").insert(payload);
-      if (error) throw error;
-      toast.success("Funil manual BPC criado!");
-      await load();
-    } catch (e: any) {
-      toast.error(e.message ?? "Erro ao criar funil manual");
-    } finally {
-      setSaving(false);
-    }
+  const openManualFlowDraft = () => {
+    setEditing(null);
+    setForm({
+      ...EMPTY,
+      name: DEFAULT_BPC_MANUAL_PLAYBOOK.name,
+      description: DEFAULT_BPC_MANUAL_PLAYBOOK.description,
+      persona_prompt: MANUAL_FLOW_PROMPT,
+      proposal_value: null,
+      proposal_is_free: false,
+      followup_hours: 48,
+      followup_msg: "Oi! Passaram alguns dias e eu queria saber se voce conseguiu separar os documentos. Posso te ajudar a continuar por aqui?",
+      manual_playbook: cloneBpcPlaybook(),
+      medias: {},
+    });
+    setOpen(true);
   };
 
   const openSim = (f: Funil) => {
@@ -362,8 +355,8 @@ function FunisPage() {
           <p className="text-muted-foreground mt-1">Configure o atendimento automático via WhatsApp — do primeiro contato ao contrato assinado.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={createManualBpcFunnel} disabled={saving} className="gap-2">
-            <MessageSquare className="h-4 w-4" /> Manual BPC
+          <Button variant="outline" onClick={openManualFlowDraft} disabled={saving} className="gap-2">
+            <MessageSquare className="h-4 w-4" /> Fluxo manual
           </Button>
           <Button onClick={() => navigate({ to: "/construtor" })} className="gap-2"><Plus className="h-4 w-4" /> Novo funil</Button>
         </div>
@@ -386,7 +379,7 @@ function FunisPage() {
                   <h2 className="font-semibold text-lg">{f.name}</h2>
                   {f.is_default && <Badge className="bg-green-500/20 text-green-700 border-green-500/30">Padrão</Badge>}
                   <Badge variant={f.is_active ? "default" : "secondary"}>{f.is_active ? "Ativo" : "Inativo"}</Badge>
-                  {(f.manual_playbook as any)?.steps?.length && <Badge variant="outline" className="text-blue-600">Manual</Badge>}
+                  {(f.manual_playbook as any)?.steps?.length && <Badge variant="outline" className="text-blue-600">Fluxo manual</Badge>}
                   {f.proposal_is_free
                     ? <Badge variant="outline" className="text-emerald-600">Gratuito</Badge>
                     : f.proposal_value
@@ -584,15 +577,15 @@ function FunisPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-medium text-sm flex items-center gap-2">
-                    <ClipboardList className="h-4 w-4" /> Funil manual visual
+                    <ClipboardList className="h-4 w-4" /> Fluxo manual salvo
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Edite o roteiro que aparece na Ficha do Lead dentro do Inbox.
+                    Perguntas, informacoes, respostas prontas e objecoes ficam salvas neste funil e aparecem na Ficha do Lead dentro do Inbox.
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, manual_playbook: cloneBpcPlaybook() })}>
-                    Usar modelo BPC
+                    Usar modelo SDR/Closer BPC
                   </Button>
                   {(form.manual_playbook as any)?.steps?.length && (
                     <Button type="button" size="sm" variant="ghost" onClick={() => setForm({ ...form, manual_playbook: {} })}>
@@ -604,7 +597,7 @@ function FunisPage() {
 
               {!(form.manual_playbook as any)?.steps?.length ? (
                 <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                  Nenhum roteiro manual configurado neste funil. Clique em "Usar modelo BPC" para criar um roteiro editável.
+                  Nenhum fluxo manual configurado neste funil. Clique em "Usar modelo SDR/Closer BPC" para criar um roteiro editavel.
                 </div>
               ) : (
                 <div className="space-y-3">
