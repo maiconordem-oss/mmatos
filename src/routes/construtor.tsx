@@ -493,21 +493,23 @@ function FaseConfig({ fase, onChange }: { fase: Fase; onChange: (f: Fase) => voi
 
       {/* EXCLUSÕES */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <Label className="text-xs font-semibold flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5 text-red-500" />Critérios de exclusão</Label>
           <button onClick={() => patch({ exclusoes: [...fase.exclusoes, { condicao: "", motivo: "" }] })}
             className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="h-3 w-3" />Adicionar</button>
         </div>
-        <p className="text-[10px] text-muted-foreground mb-2">Quando verdadeiro → IA encerra com uma explicação gentil.</p>
+        <p className="text-[10px] text-muted-foreground mb-3">Descreva livremente quando a IA deve encerrar o atendimento com uma explicação gentil.</p>
         {fase.exclusoes.map((ex, i) => (
-          <div key={i} className="mb-2.5 p-3 rounded-xl bg-red-50 border border-red-200 space-y-2">
-            <Input value={ex.condicao} onChange={e => { const a = [...fase.exclusoes]; a[i] = { ...a[i], condicao: e.target.value }; patch({ exclusoes: a }); }}
-              className="text-xs h-7 bg-white" placeholder="Condição: ex: criança com mais de 6 anos" />
-            <div className="flex gap-2">
-              <Input value={ex.motivo} onChange={e => { const a = [...fase.exclusoes]; a[i] = { ...a[i], motivo: e.target.value }; patch({ exclusoes: a }); }}
-                className="flex-1 text-xs h-7 bg-white" placeholder="Motivo: ex: só atendemos até 5 anos e 11 meses" />
-              <button onClick={() => patch({ exclusoes: fase.exclusoes.filter((_,j) => j !== i) })} className="text-red-400 hover:text-red-600 shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
-            </div>
+          <div key={i} className="mb-2.5 flex gap-2 items-start">
+            <Textarea
+              value={ex.condicao || ex.motivo}
+              onChange={e => { const a = [...fase.exclusoes]; a[i] = { condicao: e.target.value, motivo: e.target.value }; patch({ exclusoes: a }); }}
+              rows={2}
+              className="flex-1 text-xs resize-none bg-red-50 border-red-200 focus-visible:ring-red-300 placeholder:text-red-300"
+              placeholder="Ex: Se a criança tiver mais de 6 anos, encerre explicando que só atendemos até 5 anos e 11 meses."
+            />
+            <button onClick={() => patch({ exclusoes: fase.exclusoes.filter((_,j) => j !== i) })}
+              className="mt-1.5 text-red-400 hover:text-red-600 shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
         ))}
       </div>
