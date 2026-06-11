@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_BPC_MANUAL_PLAYBOOK } from "@/lib/manual-playbooks";
+import { DEFAULT_BPC_MANUAL_PLAYBOOK, DEFAULT_PREVIDENCIARIO_MANUAL_PLAYBOOK } from "@/lib/manual-playbooks";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Plus, Bot, Video, Mic, FileText, Pencil, Trash2,
@@ -59,6 +59,7 @@ Quando o cliente entrar, a equipe deve seguir as etapas SDR, Closer, Coleta, Ass
 Se a IA estiver ativa, ela deve apoiar com respostas curtas e seguras, sem prometer resultado e chamando humano em duvidas sensiveis.`;
 
 const cloneBpcPlaybook = () => JSON.parse(JSON.stringify(DEFAULT_BPC_MANUAL_PLAYBOOK));
+const clonePrevidenciarioPlaybook = () => JSON.parse(JSON.stringify(DEFAULT_PREVIDENCIARIO_MANUAL_PLAYBOOK));
 
 const listToText = (items?: string[]) => (items ?? []).join("\n");
 const textToList = (value: string) => value.split("\n").map(item => item.trim()).filter(Boolean);
@@ -583,7 +584,10 @@ function FunisPage() {
                     Perguntas, informacoes, respostas prontas e objecoes ficam salvas neste funil e aparecem na Ficha do Lead dentro do Inbox.
                   </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex gap-2 shrink-0 flex-wrap">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, manual_playbook: clonePrevidenciarioPlaybook() })}>
+                    Usar modelo Previdenciário
+                  </Button>
                   <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, manual_playbook: cloneBpcPlaybook() })}>
                     Usar modelo SDR/Closer BPC
                   </Button>
