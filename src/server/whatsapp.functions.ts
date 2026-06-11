@@ -15,9 +15,9 @@ async function _evo(url: string, key: string, path: string, method: "GET" | "POS
   if (!res.ok) throw new Error(`Evolution ${path} [${res.status}]: ${typeof data === "string" ? data : JSON.stringify(data)}`);
   return data;
 }
-function _publicWebhookUrl(instanceId: string, secret: string) {
+function _publicWebhookUrl(instanceId: string, secret: string, publicBaseUrl?: string | null) {
   // Tenta env vars; se ausentes, cai no domínio publicado padrão do projeto.
-  let base = process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.PUBLIC_URL || "";
+  let base = publicBaseUrl || process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.PUBLIC_URL || "";
   if (!base) {
     const projectId = process.env.VITE_SUPABASE_PROJECT_ID || process.env.SUPABASE_PROJECT_ID || "";
     // Fallback hardcoded ao domínio publicado conhecido do projeto
@@ -90,7 +90,11 @@ export const upsertInstance = createServerFn({ method: "POST" })
 
 export const connectInstance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
+  .inputValidator(z.object({
+    __token: z.string().optional(),
+    id: z.string().uuid(),
+    public_base_url: z.string().url().optional(),
+  }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
     const { data: inst, error } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
@@ -102,7 +106,7 @@ export const connectInstance = createServerFn({ method: "POST" })
     const key = inst.api_key || creds.key;
     if (!url || !key) throw new Error("Configure a URL e API Key da Evolution API na instância ou em Configurações.");
 
-    const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
+    const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret, data.public_base_url);
     const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];
 
     // Try create instance (idempotent — Evolution returns 409 if exists)
@@ -179,7 +183,11 @@ export const disconnectInstance = createServerFn({ method: "POST" })
 
 export const setWebhook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ __token: z.string().optional(), id: z.string().uuid() }).parse)
+  .inputValidator(z.object({
+    __token: z.string().optional(),
+    id: z.string().uuid(),
+    public_base_url: z.string().url().optional(),
+  }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
     const { data: inst } = await supabase.from("whatsapp_instances").select("*").eq("id", data.id).single();
@@ -188,7 +196,7 @@ export const setWebhook = createServerFn({ method: "POST" })
     const url = inst.api_url || creds.url;
     const key = inst.api_key || creds.key;
     if (!url || !key) throw new Error("Configure a URL e API Key da Evolution API na instância ou em Configurações.");
-    const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret);
+    const webhookUrl = publicWebhookUrl(inst.id, inst.webhook_secret, data.public_base_url);
 
     // Evolution API v2: POST /webhook/set/{instance}
     const events = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE", "CONNECTION_UPDATE", "QRCODE_UPDATED"];

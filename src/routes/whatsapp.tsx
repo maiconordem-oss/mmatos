@@ -173,7 +173,7 @@ function WhatsappPage() {
   const handleConnect = async (inst: Instance) => {
     setBusy(inst.id + "-connect");
     try {
-      await connectFn({ data: { id: inst.id } });
+      await connectFn({ data: { id: inst.id, public_base_url: window.location.origin } });
       setShowQR(inst.id);
       load();
     } catch (e: any) { toast.error(e.message); }
@@ -319,7 +319,7 @@ function WhatsappPage() {
                       </button>
                       <button onClick={async () => {
                         try {
-                          await setWebhookFn({ data: { id: inst.id } });
+                          await setWebhookFn({ data: { id: inst.id, public_base_url: window.location.origin } });
                           toast.success("Webhook configurado automaticamente!");
                         } catch (e: any) { toast.error(e.message); }
                       }} className="p-2 rounded-lg hover:bg-amber-500/10 text-slate-600 hover:text-amber-400 transition-colors" title="Configurar webhook automaticamente">

@@ -68,7 +68,7 @@ export const Route = createFileRoute("/api/debug-webhook")({
           if (!inst.api_url || !inst.api_key) {
             return Response.json({ error: "api_url/api_key ausentes na instância" }, { status: 400 });
           }
-          const webhookUrl = buildInstanceWebhookUrl(inst.id, inst.webhook_secret);
+          const webhookUrl = buildInstanceWebhookUrl(inst.id, inst.webhook_secret, url.origin);
 
           try {
             await syncInstanceWebhookEvents(inst.api_url, inst.api_key, inst.instance_name, webhookUrl);

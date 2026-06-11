@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { handleFunnelMessage } from "@/server/funnel-executor.server";
 import { normalizeBRPhone, phoneVariants } from "@/lib/phone";
 import { classifyAndPersistSentiment, checkBusinessHours } from "@/server/intelligence.functions";
-import { sendEvolutionText, syncInstanceWebhookEvents, buildInstanceWebhookUrl } from "@/server/whatsapp.functions";
+import { sendEvolutionText, syncInstanceWebhookEvents } from "@/server/whatsapp.functions";
 
 export const Route = createFileRoute("/api/public/whatsapp-webhook")({
   server: {
@@ -39,11 +39,11 @@ export const Route = createFileRoute("/api/public/whatsapp-webhook")({
             const { data: userCreds } = await supabaseAdmin
               .from("user_settings").select("evolution_api_url, evolution_api_key")
               .eq("user_id", inst.user_id).maybeSingle();
-            const url = inst.api_url || userCreds?.evolution_api_url || null;
+            const evoUrl = inst.api_url || userCreds?.evolution_api_url || null;
             const key = inst.api_key || userCreds?.evolution_api_key || null;
-            if (url && key) {
-              const webhookUrl = buildInstanceWebhookUrl(inst.id, inst.webhook_secret);
-              syncInstanceWebhookEvents(url, key, inst.instance_name, webhookUrl).catch(() => {});
+            if (evoUrl && key) {
+              const webhookUrl = `${url.origin}/api/public/whatsapp-webhook?id=${inst.id}&secret=${inst.webhook_secret}`;
+              syncInstanceWebhookEvents(evoUrl, key, inst.instance_name, webhookUrl).catch(() => {});
             }
           }
           return Response.json({ ok: true, event: "connection_update" });
