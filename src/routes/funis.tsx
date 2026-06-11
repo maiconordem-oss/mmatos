@@ -13,12 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_BPC_MANUAL_PLAYBOOK, DEFAULT_PREVIDENCIARIO_MANUAL_PLAYBOOK } from "@/lib/manual-playbooks";
 import { useAuth } from "@/hooks/use-auth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, Bot, Video, Mic, FileText, Pencil, Trash2,
   ExternalLink, FlaskConical,
-  RotateCcw, MessageSquare, Send, ArrowRight, ClipboardList,
+  RotateCcw, MessageSquare, Send, ArrowRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/funis")({
@@ -48,46 +48,26 @@ type Funil = {
   zapsign_template_id: string | null;
   followup_hours: number | null;
   followup_msg: string | null;
-  manual_playbook?: any;
+  benefit_type?: string | null;
 };
 
 const DEFAULT_FOLLOWUP_MESSAGE = "Oi! Passaram alguns dias e eu queria saber se voce conseguiu ver minha ultima mensagem. Ainda posso te ajudar com isso?";
-const MANUAL_FLOW_PROMPT = `Fluxo manual de atendimento.
-Use o playbook manual salvo neste funil como roteiro da equipe no Inbox.
-As perguntas, informacoes para coletar, respostas prontas, objecoes e materiais ficam salvos em manual_playbook.
-Quando o cliente entrar, a equipe deve seguir as etapas SDR, Closer, Coleta, Assinatura e Acompanhamento.
-Se a IA estiver ativa, ela deve apoiar com respostas curtas e seguras, sem prometer resultado e chamando humano em duvidas sensiveis.`;
 
-const cloneBpcPlaybook = () => JSON.parse(JSON.stringify(DEFAULT_BPC_MANUAL_PLAYBOOK));
-const clonePrevidenciarioPlaybook = () => JSON.parse(JSON.stringify(DEFAULT_PREVIDENCIARIO_MANUAL_PLAYBOOK));
-
-const listToText = (items?: string[]) => (items ?? []).join("\n");
-const textToList = (value: string) => value.split("\n").map(item => item.trim()).filter(Boolean);
-
-const objectionsToText = (items?: any[]) => (items ?? [])
-  .map(item => `${item.label ?? ""} :: ${item.reply ?? ""}`.trim())
-  .filter(Boolean)
-  .join("\n");
-
-const textToObjections = (value: string) => textToList(value).map(line => {
-  const [label, ...replyParts] = line.split("::");
-  return { label: label.trim(), reply: replyParts.join("::").trim() || line.trim() };
-}).filter(item => item.label && item.reply);
-
-const mediaSuggestionsToText = (items?: any[]) => (items ?? [])
-  .map(item => `${item.key ?? ""} | ${item.type ?? "audio"} | ${item.title ?? ""} | ${item.script ?? ""}`.trim())
-  .filter(Boolean)
-  .join("\n");
-
-const textToMediaSuggestions = (value: string) => textToList(value).map(line => {
-  const [key, type, title, ...scriptParts] = line.split("|").map(part => part.trim());
-  return {
-    key,
-    type: ["audio", "video", "documento"].includes(type) ? type : "audio",
-    title: title || key,
-    script: scriptParts.join(" | ") || title || key,
-  };
-}).filter(item => item.key && item.title && item.script);
+const BENEFIT_TYPES = [
+  "Aposentadoria por Incapacidade Permanente",
+  "Auxílio por Incapacidade Temporária",
+  "Pensão por Morte",
+  "BPC/LOAS — Pessoa com Deficiência",
+  "BPC/LOAS — Idoso",
+  "Salário-Maternidade",
+  "Auxílio-Reclusão",
+  "Aposentadoria por Tempo de Contribuição",
+  "Aposentadoria por Idade (Urbana)",
+  "Aposentadoria por Idade (Rural)",
+  "Aposentadoria Especial",
+  "Vaga em Creche",
+  "Outro",
+];
 
 const EMPTY: any = {
   name: "", description: "", is_active: true, is_default: false,
@@ -97,7 +77,7 @@ const EMPTY: any = {
   media_video_abertura: null, media_video_conexao: null,
   media_audio_fechamento: null, media_video_documentos: null,
   zapsign_template_id: null,
-  manual_playbook: {},
+  benefit_type: null,
 };
 
 function AdvancedSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
@@ -242,22 +222,8 @@ function FunisPage() {
     setForm({
       ...f,
       medias: Object.keys(existingMedias).length > 0 ? existingMedias : legacy,
-      manual_playbook: (f.manual_playbook as any)?.steps?.length ? f.manual_playbook : {},
     });
     setOpen(true);
-  };
-
-  const updateManualStep = (stepId: string, patch: Record<string, any>) => {
-    const current = (form.manual_playbook as any)?.steps?.length
-      ? form.manual_playbook
-      : cloneBpcPlaybook();
-    setForm({
-      ...form,
-      manual_playbook: {
-        ...current,
-        steps: current.steps.map((step: any) => step.id === stepId ? { ...step, ...patch } : step),
-      },
-    });
   };
 
   const save = async () => {
@@ -293,23 +259,6 @@ function FunisPage() {
     if (!user) return;
     await supabase.from("funnels").update({ is_default: false }).eq("user_id", user.id);
     await supabase.from("funnels").update({ is_default: true }).eq("id", f.id); load();
-  };
-
-  const openManualFlowDraft = () => {
-    setEditing(null);
-    setForm({
-      ...EMPTY,
-      name: DEFAULT_BPC_MANUAL_PLAYBOOK.name,
-      description: DEFAULT_BPC_MANUAL_PLAYBOOK.description,
-      persona_prompt: MANUAL_FLOW_PROMPT,
-      proposal_value: null,
-      proposal_is_free: false,
-      followup_hours: 48,
-      followup_msg: "Oi! Passaram alguns dias e eu queria saber se voce conseguiu separar os documentos. Posso te ajudar a continuar por aqui?",
-      manual_playbook: cloneBpcPlaybook(),
-      medias: {},
-    });
-    setOpen(true);
   };
 
   const openSim = (f: Funil) => {
@@ -356,9 +305,6 @@ function FunisPage() {
           <p className="text-muted-foreground mt-1">Configure o atendimento automático via WhatsApp — do primeiro contato ao contrato assinado.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={openManualFlowDraft} disabled={saving} className="gap-2">
-            <MessageSquare className="h-4 w-4" /> Fluxo manual
-          </Button>
           <Button onClick={() => navigate({ to: "/construtor" })} className="gap-2"><Plus className="h-4 w-4" /> Novo funil</Button>
         </div>
       </header>
@@ -380,7 +326,7 @@ function FunisPage() {
                   <h2 className="font-semibold text-lg">{f.name}</h2>
                   {f.is_default && <Badge className="bg-green-500/20 text-green-700 border-green-500/30">Padrão</Badge>}
                   <Badge variant={f.is_active ? "default" : "secondary"}>{f.is_active ? "Ativo" : "Inativo"}</Badge>
-                  {(f.manual_playbook as any)?.steps?.length && <Badge variant="outline" className="text-blue-600">Fluxo manual</Badge>}
+                  {f.benefit_type && <Badge variant="outline" className="text-indigo-600 border-indigo-300">{f.benefit_type}</Badge>}
                   {f.proposal_is_free
                     ? <Badge variant="outline" className="text-emerald-600">Gratuito</Badge>
                     : f.proposal_value
@@ -430,9 +376,22 @@ function FunisPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <Label>Nome do funil *</Label>
-                <Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Vaga em Creche — Porto Alegre" />
+                <Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Aposentadoria por Incapacidade — Porto Alegre" />
               </div>
-              <div className="col-span-2">
+              <div>
+                <Label>Tipo de benefício</Label>
+                <Select value={form.benefit_type ?? ""} onValueChange={(v: string) => setForm({ ...form, benefit_type: v || null })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o benefício..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BENEFIT_TYPES.map((b) => (
+                      <SelectItem key={b} value={b}>{b}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Descrição</Label>
                 <Input value={form.description ?? ""} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
@@ -571,96 +530,6 @@ function FunisPage() {
               <p className="font-medium text-sm">📲 Notificação de contrato</p>
               <Label className="text-xs">Seu número WhatsApp (com DDI) para receber alerta</Label>
               <Input value={form.notify_phone ?? ""} onChange={(e) => setForm({ ...form, notify_phone: e.target.value })} placeholder="5551999999999" />
-            </div>
-
-            {/* Playbook manual */}
-            <div className="border rounded-lg p-4 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium text-sm flex items-center gap-2">
-                    <ClipboardList className="h-4 w-4" /> Fluxo manual salvo
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Perguntas, informacoes, respostas prontas e objecoes ficam salvas neste funil e aparecem na Ficha do Lead dentro do Inbox.
-                  </p>
-                </div>
-                <div className="flex gap-2 shrink-0 flex-wrap">
-                  <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, manual_playbook: clonePrevidenciarioPlaybook() })}>
-                    Usar modelo Previdenciário
-                  </Button>
-                  <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, manual_playbook: cloneBpcPlaybook() })}>
-                    Usar modelo SDR/Closer BPC
-                  </Button>
-                  {(form.manual_playbook as any)?.steps?.length && (
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setForm({ ...form, manual_playbook: {} })}>
-                      Desativar
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {!(form.manual_playbook as any)?.steps?.length ? (
-                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                  Nenhum fluxo manual configurado neste funil. Clique em "Usar modelo SDR/Closer BPC" para criar um roteiro editavel.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs">Nome do roteiro</Label>
-                      <Input value={(form.manual_playbook as any).name ?? ""} onChange={(e) => setForm({ ...form, manual_playbook: { ...form.manual_playbook, name: e.target.value } })} />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Área</Label>
-                      <Input value={(form.manual_playbook as any).area ?? ""} onChange={(e) => setForm({ ...form, manual_playbook: { ...form.manual_playbook, area: e.target.value } })} />
-                    </div>
-                    <div className="col-span-2">
-                      <Label className="text-xs">Descrição</Label>
-                      <Input value={(form.manual_playbook as any).description ?? ""} onChange={(e) => setForm({ ...form, manual_playbook: { ...form.manual_playbook, description: e.target.value } })} />
-                    </div>
-                  </div>
-
-                  {(form.manual_playbook as any).steps.map((step: any) => (
-                    <details key={step.id} className="rounded-lg border bg-muted/10" open={step.id === "abertura"}>
-                      <summary className="cursor-pointer px-3 py-2 text-sm font-medium">{step.label || step.id}</summary>
-                      <div className="space-y-3 border-t p-3">
-                        <div>
-                          <Label className="text-xs">Nome da etapa</Label>
-                          <Input value={step.label ?? ""} onChange={(e) => updateManualStep(step.id, { label: e.target.value })} />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Objetivo da etapa</Label>
-                          <Textarea rows={2} value={step.goal ?? ""} onChange={(e) => updateManualStep(step.id, { goal: e.target.value })} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs">Dados para coletar, um por linha</Label>
-                            <Textarea rows={5} value={listToText(step.infoToCollect)} onChange={(e) => updateManualStep(step.id, { infoToCollect: textToList(e.target.value) })} />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Perguntas da etapa, uma por linha</Label>
-                            <Textarea rows={5} value={listToText(step.questions)} onChange={(e) => updateManualStep(step.id, { questions: textToList(e.target.value) })} />
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-xs">Respostas prontas, uma por linha</Label>
-                          <Textarea rows={4} value={listToText(step.quickReplies)} onChange={(e) => updateManualStep(step.id, { quickReplies: textToList(e.target.value) })} />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Objeções</Label>
-                          <p className="text-[11px] text-muted-foreground mb-1">Formato: Objeção :: resposta pronta</p>
-                          <Textarea rows={4} value={objectionsToText(step.objections)} onChange={(e) => updateManualStep(step.id, { objections: textToObjections(e.target.value) })} />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Áudios, vídeos ou materiais sugeridos</Label>
-                          <p className="text-[11px] text-muted-foreground mb-1">Formato: chave | audio | título | roteiro ou observação</p>
-                          <Textarea rows={4} value={mediaSuggestionsToText(step.mediaSuggestions)} onChange={(e) => updateManualStep(step.id, { mediaSuggestions: textToMediaSuggestions(e.target.value) })} />
-                        </div>
-                      </div>
-                    </details>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Google Calendar */}
