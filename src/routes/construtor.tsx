@@ -82,6 +82,122 @@ function VisaoGeral({ fases, onSelectFase }: { fases: Fase[]; onSelectFase: (id:
   );
 }
 
+// ── Upload de mídia por step ───────────────────────────────────
+const ACCEPT_MIDIA = "video/mp4,audio/mpeg,audio/mp4,audio/ogg,audio/wav,image/jpeg,image/png,image/webp,application/pdf";
+
+function MidiaUploadBlock({ step, patch }: {
+  step: { midiaTipo?: MidiaTipo; midiaChave?: string; midiaUrl?: string; midiaFileName?: string; midiaScript?: string; midiaDelaySegundos?: number };
+  patch: (fields: Partial<Step>) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Não autenticado");
+
+      const form = new FormData();
+      form.append("file", file);
+      form.append("slug", "funil-midias");
+
+      const res = await fetch("/api/lead-magnet-upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const json = await res.json();
+      if (!res.ok || !json.url) throw new Error(json.error ?? "Erro no upload");
+
+      const inferredTipo: MidiaTipo =
+        file.type.startsWith("video/") ? "video" :
+        file.type.startsWith("audio/") ? "audio" :
+        file.type.startsWith("image/") ? "imagem" : "documento";
+
+      const safeName = file.name.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 30);
+      const autoChave = step.midiaChave || `${inferredTipo}_${safeName}`;
+
+      patch({ midiaUrl: json.url, midiaFileName: file.name, midiaTipo: inferredTipo, midiaChave: autoChave });
+      toast.success("Arquivo enviado!");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro no upload");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  };
+
+  return (
+    <div className="space-y-2.5">
+      {/* Tipo selector */}
+      <div className="flex gap-1.5 flex-wrap">
+        {MIDIA_META.map(mt => (
+          <button key={mt.val} onClick={() => patch({ midiaTipo: mt.val })}
+            className={cn("flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-all",
+              step.midiaTipo === mt.val ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-border text-muted-foreground hover:bg-muted/50")}>
+            <mt.icon className="h-3 w-3" />{mt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Upload zone */}
+      {step.midiaUrl ? (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+          <span className="flex-1 text-xs text-emerald-800 truncate">{step.midiaFileName ?? "Arquivo enviado"}</span>
+          <button onClick={() => patch({ midiaUrl: undefined, midiaFileName: undefined })}
+            className="text-emerald-400 hover:text-red-500 shrink-0"><X className="h-3.5 w-3.5" /></button>
+        </div>
+      ) : (
+        <div
+          onDrop={onDrop} onDragOver={e => e.preventDefault()}
+          onClick={() => fileRef.current?.click()}
+          className="rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-5 text-center cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all"
+        >
+          <input ref={fileRef} type="file" accept={ACCEPT_MIDIA} className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+          {uploading ? (
+            <p className="text-xs text-muted-foreground">Enviando...</p>
+          ) : (
+            <>
+              <p className="text-xs font-medium text-foreground">Arraste o arquivo ou clique para enviar</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Vídeo, áudio, imagem ou PDF</p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Chave de referência */}
+      <div>
+        <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wide font-semibold">Chave de referência</p>
+        <Input value={step.midiaChave ?? ""} onChange={e => patch({ midiaChave: e.target.value })}
+          className="text-xs h-7 font-mono" placeholder={`Ex: ${step.midiaTipo ?? "video"}_abertura`} />
+      </div>
+
+      {/* Script */}
+      <Textarea value={step.midiaScript ?? ""} onChange={e => patch({ midiaScript: e.target.value })}
+        rows={2} className="text-xs resize-none"
+        placeholder={step.midiaTipo === "audio" ? "🎤 Script do áudio — o que gravar..." : "🎬 Script do vídeo / imagem — o que mostrar..."} />
+
+      {/* Delay */}
+      <div className="flex items-center gap-2">
+        <Input type="number" min={0} max={600}
+          value={step.midiaDelaySegundos ?? ""}
+          onChange={e => patch({ midiaDelaySegundos: e.target.value ? Number(e.target.value) : undefined })}
+          className="text-xs h-7 w-24" placeholder="60" />
+        <span className="text-xs text-muted-foreground">seg. aguardar antes da próxima mensagem</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Step helpers ───────────────────────────────────────────────
 const STEP_META: Record<StepTipo, { label: string; icon: React.ElementType; border: string; header: string }> = {
   mensagem: { label: "Mensagem",      icon: MessageSquare, border: "border-blue-200",   header: "bg-blue-50 text-blue-700" },
@@ -161,30 +277,7 @@ function StepCard({ step, index, total, onChange, onDelete, onMoveUp, onMoveDown
         )}
 
         {step.tipo === "midia" && (
-          <>
-            <div className="flex gap-1.5 flex-wrap">
-              {MIDIA_META.map(mt => (
-                <button key={mt.val} onClick={() => patch({ midiaTipo: mt.val })}
-                  className={cn("flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-all",
-                    step.midiaTipo === mt.val ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-border text-muted-foreground hover:bg-muted/50")}>
-                  <mt.icon className="h-3 w-3" />{mt.label}
-                </button>
-              ))}
-            </div>
-            <Input value={step.midiaChave ?? ""} onChange={e => patch({ midiaChave: e.target.value })}
-              className="text-xs h-7 font-mono"
-              placeholder={`Ex: ${step.midiaTipo ?? "video"}_abertura`} />
-            <Textarea value={step.midiaScript ?? ""} onChange={e => patch({ midiaScript: e.target.value })}
-              rows={2} className="text-xs resize-none"
-              placeholder={step.midiaTipo === "audio" ? "🎤 Script do áudio — o que gravar..." : "🎬 Script do vídeo / imagem — o que mostrar..."} />
-            <div className="flex items-center gap-2">
-              <Input type="number" min={0} max={600}
-                value={step.midiaDelaySegundos ?? ""}
-                onChange={e => patch({ midiaDelaySegundos: e.target.value ? Number(e.target.value) : undefined })}
-                className="text-xs h-7 w-24" placeholder="60" />
-              <span className="text-xs text-muted-foreground">seg. aguardar antes da próxima mensagem</span>
-            </div>
-          </>
+          <MidiaUploadBlock step={step} patch={patch} />
         )}
 
         {step.tipo === "pergunta" && (
@@ -851,7 +944,12 @@ Retorne APENAS o texto do prompt, sem markdown.`,
       const { prompt } = await promptRes.json();
       const { error } = await supabase.from("funnels").insert({
         user_id: user.id, name: nomeFunil, description: [descricao, "", "Briefing:", briefingTexto()].filter(Boolean).join("\n"),
-        persona_prompt: prompt, is_active: true, medias: {},
+        persona_prompt: prompt, is_active: true,
+        medias: Object.fromEntries(
+          fases.flatMap(f => (f.steps ?? []))
+            .filter(s => s.tipo === "midia" && s.midiaChave && s.midiaUrl)
+            .map(s => [s.midiaChave!, s.midiaUrl!])
+        ),
       });
       if (error) throw error;
       localStorage.removeItem(DRAFT_KEY);

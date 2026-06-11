@@ -16,6 +16,8 @@ export type Step = {
   usarIA?: boolean;
   midiaTipo?: MidiaTipo;
   midiaChave?: string;
+  midiaUrl?: string;
+  midiaFileName?: string;
   midiaScript?: string;
   midiaDelaySegundos?: number;
   botoes?: string[];
