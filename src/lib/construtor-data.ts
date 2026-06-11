@@ -5,8 +5,29 @@ import {
 // ── Tipos ──────────────────────────────────────────────────────
 export type AcaoTipo = "contrato" | "agendamento" | "handoff" | "criar_grupo" | "nenhuma";
 
+export type StepTipo = "mensagem" | "ia" | "midia" | "pergunta";
+export type MidiaTipo = "video" | "audio" | "imagem" | "documento";
+
+export type Step = {
+  id: string;
+  tipo: StepTipo;
+  texto?: string;
+  instrucaoIA?: string;
+  usarIA?: boolean;
+  midiaTipo?: MidiaTipo;
+  midiaChave?: string;
+  midiaScript?: string;
+  midiaDelaySegundos?: number;
+  botoes?: string[];
+};
+
+export function uid() {
+  return Math.random().toString(36).slice(2, 9);
+}
+
 export type Fase = {
   id: string; label: string; emoji: string; cor: string;
+  steps: Step[];
   perguntas: string[];
   opcoesPergunta?: Record<number, string[]>;
   exclusoes: { condicao: string; motivo: string }[];
@@ -118,24 +139,53 @@ export const SUGESTOES_PERGUNTAS: Record<string, string[]> = {
 };
 
 export const FASES_PADRAO: Fase[] = [
-  { id: "abertura",   label: "Abertura",       emoji: "🟢", cor: "#0d9488",
+  { id: "abertura", label: "Abertura", emoji: "🟢", cor: "#0d9488",
+    steps: [
+      { id: "ab1", tipo: "midia", midiaTipo: "video", midiaChave: "video_abertura", midiaScript: "", midiaDelaySegundos: 60 },
+      { id: "ab2", tipo: "mensagem", texto: "Me conta o que está acontecendo." },
+    ],
     perguntas: [], exclusoes: [], midias: [{ chave: "video_abertura", script: "", momento: "Primeira mensagem" }],
     textoAposMidia: "Me conta o que está acontecendo.", acao: "nenhuma", camposColeta: [] },
-  { id: "triagem",    label: "Triagem",         emoji: "📋", cor: "#2563eb",
+
+  { id: "triagem", label: "Triagem", emoji: "📋", cor: "#2563eb",
+    steps: [
+      { id: "tr1", tipo: "ia", instrucaoIA: "Faça perguntas de qualificação uma por vez. Verifique se o caso se enquadra no escopo do escritório antes de avançar." },
+    ],
     perguntas: [], exclusoes: [], midias: [], textoAposMidia: "", acao: "nenhuma", camposColeta: [] },
-  { id: "conexao",    label: "Conexão",         emoji: "🤝", cor: "#d97706",
+
+  { id: "conexao", label: "Conexão", emoji: "🤝", cor: "#d97706",
+    steps: [
+      { id: "cn1", tipo: "midia", midiaTipo: "video", midiaChave: "video_conexao", midiaScript: "", midiaDelaySegundos: 60 },
+      { id: "cn2", tipo: "pergunta", texto: "Posso abrir o seu caso agora?", botoes: ["Sim, pode", "Tenho dúvidas"] },
+    ],
     perguntas: ["Posso abrir o seu caso agora?"], exclusoes: [], midias: [{ chave: "video_conexao", script: "", momento: "Após triagem" }],
     textoAposMidia: "", acao: "nenhuma", camposColeta: [] },
-  { id: "fechamento", label: "Fechamento",      emoji: "🎯", cor: "#db2777",
+
+  { id: "fechamento", label: "Fechamento", emoji: "🎯", cor: "#db2777",
+    steps: [
+      { id: "fc1", tipo: "midia", midiaTipo: "audio", midiaChave: "audio_fechamento", midiaScript: "", midiaDelaySegundos: 30 },
+      { id: "fc2", tipo: "pergunta", texto: "O que eu falei faz sentido para você?", botoes: ["Sim, faz sentido", "Tenho dúvidas"] },
+    ],
     perguntas: ["O que eu falei faz sentido para você?"], exclusoes: [], midias: [{ chave: "audio_fechamento", script: "", momento: "Após conexão" }],
     textoAposMidia: "", acao: "nenhuma", camposColeta: [] },
-  { id: "coleta",     label: "Coleta de dados", emoji: "📝", cor: "#7c3aed",
+
+  { id: "coleta", label: "Coleta de dados", emoji: "📝", cor: "#7c3aed",
+    steps: [
+      { id: "co1", tipo: "ia", instrucaoIA: "Colete os dados necessários para o contrato um campo por vez. Seja gentil e explique o motivo de cada dado pedido." },
+    ],
     perguntas: [], exclusoes: [], midias: [], textoAposMidia: "", acao: "contrato",
     camposColeta: ["nome", "cpf", "rg", "endereco"] },
-  { id: "assinatura", label: "Assinatura",      emoji: "✍️", cor: "#059669",
+
+  { id: "assinatura", label: "Assinatura", emoji: "✍️", cor: "#059669",
+    steps: [
+      { id: "as1", tipo: "midia", midiaTipo: "video", midiaChave: "video_documentos", midiaScript: "", midiaDelaySegundos: 60 },
+      { id: "as2", tipo: "mensagem", texto: "Agora é só assinar o contrato pelo link acima e nos enviar os documentos no grupo!" },
+    ],
     perguntas: [], exclusoes: [], midias: [{ chave: "video_documentos", script: "", momento: "Após contrato" }],
     textoAposMidia: "", acao: "criar_grupo", camposColeta: [] },
-  { id: "encerrado",  label: "Encerrado",       emoji: "✅", cor: "#64748b",
+
+  { id: "encerrado", label: "Encerrado", emoji: "✅", cor: "#64748b",
+    steps: [],
     perguntas: [], exclusoes: [], midias: [], textoAposMidia: "", acao: "nenhuma", camposColeta: [] },
 ];
 
@@ -203,8 +253,43 @@ export const TEMPLATES: { id: string; label: string; emoji: string; desc: string
 
 // ── Função pura ────────────────────────────────────────────────
 export function fasePct(f: Fase): number {
+  const steps = f.steps ?? [];
+
+  if (steps.length > 0) {
+    if (f.id === "encerrado") return 100;
+    const hasMedia = steps.some(s => s.tipo === "midia" && s.midiaChave);
+    const hasInteraction = steps.some(s =>
+      (s.tipo === "pergunta" && s.texto) ||
+      (s.tipo === "ia" && s.instrucaoIA) ||
+      (s.tipo === "mensagem" && (s.texto || s.instrucaoIA))
+    );
+    if (f.id === "coleta") {
+      let pts = 0;
+      if (f.camposColeta.length >= 3) pts++;
+      if (f.acao === "contrato") pts++;
+      if (steps.length > 0) pts = Math.max(pts, 1);
+      return Math.round((pts / 2) * 100);
+    }
+    if (f.id === "assinatura") {
+      let pts = 0;
+      if (hasMedia || steps.length > 0) pts++;
+      if (f.acao !== "nenhuma") pts++;
+      return Math.round((pts / 2) * 100);
+    }
+    if (f.id === "triagem") {
+      let pts = 0;
+      if (hasInteraction) pts++;
+      if (f.exclusoes.length >= 1) pts++;
+      if (steps.length >= 2) pts++;
+      return Math.round((pts / 3) * 100);
+    }
+    const total = 2;
+    const pts = (hasMedia ? 1 : 0) + (hasInteraction ? 1 : 0);
+    return Math.round((Math.min(pts, total) / total) * 100);
+  }
+
   let pts = 0; let total = 0;
-  if (f.id === "abertura")   { total = 2; if (f.midias.length > 0) pts++; if (f.textoAposMidia) pts++; }
+  if (f.id === "abertura")        { total = 2; if (f.midias.length > 0) pts++; if (f.textoAposMidia) pts++; }
   else if (f.id === "triagem")    { total = 3; if (f.perguntas.length >= 2) pts++; if (f.exclusoes.length >= 1) pts++; if (f.perguntas.length > 0) pts++; }
   else if (f.id === "conexao")    { total = 2; if (f.midias.length > 0) pts++; if (f.perguntas.length > 0) pts++; }
   else if (f.id === "fechamento") { total = 2; if (f.midias.length > 0) pts++; if (f.perguntas.length > 0) pts++; }

@@ -1,3 +1,4 @@
+import React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { AuthGate } from "@/components/AuthGate";
@@ -12,17 +13,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
-  ChevronRight, Plus, Trash2, Video, Mic, FileText,
-  MessageSquare, Calendar, CheckCheck, X, Sparkles,
+  ChevronRight, ChevronUp, ChevronDown, Plus, Trash2, Video, Mic, FileText,
+  MessageSquare, Calendar, CheckCheck, X, Sparkles, Image,
   Save, Bot, User, AlertCircle, Zap, Play, Users,
   FileSignature, ArrowRight, Settings, LayoutGrid,
-  CheckCircle2, Circle, History, Copy, Wand2, Search,
+  CheckCircle2, Circle, History, Copy, Wand2, Search, HelpCircle,
 } from "lucide-react";
 import {
   type AcaoTipo, type Fase, type Versao, type BriefingFunil, type AuditResult,
+  type Step, type StepTipo, type MidiaTipo,
   BRIEFING_PADRAO, AREAS_JURIDICAS, REGRAS_GLOBAIS_PADRAO, CHECKLIST_QUALIDADE,
   TESTES_SIMULACAO, SUGESTOES_PERGUNTAS, FASES_PADRAO, CAMPOS, ACOES, TEMPLATES,
-  fasePct,
+  fasePct, uid,
 } from "@/lib/construtor-data";
 import { Simulador } from "@/components/construtor/Simulador";
 
@@ -55,8 +57,18 @@ function VisaoGeral({ fases, onSelectFase }: { fases: Fase[]; onSelectFase: (id:
               </div>
               {/* Resumo */}
               <div className="flex flex-wrap gap-2">
-                {f.midias.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 flex items-center gap-0.5"><Video className="h-2.5 w-2.5" />{f.midias.length} mídia{f.midias.length > 1 ? "s" : ""}</span>}
-                {f.perguntas.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 flex items-center gap-0.5"><MessageSquare className="h-2.5 w-2.5" />{f.perguntas.length} perg.</span>}
+                {(f.steps ?? []).length > 0 ? (
+                  <>
+                    {(f.steps ?? []).filter(s => s.tipo === "midia").length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 flex items-center gap-0.5"><Video className="h-2.5 w-2.5" />{(f.steps ?? []).filter(s => s.tipo === "midia").length} mídia</span>}
+                    {(f.steps ?? []).filter(s => s.tipo === "pergunta").length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 flex items-center gap-0.5"><HelpCircle className="h-2.5 w-2.5" />{(f.steps ?? []).filter(s => s.tipo === "pergunta").length} perg.</span>}
+                    {(f.steps ?? []).filter(s => s.tipo === "ia").length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 flex items-center gap-0.5"><Sparkles className="h-2.5 w-2.5" />IA livre</span>}
+                  </>
+                ) : (
+                  <>
+                    {f.midias.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 flex items-center gap-0.5"><Video className="h-2.5 w-2.5" />{f.midias.length} mídia{f.midias.length > 1 ? "s" : ""}</span>}
+                    {f.perguntas.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 flex items-center gap-0.5"><MessageSquare className="h-2.5 w-2.5" />{f.perguntas.length} perg.</span>}
+                  </>
+                )}
                 {f.exclusoes.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 flex items-center gap-0.5"><AlertCircle className="h-2.5 w-2.5" />{f.exclusoes.length} exclus.</span>}
                 {f.camposColeta.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600 flex items-center gap-0.5"><FileText className="h-2.5 w-2.5" />{f.camposColeta.length} campos</span>}
                 {f.acao !== "nenhuma" && <span className="text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 font-medium" style={{ background: f.cor + "15", color: f.cor }}><Zap className="h-2.5 w-2.5" />{ACOES.find(a => a.val === f.acao)?.label}</span>}
@@ -66,6 +78,213 @@ function VisaoGeral({ fases, onSelectFase }: { fases: Fase[]; onSelectFase: (id:
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// ── Step helpers ───────────────────────────────────────────────
+const STEP_META: Record<StepTipo, { label: string; icon: React.ElementType; border: string; header: string }> = {
+  mensagem: { label: "Mensagem",      icon: MessageSquare, border: "border-blue-200",   header: "bg-blue-50 text-blue-700" },
+  ia:       { label: "Instrução IA",  icon: Sparkles,      border: "border-violet-200", header: "bg-violet-50 text-violet-700" },
+  midia:    { label: "Mídia",         icon: Video,         border: "border-emerald-200",header: "bg-emerald-50 text-emerald-700" },
+  pergunta: { label: "Pergunta",      icon: HelpCircle,    border: "border-amber-200",  header: "bg-amber-50 text-amber-700" },
+};
+
+const MIDIA_META: { val: MidiaTipo; label: string; icon: React.ElementType }[] = [
+  { val: "video",     label: "Vídeo",     icon: Video },
+  { val: "audio",     label: "Áudio",     icon: Mic },
+  { val: "imagem",    label: "Imagem",    icon: Image },
+  { val: "documento", label: "Documento", icon: FileText },
+];
+
+function StepCard({ step, index, total, onChange, onDelete, onMoveUp, onMoveDown }: {
+  step: Step; index: number; total: number;
+  onChange: (s: Step) => void;
+  onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+}) {
+  const patch = (fields: Partial<Step>) => onChange({ ...step, ...fields });
+  const meta = STEP_META[step.tipo];
+
+  return (
+    <div className={cn("rounded-xl border overflow-hidden", meta.border)}>
+      <div className={cn("flex items-center gap-2 px-3 py-2", meta.header)}>
+        <meta.icon className="h-3.5 w-3.5 shrink-0" />
+        <span className="text-xs font-semibold flex-1">{meta.label}</span>
+        <div className="flex items-center gap-0.5">
+          <button onClick={onMoveUp} disabled={index === 0}
+            className="p-1 rounded hover:bg-black/10 disabled:opacity-30 transition-opacity">
+            <ChevronUp className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={onMoveDown} disabled={index === total - 1}
+            className="p-1 rounded hover:bg-black/10 disabled:opacity-30 transition-opacity">
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={onDelete} className="p-1 rounded hover:bg-red-100 hover:text-red-600 ml-1 transition-colors">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="p-3 bg-card space-y-2.5">
+        {step.tipo === "mensagem" && (
+          <>
+            <div className="flex gap-1.5 mb-1">
+              <button onClick={() => patch({ usarIA: false })}
+                className={cn("text-[10px] px-2.5 py-1 rounded-full border transition-all",
+                  !step.usarIA ? "bg-blue-100 border-blue-300 text-blue-700 font-semibold" : "border-border text-muted-foreground")}>
+                Texto fixo
+              </button>
+              <button onClick={() => patch({ usarIA: true })}
+                className={cn("text-[10px] px-2.5 py-1 rounded-full border flex items-center gap-1 transition-all",
+                  step.usarIA ? "bg-violet-100 border-violet-300 text-violet-700 font-semibold" : "border-border text-muted-foreground")}>
+                <Sparkles className="h-3 w-3" />IA gera
+              </button>
+            </div>
+            {step.usarIA ? (
+              <Textarea value={step.instrucaoIA ?? ""} onChange={e => patch({ instrucaoIA: e.target.value })}
+                rows={2} className="text-xs resize-none"
+                placeholder="Ex: Envie uma mensagem de boas-vindas calorosa e mencione que o serviço é gratuito." />
+            ) : (
+              <Textarea value={step.texto ?? ""} onChange={e => patch({ texto: e.target.value })}
+                rows={2} className="text-xs resize-none"
+                placeholder='Ex: "Me conta o que está acontecendo."' />
+            )}
+          </>
+        )}
+
+        {step.tipo === "ia" && (
+          <Textarea value={step.instrucaoIA ?? ""} onChange={e => patch({ instrucaoIA: e.target.value })}
+            rows={3} className="text-xs resize-none"
+            placeholder="Ex: Faça perguntas de triagem uma por vez. Verifique se o caso se enquadra no escopo. Seja empático e não force a venda." />
+        )}
+
+        {step.tipo === "midia" && (
+          <>
+            <div className="flex gap-1.5 flex-wrap">
+              {MIDIA_META.map(mt => (
+                <button key={mt.val} onClick={() => patch({ midiaTipo: mt.val })}
+                  className={cn("flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-all",
+                    step.midiaTipo === mt.val ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-border text-muted-foreground hover:bg-muted/50")}>
+                  <mt.icon className="h-3 w-3" />{mt.label}
+                </button>
+              ))}
+            </div>
+            <Input value={step.midiaChave ?? ""} onChange={e => patch({ midiaChave: e.target.value })}
+              className="text-xs h-7 font-mono"
+              placeholder={`Ex: ${step.midiaTipo ?? "video"}_abertura`} />
+            <Textarea value={step.midiaScript ?? ""} onChange={e => patch({ midiaScript: e.target.value })}
+              rows={2} className="text-xs resize-none"
+              placeholder={step.midiaTipo === "audio" ? "🎤 Script do áudio — o que gravar..." : "🎬 Script do vídeo / imagem — o que mostrar..."} />
+            <div className="flex items-center gap-2">
+              <Input type="number" min={0} max={600}
+                value={step.midiaDelaySegundos ?? ""}
+                onChange={e => patch({ midiaDelaySegundos: e.target.value ? Number(e.target.value) : undefined })}
+                className="text-xs h-7 w-24" placeholder="60" />
+              <span className="text-xs text-muted-foreground">seg. aguardar antes da próxima mensagem</span>
+            </div>
+          </>
+        )}
+
+        {step.tipo === "pergunta" && (
+          <>
+            <Textarea value={step.texto ?? ""} onChange={e => patch({ texto: e.target.value })}
+              rows={2} className="text-xs resize-none"
+              placeholder='Ex: "Qual é o nome completo da criança?"' />
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase">Botões de resposta rápida</p>
+                <button onClick={() => patch({ botoes: [...(step.botoes ?? []), ""] })}
+                  className="text-[10px] text-primary hover:underline flex items-center gap-0.5">
+                  <Plus className="h-3 w-3" />Adicionar
+                </button>
+              </div>
+              {(step.botoes ?? []).length === 0 && (
+                <div className="flex gap-1.5">
+                  <button onClick={() => patch({ botoes: ["Sim", "Não"] })} className="text-[10px] px-2 py-1 rounded-md bg-muted hover:bg-muted/80">Sim / Não</button>
+                  <button onClick={() => patch({ botoes: ["Tenho tudo", "Tenho parte", "Não tenho"] })} className="text-[10px] px-2 py-1 rounded-md bg-muted hover:bg-muted/80">Documentos</button>
+                </div>
+              )}
+              {(step.botoes ?? []).map((btn, bi) => (
+                <div key={bi} className="flex items-center gap-2 mb-1">
+                  <Input value={btn}
+                    onChange={e => { const b = [...(step.botoes ?? [])]; b[bi] = e.target.value; patch({ botoes: b }); }}
+                    className="flex-1 text-xs h-7" placeholder={bi === 0 ? "Sim" : bi === 1 ? "Não" : "Opção..."} />
+                  <button onClick={() => patch({ botoes: (step.botoes ?? []).filter((_, j) => j !== bi) })}
+                    className="text-muted-foreground hover:text-destructive">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StepsEditor({ fase, onChange }: { fase: Fase; onChange: (f: Fase) => void }) {
+  const patch = (fields: Partial<Fase>) => onChange({ ...fase, ...fields });
+  const steps = fase.steps ?? [];
+
+  const addStep = (tipo: StepTipo) => {
+    const base: Step = { id: uid(), tipo };
+    if (tipo === "midia") { base.midiaTipo = "video"; base.midiaChave = ""; base.midiaDelaySegundos = 60; }
+    patch({ steps: [...steps, base] });
+  };
+
+  const updateStep = (i: number, s: Step) => {
+    const a = [...steps]; a[i] = s; patch({ steps: a });
+  };
+
+  const deleteStep = (i: number) => patch({ steps: steps.filter((_, j) => j !== i) });
+
+  const moveStep = (i: number, dir: -1 | 1) => {
+    const a = [...steps];
+    [a[i], a[i + dir]] = [a[i + dir], a[i]];
+    patch({ steps: a });
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <Label className="text-xs font-semibold flex items-center gap-1.5">
+          <Bot className="h-3.5 w-3.5 text-primary" />Fluxo de mensagens
+        </Label>
+      </div>
+
+      {steps.length === 0 && (
+        <div className="rounded-xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground mb-3">
+          Adicione passos para montar o fluxo desta etapa
+        </div>
+      )}
+
+      <div className="space-y-2.5 mb-3">
+        {steps.map((step, i) => (
+          <StepCard key={step.id} step={step} index={i} total={steps.length}
+            onChange={s => updateStep(i, s)}
+            onDelete={() => deleteStep(i)}
+            onMoveUp={() => moveStep(i, -1)}
+            onMoveDown={() => moveStep(i, 1)}
+          />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {([
+          { tipo: "mensagem" as StepTipo, label: "Mensagem",    icon: MessageSquare, cls: "hover:border-blue-300 hover:text-blue-700" },
+          { tipo: "ia"       as StepTipo, label: "IA livre",    icon: Sparkles,      cls: "hover:border-violet-300 hover:text-violet-700" },
+          { tipo: "midia"    as StepTipo, label: "Mídia",       icon: Video,         cls: "hover:border-emerald-300 hover:text-emerald-700" },
+          { tipo: "pergunta" as StepTipo, label: "Pergunta",    icon: HelpCircle,    cls: "hover:border-amber-300 hover:text-amber-700" },
+        ] as const).map(({ tipo, label, icon: Icon, cls }) => (
+          <button key={tipo} onClick={() => addStep(tipo)}
+            className={cn("flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-xs font-medium text-muted-foreground transition-colors", cls)}>
+            <Plus className="h-3.5 w-3.5" /><Icon className="h-3.5 w-3.5" />{label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -82,19 +301,21 @@ function FluxoVisual({ fases, onSelectFase, onChangeFase }: FluxoVisualProps) {
   const abrirFase = (id: string) => onSelectFase(id);
 
   const adicionarPergunta = (fase: Fase) => {
-    const sugestao = SUGESTOES_PERGUNTAS[fase.id]?.find(s => !fase.perguntas.includes(s)) ?? "";
-    patch(fase, { perguntas: [...fase.perguntas, sugestao] });
+    const sugestao = SUGESTOES_PERGUNTAS[fase.id]?.find(s => !(fase.steps ?? []).some(st => st.tipo === "pergunta" && st.texto === s)) ?? "";
+    const newStep: Step = { id: uid(), tipo: "pergunta", texto: sugestao, botoes: [] };
+    patch(fase, { steps: [...(fase.steps ?? []), newStep] });
     abrirFase(fase.id);
   };
 
   const adicionarMidia = (fase: Fase) => {
-    const base = fase.id === "fechamento" ? "audio_fechamento" : `video_${fase.id}`;
-    const chave = fase.midias.some(m => m.chave === base) ? `${base}_${fase.midias.length + 1}` : base;
-    patch(fase, { midias: [...fase.midias, { chave, script: "", momento: fase.label, delayAposSegundos: chave.startsWith("audio_") ? 30 : 60 }] });
+    const midiaTipo: MidiaTipo = fase.id === "fechamento" ? "audio" : "video";
+    const midiaChave = `${midiaTipo}_${fase.id}`;
+    const newStep: Step = { id: uid(), tipo: "midia", midiaTipo, midiaChave, midiaScript: "", midiaDelaySegundos: midiaTipo === "audio" ? 30 : 60 };
+    patch(fase, { steps: [...(fase.steps ?? []), newStep] });
     abrirFase(fase.id);
   };
 
-  const blocoVazio = (fase: Fase) => fase.midias.length === 0 && fase.perguntas.length === 0 && fase.camposColeta.length === 0 && fase.acao === "nenhuma";
+  const blocoVazio = (fase: Fase) => (fase.steps ?? []).length === 0 && fase.midias.length === 0 && fase.perguntas.length === 0 && fase.camposColeta.length === 0 && fase.acao === "nenhuma";
 
   return (
     <div className="space-y-5">
@@ -147,27 +368,40 @@ function FluxoVisual({ fases, onSelectFase, onChangeFase }: FluxoVisualProps) {
                 </div>
 
                 <div className="mt-4 space-y-2">
-                  {fase.midias.map((m, i) => (
+                  {/* Steps preview */}
+                  {(fase.steps ?? []).map((step) => {
+                    const m = STEP_META[step.tipo];
+                    const Icon = m.icon;
+                    const preview =
+                      step.tipo === "midia" ? (step.midiaChave || step.midiaTipo) :
+                      step.tipo === "ia" ? step.instrucaoIA :
+                      step.texto ?? "";
+                    return (
+                      <div key={step.id} className={cn("flex items-center gap-2 rounded-lg border px-3 py-2 text-xs", m.border, m.header.split(" ")[0], "bg-opacity-40")}>
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{preview || m.label}</span>
+                        {step.tipo === "midia" && step.midiaDelaySegundos &&
+                          <span className="ml-auto shrink-0 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold">{step.midiaDelaySegundos}s</span>}
+                        {step.tipo === "pergunta" && (step.botoes ?? []).length > 0 &&
+                          <span className="ml-auto shrink-0 text-[10px] opacity-70">{step.botoes!.length} btn</span>}
+                      </div>
+                    );
+                  })}
+
+                  {/* Legacy midias fallback (templates sem steps) */}
+                  {(fase.steps ?? []).length === 0 && fase.midias.map((m, i) => (
                     <div key={`${m.chave}-${i}`} className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
                       {m.chave.startsWith("audio_") ? <Mic className="h-3.5 w-3.5 shrink-0" /> : <Video className="h-3.5 w-3.5 shrink-0" />}
                       <span className="truncate font-medium">{m.chave || "arquivo sem nome"}</span>
                       {m.delayAposSegundos ? <span className="ml-auto shrink-0 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold">{m.delayAposSegundos}s</span> : null}
                     </div>
                   ))}
-
-                  {fase.perguntas.map((p, i) => (
+                  {(fase.steps ?? []).length === 0 && fase.perguntas.map((p, i) => (
                     <div key={`${p}-${i}`} className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                       <div className="flex items-start gap-2">
                         <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                         <span className="line-clamp-2">{p || "Nova pergunta"}</span>
                       </div>
-                      {(fase.opcoesPergunta?.[i]?.filter(Boolean).length ?? 0) > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1 pl-5">
-                          {fase.opcoesPergunta?.[i]?.filter(Boolean).slice(0, 3).map(op => (
-                            <span key={op} className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] text-emerald-700">{op}</span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   ))}
 
@@ -217,9 +451,7 @@ function FluxoVisual({ fases, onSelectFase, onChangeFase }: FluxoVisualProps) {
 
 function FaseConfig({ fase, onChange }: { fase: Fase; onChange: (f: Fase) => void }) {
   const patch = (fields: Partial<Fase>) => onChange({ ...fase, ...fields });
-  const [buscaPerg, setBuscaPerg] = useState("");
   const sugestoes = SUGESTOES_PERGUNTAS[fase.id] ?? [];
-  const sugestoesFiltradas = sugestoes.filter(s => !fase.perguntas.includes(s) && (buscaPerg === "" || s.toLowerCase().includes(buscaPerg.toLowerCase())));
 
   return (
     <div className="space-y-6">
@@ -243,130 +475,21 @@ function FaseConfig({ fase, onChange }: { fase: Fase; onChange: (f: Fase) => voi
         );
       })()}
 
-      {/* MÍDIAS */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <Label className="text-xs font-semibold flex items-center gap-1.5"><Video className="h-3.5 w-3.5 text-blue-500" />Mídias</Label>
-          <button onClick={() => patch({ midias: [...fase.midias, { chave: "", script: "", momento: "", delayAposSegundos: 60 }] })}
-            className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="h-3 w-3" />Adicionar</button>
-        </div>
-        {fase.midias.length === 0 && <p className="text-xs text-muted-foreground italic">Nenhuma mídia nesta fase.</p>}
-        {fase.midias.map((m, i) => (
-          <div key={i} className="mb-3 rounded-xl border border-border overflow-hidden">
-            <div className="flex items-center gap-2 p-2.5 bg-muted/30">
-              {m.chave.startsWith("audio_") ? <Mic className="h-3.5 w-3.5 text-violet-500 shrink-0" /> : <Video className="h-3.5 w-3.5 text-blue-500 shrink-0" />}
-              <Input value={m.chave} onChange={e => { const a = [...fase.midias]; a[i] = { ...a[i], chave: e.target.value }; patch({ midias: a }); }}
-                placeholder="video_abertura ou audio_fechamento"
-                className="flex-1 text-xs h-7 font-mono bg-transparent border-0 shadow-none focus-visible:ring-0" />
-              <button onClick={() => patch({ midias: fase.midias.filter((_,j) => j !== i) })} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-            </div>
-            {m.chave && (
-              <div className="p-3 space-y-2.5">
-                <div>
-                  <p className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wide font-semibold">{m.chave.startsWith("audio_") ? "🎤 Script do áudio — o que gravar:" : "🎬 Script do vídeo — o que falar:"}</p>
-                  <Textarea value={m.script} onChange={e => { const a = [...fase.midias]; a[i] = { ...a[i], script: e.target.value }; patch({ midias: a }); }}
-                    rows={3} className="text-xs resize-none" placeholder={m.chave.startsWith("audio_") ? "Ex: 'Olá! Analisei o seu caso e tenho certeza que podemos ajudar...'" : "Ex: Apareça de frente, sorria. Diga: 'Você fez bem em entrar em contato...'"} />
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wide font-semibold">⏱ Momento de envio:</p>
-                  <Input value={m.momento} onChange={e => { const a = [...fase.midias]; a[i] = { ...a[i], momento: e.target.value }; patch({ midias: a }); }}
-                    className="text-xs h-7" placeholder="Ex: Primeira mensagem do lead" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wide font-semibold">Tempo antes da proxima mensagem:</p>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={600}
-                      value={m.delayAposSegundos ?? ""}
-                      onChange={e => {
-                        const a = [...fase.midias];
-                        const value = e.target.value === "" ? undefined : Math.max(0, Number(e.target.value));
-                        a[i] = { ...a[i], delayAposSegundos: value };
-                        patch({ midias: a });
-                      }}
-                      className="text-xs h-7"
-                      placeholder="60"
-                    />
-                    <span className="text-xs text-muted-foreground">segundos</span>
-                  </div>
-                  <p className="mt-1 text-[10px] text-muted-foreground">Ex: se o video tem 1 minuto, use 60 para a IA esperar antes de perguntar.</p>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-        {fase.midias.length > 0 && (
-          <div>
-            <Label className="text-xs font-semibold">Mensagem após as mídias</Label>
-            <Input value={fase.textoAposMidia} onChange={e => patch({ textoAposMidia: e.target.value })}
-              className="mt-1.5 text-xs" placeholder='Ex: "Me conta o que está acontecendo."' />
-          </div>
-        )}
-      </div>
+      {/* STEPS — fluxo ManyChat */}
+      <StepsEditor fase={fase} onChange={onChange} />
 
-      {/* PERGUNTAS */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <Label className="text-xs font-semibold flex items-center gap-1.5"><MessageSquare className="h-3.5 w-3.5 text-emerald-500" />Perguntas</Label>
-          <button onClick={() => patch({ perguntas: [...fase.perguntas, ""] })}
-            className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="h-3 w-3" />Adicionar</button>
+      {/* Sugestões de perguntas */}
+      {sugestoes.length > 0 && (
+        <div className="rounded-xl border border-dashed border-primary/30 p-3">
+          <p className="text-[10px] text-primary font-semibold mb-2 flex items-center gap-1"><Sparkles className="h-3 w-3" />Sugestões de perguntas para esta fase</p>
+          {sugestoes.filter(s => !(fase.steps ?? []).some(st => st.tipo === "pergunta" && st.texto === s)).slice(0, 4).map(s => (
+            <button key={s} onClick={() => patch({ steps: [...(fase.steps ?? []), { id: uid(), tipo: "pergunta", texto: s, botoes: [] }] })}
+              className="flex items-center gap-2 w-full text-left text-xs text-muted-foreground hover:text-foreground py-1.5 hover:bg-muted/50 px-2 rounded-lg transition-colors">
+              <Plus className="h-3 w-3 text-primary shrink-0" />{s}
+            </button>
+          ))}
         </div>
-        {fase.perguntas.map((p, i) => (
-          <div key={i} className="mb-2 rounded-xl border border-border p-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-5 shrink-0 font-mono text-center">{i+1}.</span>
-              <Input value={p} onChange={e => { const a = [...fase.perguntas]; a[i] = e.target.value; patch({ perguntas: a }); }}
-                className="flex-1 text-xs h-8" placeholder="Ex: Qual o nome da criança?" />
-              <button onClick={() => {
-                const nextOpts = { ...(fase.opcoesPergunta ?? {}) };
-                delete nextOpts[i];
-                patch({ perguntas: fase.perguntas.filter((_,j) => j !== i), opcoesPergunta: nextOpts });
-              }} className="text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
-            </div>
-            <div className="mt-2 pl-7 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] text-muted-foreground font-semibold uppercase">Respostas rápidas no WhatsApp</p>
-                <button onClick={() => patch({ opcoesPergunta: { ...(fase.opcoesPergunta ?? {}), [i]: [...(fase.opcoesPergunta?.[i] ?? []), ""] } })}
-                  className="text-[10px] text-primary hover:underline flex items-center gap-1"><Plus className="h-3 w-3" />Opção</button>
-              </div>
-              {(fase.opcoesPergunta?.[i] ?? []).map((op, oi) => (
-                <div key={oi} className="flex items-center gap-2">
-                  <Input value={op} onChange={e => {
-                    const opts = [...(fase.opcoesPergunta?.[i] ?? [])];
-                    opts[oi] = e.target.value;
-                    patch({ opcoesPergunta: { ...(fase.opcoesPergunta ?? {}), [i]: opts } });
-                  }} className="text-xs h-7" placeholder={oi === 0 ? "Sim" : oi === 1 ? "Não" : "Outra opção"} />
-                  <button onClick={() => {
-                    const opts = (fase.opcoesPergunta?.[i] ?? []).filter((_, idx) => idx !== oi);
-                    patch({ opcoesPergunta: { ...(fase.opcoesPergunta ?? {}), [i]: opts } });
-                  }} className="text-muted-foreground hover:text-destructive shrink-0"><X className="h-3.5 w-3.5" /></button>
-                </div>
-              ))}
-              {(fase.opcoesPergunta?.[i]?.length ?? 0) === 0 && (
-                <div className="flex gap-1.5">
-                  <button onClick={() => patch({ opcoesPergunta: { ...(fase.opcoesPergunta ?? {}), [i]: ["Sim", "Não"] } })}
-                    className="text-[10px] px-2 py-1 rounded-md bg-muted hover:bg-muted/80">Sim / Não</button>
-                  <button onClick={() => patch({ opcoesPergunta: { ...(fase.opcoesPergunta ?? {}), [i]: ["Tenho tudo", "Tenho parte", "Não tenho"] } })}
-                    className="text-[10px] px-2 py-1 rounded-md bg-muted hover:bg-muted/80">Documentos</button>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        {sugestoes.length > 0 && (
-          <div className="mt-3 rounded-xl border border-dashed border-primary/30 p-3">
-            <p className="text-[10px] text-primary font-semibold mb-2 flex items-center gap-1"><Sparkles className="h-3 w-3" />Sugestões para esta fase</p>
-            {sugestoesFiltradas.slice(0, 4).map(s => (
-              <button key={s} onClick={() => patch({ perguntas: [...fase.perguntas, s] })}
-                className="flex items-center gap-2 w-full text-left text-xs text-muted-foreground hover:text-foreground py-1.5 hover:bg-muted/50 px-2 rounded-lg transition-colors">
-                <Plus className="h-3 w-3 text-primary shrink-0" />{s}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* EXCLUSÕES */}
       <div>
@@ -439,7 +562,14 @@ function ConstrutorPage() {
   const { user } = useAuth();
   const navigate  = useNavigate();
   const [fases, setFases]             = useState<Fase[]>(() => {
-    try { const d = localStorage.getItem(DRAFT_KEY); return d ? JSON.parse(d).fases : FASES_PADRAO.map(f => ({ ...f })); } catch { return FASES_PADRAO.map(f => ({ ...f })); }
+    try {
+      const d = localStorage.getItem(DRAFT_KEY);
+      if (d) {
+        const parsed = JSON.parse(d);
+        return (parsed.fases as Fase[]).map(f => ({ ...f, steps: f.steps ?? [] }));
+      }
+      return FASES_PADRAO.map(f => ({ ...f }));
+    } catch { return FASES_PADRAO.map(f => ({ ...f })); }
   });
   const [nomeFunil, setNomeFunil]     = useState(() => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}").nome || ""; } catch { return ""; } });
   const [briefing, setBriefing]       = useState<BriefingFunil>(() => { try { return { ...BRIEFING_PADRAO, ...(JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}").briefing ?? {}) }; } catch { return BRIEFING_PADRAO; } });
@@ -520,10 +650,26 @@ function ConstrutorPage() {
     setFases(p => p.map(fase => {
       const t = tpl.fases.find(tf => tf.id === fase.id);
       if (!t) return fase;
-      return { ...fase, ...t } as Fase;
+      const merged = { ...fase, ...t } as Fase;
+      if (!(merged.steps ?? []).length) merged.steps = legacyToSteps(merged);
+      return merged;
     }));
     setTab("visao");
     toast.success(`Template "${tpl.label}" aplicado!`);
+  };
+
+  const legacyToSteps = (g: any): Step[] => {
+    const steps: Step[] = [];
+    for (const m of g.midias ?? []) {
+      const midiaTipo: MidiaTipo = (m.chave ?? "").startsWith("audio_") ? "audio" : "video";
+      steps.push({ id: uid(), tipo: "midia", midiaTipo, midiaChave: m.chave, midiaScript: m.script ?? "", midiaDelaySegundos: m.delayAposSegundos ?? 60 });
+    }
+    if (g.textoAposMidia) steps.push({ id: uid(), tipo: "mensagem", texto: g.textoAposMidia });
+    for (const [i, q] of (g.perguntas ?? []).entries()) {
+      const botoes = ((g.opcoesPergunta ?? g.opcoes_pergunta ?? {})[i] ?? []).filter(Boolean);
+      steps.push({ id: uid(), tipo: "pergunta", texto: q, botoes });
+    }
+    return steps;
   };
 
   const aplicarFasesGeradas = (data: any) => {
@@ -533,9 +679,13 @@ function ConstrutorPage() {
       setFases(p => p.map(fase => {
         const g = data.fases.find((f: any) => f.id === fase.id);
         if (!g) return fase;
-        return { ...fase, perguntas: g.perguntas ?? [], opcoesPergunta: g.opcoesPergunta ?? g.opcoes_pergunta ?? {}, exclusoes: g.exclusoes ?? [],
-          midias: g.midias ?? [], textoAposMidia: g.textoAposMidia ?? "",
-          acao: g.acao ?? "nenhuma", camposColeta: g.camposColeta ?? [] };
+        return {
+          ...fase,
+          steps: legacyToSteps(g),
+          perguntas: g.perguntas ?? [], opcoesPergunta: g.opcoesPergunta ?? g.opcoes_pergunta ?? {},
+          exclusoes: g.exclusoes ?? [], midias: g.midias ?? [],
+          textoAposMidia: g.textoAposMidia ?? "", acao: g.acao ?? "nenhuma", camposColeta: g.camposColeta ?? [],
+        };
       }));
     }
   };
@@ -653,13 +803,32 @@ Mantenha todas as 7 fases. Corrija riscos juridicos, adicione criterios de exclu
     setSalvando(true);
     try {
       const fasesDesc = fases.map(f => {
-        const p = [];
-        f.midias.forEach(m => p.push(`Enviar ${m.chave}${m.delayAposSegundos ? ` | DELAY_APOS_MIDIA ${m.chave}=${m.delayAposSegundos}s` : ""}`));
-        if (f.textoAposMidia) p.push(`Após: "${f.textoAposMidia}"`);
-        f.perguntas.forEach((q, i) => {
-          const opcoes = f.opcoesPergunta?.[i]?.filter(Boolean) ?? [];
-          p.push(`Perguntar: "${q}"${opcoes.length ? ` | Respostas rápidas: ${opcoes.join(" / ")}` : ""}`);
-        });
+        const p: string[] = [];
+        const steps = f.steps ?? [];
+        if (steps.length > 0) {
+          for (const step of steps) {
+            if (step.tipo === "mensagem") {
+              if (step.usarIA && step.instrucaoIA) p.push(`IA gera mensagem: ${step.instrucaoIA}`);
+              else if (step.texto) p.push(`Enviar: "${step.texto}"`);
+            } else if (step.tipo === "ia") {
+              if (step.instrucaoIA) p.push(`IA deve: ${step.instrucaoIA}`);
+            } else if (step.tipo === "midia") {
+              const chave = step.midiaChave || step.midiaTipo || "midia";
+              p.push(`Enviar ${step.midiaTipo ?? "video"} ${chave}${step.midiaDelaySegundos ? ` | DELAY_APOS_MIDIA ${chave}=${step.midiaDelaySegundos}s` : ""}`);
+              if (step.midiaScript) p.push(`Script: "${step.midiaScript}"`);
+            } else if (step.tipo === "pergunta") {
+              const bts = (step.botoes ?? []).filter(Boolean);
+              p.push(`Perguntar: "${step.texto ?? ""}"${bts.length ? ` | Respostas rápidas: ${bts.join(" / ")}` : ""}`);
+            }
+          }
+        } else {
+          f.midias.forEach(m => p.push(`Enviar ${m.chave}${m.delayAposSegundos ? ` | DELAY_APOS_MIDIA ${m.chave}=${m.delayAposSegundos}s` : ""}`));
+          if (f.textoAposMidia) p.push(`Após: "${f.textoAposMidia}"`);
+          f.perguntas.forEach((q, i) => {
+            const opcoes = f.opcoesPergunta?.[i]?.filter(Boolean) ?? [];
+            p.push(`Perguntar: "${q}"${opcoes.length ? ` | Respostas rápidas: ${opcoes.join(" / ")}` : ""}`);
+          });
+        }
         f.exclusoes.forEach(e => p.push(`Excluir se ${e.condicao}: ${e.motivo}`));
         if (f.camposColeta.length) p.push(`Coletar: ${f.camposColeta.join(", ")}`);
         if (f.acao !== "nenhuma") p.push(`Ação: ${f.acao}`);
