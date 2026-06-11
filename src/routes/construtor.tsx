@@ -181,11 +181,6 @@ function MidiaUploadBlock({ step, patch }: {
           className="text-xs h-7 font-mono" placeholder={`Ex: ${step.midiaTipo ?? "video"}_abertura`} />
       </div>
 
-      {/* Script */}
-      <Textarea value={step.midiaScript ?? ""} onChange={e => patch({ midiaScript: e.target.value })}
-        rows={2} className="text-xs resize-none"
-        placeholder={step.midiaTipo === "audio" ? "🎤 Script do áudio — o que gravar..." : "🎬 Script do vídeo / imagem — o que mostrar..."} />
-
       {/* Delay */}
       <div className="flex items-center gap-2">
         <Input type="number" min={0} max={600}
