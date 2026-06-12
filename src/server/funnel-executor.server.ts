@@ -455,7 +455,7 @@ async function sendChoiceMessage(
 
   const base    = inst.api_url.replace(/\/$/, "");
   const headers = { "Content-Type": "application/json", apikey: inst.api_key };
-  const number  = conv.phone.replace(/\D/g, "");
+  const number  = normalizePhoneForEvolution(conv.phone);
 
   const payloads = [
     {
