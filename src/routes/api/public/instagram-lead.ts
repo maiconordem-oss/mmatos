@@ -259,7 +259,7 @@ async function sendLeadMagnetFile(opts: {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: opts.apiKey },
     body: JSON.stringify({
-      number: opts.phone.replace(/\D/g, ""),
+      number: normalizeBRPhone(opts.phone) || opts.phone.replace(/\D/g, ""),
       mediatype: opts.mediaType || "document",
       media: opts.mediaUrl,
       fileName: opts.fileName || undefined,
