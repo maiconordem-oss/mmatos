@@ -550,7 +550,7 @@ async function sendMedia(
 
   if (!conv?.phone || conv.phone.startsWith("SIM_") || !inst?.api_url || !inst?.api_key) return;
 
-  const number = conv.phone.replace(/\D/g, "");
+  const number = normalizePhoneForEvolution(conv.phone);
   const base   = inst.api_url.replace(/\/$/, "");
   const headers = { "Content-Type": "application/json", apikey: inst.api_key };
 
@@ -958,7 +958,7 @@ async function createWhatsAppGroup(
 
     if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
 
-    const clientPhone = conv.phone.replace(/\D/g, "");
+    const clientPhone = normalizePhoneForEvolution(conv.phone);
     const nome        = dados.nome ?? conv.contact_name ?? "Cliente";
     const nomeCrianca = dados.nomeCrianca ? ` | ${dados.nomeCrianca}` : "";
 
