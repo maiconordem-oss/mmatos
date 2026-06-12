@@ -14,6 +14,8 @@ import { getManualPlaybook, getManualStep } from "@/lib/manual-playbooks";
 import { getAvailableSlots, createCalendarEvent } from "@/server/google-calendar.server";
 import { analyzeMoment, directiveToPromptBlock, type MomentDirective } from "@/server/funnel-timing.server";
 import { checkSafety, incrementAICounter, logAIDebug } from "@/server/intelligence.functions";
+import { normalizePhoneForEvolution } from "@/server/whatsapp.functions";
+
 
 const AI_GATEWAY = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const FUNNEL_AI_MODEL = "gemini-2.0-flash";
@@ -189,7 +191,7 @@ async function notifyOwner(
     await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: inst.api_key },
-      body: JSON.stringify({ number: notifyPhone.replace(/\D/g, ""), text: msg, options: { delay: 300 } }),
+      body: JSON.stringify({ number: normalizePhoneForEvolution(notifyPhone), text: msg, options: { delay: 300 } }),
     });
   } catch { /* non-fatal */ }
 }
@@ -368,7 +370,8 @@ async function sendText(
 
   const base    = inst.api_url.replace(/\/$/, "");
   const headers = { "Content-Type": "application/json", apikey: inst.api_key };
-  const number  = conv.phone.replace(/\D/g, "");
+  const number  = normalizePhoneForEvolution(conv.phone);
+
 
   try {
     // Delay de digitação (sem chamar API de presença — pode não existir na versão)
@@ -452,7 +455,7 @@ async function sendChoiceMessage(
 
   const base    = inst.api_url.replace(/\/$/, "");
   const headers = { "Content-Type": "application/json", apikey: inst.api_key };
-  const number  = conv.phone.replace(/\D/g, "");
+  const number  = normalizePhoneForEvolution(conv.phone);
 
   const payloads = [
     {
@@ -547,7 +550,7 @@ async function sendMedia(
 
   if (!conv?.phone || conv.phone.startsWith("SIM_") || !inst?.api_url || !inst?.api_key) return;
 
-  const number = conv.phone.replace(/\D/g, "");
+  const number = normalizePhoneForEvolution(conv.phone);
   const base   = inst.api_url.replace(/\/$/, "");
   const headers = { "Content-Type": "application/json", apikey: inst.api_key };
 
@@ -955,7 +958,7 @@ async function createWhatsAppGroup(
 
     if (!conv?.phone || !inst?.api_url || !inst?.api_key) return;
 
-    const clientPhone = conv.phone.replace(/\D/g, "");
+    const clientPhone = normalizePhoneForEvolution(conv.phone);
     const nome        = dados.nome ?? conv.contact_name ?? "Cliente";
     const nomeCrianca = dados.nomeCrianca ? ` | ${dados.nomeCrianca}` : "";
 

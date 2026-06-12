@@ -4,6 +4,8 @@
  * Uses supabaseAdmin since it runs in trusted server contexts.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizePhoneForEvolution } from "@/server/whatsapp.functions";
+
 
 type Ctx = {
   admin: SupabaseClient<any, any, any>;
@@ -34,7 +36,7 @@ async function sendWhatsAppText(adminParam: SupabaseClient<any, any, any>, userI
     await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: inst.api_key },
-      body: JSON.stringify({ number: conv.phone, text }),
+      body: JSON.stringify({ number: normalizePhoneForEvolution(conv.phone), text }),
     });
   } catch {/* non-fatal */}
 
@@ -59,7 +61,7 @@ async function sendWhatsAppMedia(adminParam: SupabaseClient<any, any, any>, user
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: inst.api_key },
         body: JSON.stringify({
-          number: conv.phone,
+          number: normalizePhoneForEvolution(conv.phone),
           mediatype: kind,
           media: url,
           caption: caption ?? "",

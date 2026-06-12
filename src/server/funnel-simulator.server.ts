@@ -53,7 +53,7 @@ export const resetSimulation = createServerFn({ method: "POST" })
   }).parse)
   .handler(async ({ data, context }) => {
     const { userId } = context as any;
-    const admin = getAdmin();
+    const admin = createServiceClient();
     const { data: convs } = await admin.from("conversations").select("id")
       .eq("user_id", userId).like("phone", "SIM_%");
     if (convs?.length) {

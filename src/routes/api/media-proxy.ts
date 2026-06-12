@@ -106,7 +106,7 @@ export const Route = createFileRoute("/api/media-proxy")({
         const { data: msg } = await admin
           .from("messages")
           .select("media_url, media_type, media_mime, external_id, conversation_id, user_id")
-          .eq("id", msgId)
+          .eq("id", msgId!)
           .single();
 
         if (!msg?.media_url) return new Response("Media not found", { status: 404 });

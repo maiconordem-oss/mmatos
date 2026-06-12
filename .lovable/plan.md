@@ -1,133 +1,44 @@
+## Diagnóstico
 
-# Modernização do sistema de atendimento por IA
+A causa raiz é a inconsistência no formato do telefone entre **envio** e **recebimento** (echo do webhook). Hoje:
 
-Plano incremental, sem quebrar fluxos atuais. Backend migra para **AI SDK + tools tipadas** e frontend ganha uma **Inbox moderna estilo Intercom/Front**. As duas trilhas avançam em paralelo, onda por onda.
+1. **Recebimento (webhook)** — `whatsapp-webhook.ts` força o número para o formato canônico brasileiro com `normalizeBRPhone` (55 + DDD + 9 + 8 dígitos = 13 dígitos) e grava na `conversations.phone`.
+2. **Envio (todos os fluxos)** — `sendWhatsappMessage`, `sendEvolutionText` e os crons só fazem `phone.replace(/\D/g, "")`. Se o número estiver salvo num formato diferente (com/sem 55, com/sem o "9"), a Evolution pode:
+   - entregar para um JID que **não existe** (some no destino, e o cliente nunca recebe);
+   - ou entregar, mas o echo (`SEND_MESSAGE`) volta com um `remoteJid` canônico **diferente** do `phone` da conversa → o webhook **não encontra a conversa** e cria uma nova / a mensagem não aparece no inbox original.
+3. **Disparo manual (`sendWhatsappMessage`)** **não persiste** a mensagem na tabela `messages` antes de enviar — depende 100% do echo. Se o echo falha em casar a conversa, a mensagem **desaparece da interface** mesmo tendo sido entregue.
 
----
+Isso explica os três sintomas relatados: disparo manual, workflows/funis e crons "somem" da interface para certos números, sem padrão de DDD claro (depende de como cada contato foi criado/importado).
 
-## Princípios
+## Plano
 
-- Reaproveitar `funnel-executor`, `workflow-executor`, `whatsapp-webhook`, `inbox.tsx` — refator cirúrgico, não reescrita.
-- Toda chamada de IA passa a usar o helper `createLovableAiGatewayProvider` (AI SDK) — substitui `fetch` manual + parser frágil de JSON.
-- Banco preservado: só migrations aditivas (índices, colunas novas, nada de drop).
-- Cada onda termina funcional e testável de ponta a ponta.
+### 1. Centralizar normalização no envio
+- Em `src/server/whatsapp.functions.ts`, dentro de `sendEvolutionText` e `sendWhatsappMessage`, aplicar `normalizeBRPhone(phone)` antes de enviar para a Evolution. Fallback para `onlyDigits` quando não for número BR.
+- Mesma normalização nos crons que montam o destino direto: `cron-reminders`, `cron-scheduled`, `cron-post-consulta`, `cron-reactivation`, `instagram-followup-tick`, `workflow-tick`, `instagram-lead`.
 
----
+### 2. Persistir SEMPRE a mensagem outbound no disparo manual
+- Em `sendWhatsappMessage`, antes de chamar Evolution: inserir linha em `messages` com `direction: "outbound"`, `status: "pending"`, `content: text`, `conversation_id` resolvido a partir do telefone normalizado (mesma lógica `phoneVariants` do webhook). Após sucesso, atualizar `status: "sent"` + `external_id`. Em falha, `status: "failed"` (visível no inbox como erro, em vez de sumir).
+- Atualizar `last_message_at` / `last_message_preview` da conversa.
+- Manter o de-dup que já existe no webhook (procura outbound `pending` recente com mesmo `content` para colar o `external_id` do echo).
 
-## Onda 1 — Núcleo do atendimento (backend) + skeleton da nova Inbox (frontend)
+### 3. Resolver conversa por variantes também no echo `fromMe`
+- O webhook já usa `phoneVariants` (bom). Adicionar log/contador quando o echo cria uma conversa nova para `fromMe` — sintoma de divergência de formato a investigar caso a caso.
 
-**Backend (`src/server/ai-core.server.ts` novo, refator de `funnel-executor.server.ts`):**
-- Criar helper único `src/lib/ai-gateway.server.ts` com `createLovableAiGatewayProvider` (AI SDK + `@ai-sdk/openai-compatible`).
-- Novo módulo `ai-core.server.ts` com 3 funções centralizadas usadas por funil/qualifier/workflow:
-  - `generateFunnelReply(ctx)` → `generateText` + `tool({ name: "funnel_reply", inputSchema })` com `tool_choice` forçado. Fim do parser frágil.
-  - `classifyArea(text)` → `Output.object` Zod.
-  - `transcribeAudio(url)` → via Gemini multimodal pelo gateway (sem mais `LOVABLE_API_KEY` como chave Google).
-- Plugar no `handleFunnelMessage`:
-  - `checkSafety` (palavras proibidas + needs_human) **antes** da resposta.
-  - `acquireLock` / `releaseLock` em try/finally (race condition).
-  - `ai_debug_logs` em toda chamada (latência, modelo, tokens, decisão).
-  - `incrementAICounter` + cap de mensagens consecutivas.
+### 4. Backfill de telefones existentes (migração de dados, não de schema)
+- Script único (via `supabase--insert`) que reescreve `conversations.phone` para o formato canônico usando uma função SQL equivalente a `normalizeBRPhone`. Quando o backfill detectar duas conversas com o mesmo telefone canônico para o mesmo `user_id`+`instance_id`, mover as mensagens da mais nova para a mais antiga e remover a duplicada.
+- Idempotente: rodar uma vez agora, e o item 1 mantém a consistência daqui pra frente.
 
-**Frontend (`src/routes/inbox.tsx`):**
-- Refatorar layout para 3 zonas reais:
-  - **Coluna 1**: lista de conversas com filtros (Todas / IA / Humano / Pendentes).
-  - **Coluna 2**: thread com bubbles modernos (assistant sem fundo, user com `primary`), markdown, timestamps agrupados.
-  - **Coluna 3**: novo **painel de contexto** (placeholder com tabs: Cliente / IA / Funil) — preenchido nas ondas 2-3.
-- Reaproveitar componentes shadcn (`Tabs`, `Card`, `ScrollArea`, `Badge`). Sem nova lib de UI.
-
----
-
-## Onda 2 — Memória do cliente + contexto inteligente
-
-**Backend:**
-- Injetar `client_memory.summary` + `interests` + `pains` no `personaPrompt` do funil (bloco "CONTEXTO DO CLIENTE").
-- `updateClientMemory` fire-and-forget a cada 5 mensagens inbound OU em mudança de fase.
-- Para `messages.count > 40`: substituir histórico bruto por `conversation_summaries.summary` + últimas 15 msgs.
-- Migration aditiva: índice em `client_memory(client_id)`, coluna `last_synced_at`.
-
-**Frontend (painel de contexto, coluna 3):**
-- Tab **Cliente**: nome, área jurídica, dores, interesses, preferências — editáveis inline.
-- Botão "🔄 Atualizar memória agora" chamando `updateClientMemory`.
-- Timeline de fatos extraídos (com data e fonte).
-
----
-
-## Onda 3 — Observabilidade e controle
-
-**Backend:**
-- `aiMetrics` filtrado por `ai_handled = true` ou presença em `ai_debug_logs`.
-- `classifyAndPersistSentiment` só quando `text.length >= 8` e sem palavras-chave críticas (corta ~60% de chamadas).
-- Consolidar horário comercial: `business_hours` é fonte única; `funnels.working_hours_*` vira override opcional.
-- Endpoint `/api/internal/ai-replay` para reexecutar uma mensagem com prompt novo (debug).
-
-**Frontend:**
-- Tab **IA** no painel de contexto: últimos 10 `ai_debug_logs` da conversa, badge de confiança, prompt usado, tempo de resposta.
-- Botão "🛑 Pausar IA" / "▶ Retomar IA" inline (já existe lógica, só faltam controles visíveis).
-- Página `/ia-debug`: filtro por conversa + replay button.
-- Redesign do `/configuracoes` aba IA: cards visuais de safety, A/B, limites.
-
----
-
-## Onda 4 — Polimento e qualidade
-
-- Tab **Funil** no painel: nó atual, próximos passos, contexto da execução.
-- Sugestões inline na thread ("A IA sugere responder: …" + botão "Enviar").
-- Markdown + atalhos no composer (`/sugerir`, `/pausar`, `/handoff`).
-- Notificações em tempo real (já temos realtime habilitado em `messages`).
-- Limpeza: remover `qualifierReply` (órfão) ou redirecioná-lo para `ai-core`.
-
----
+### 5. Página de diagnóstico rápido (opcional, mas barato)
+- Em `/ia-debug` (já existe), adicionar uma seção "Testar envio para número" que mostra: número digitado → número normalizado → JID que a Evolution receberá → resultado. Acelera triagem quando um caso novo aparecer.
 
 ## Detalhes técnicos
 
-### Arquivos novos
-```text
-src/lib/ai-gateway.server.ts         # provider helper AI SDK
-src/server/ai-core.server.ts         # generateFunnelReply, classifyArea, transcribeAudio
-src/components/inbox/ContextPanel.tsx
-src/components/inbox/ClientMemoryTab.tsx
-src/components/inbox/AIDebugTab.tsx
-src/components/inbox/FunnelTab.tsx
-src/components/inbox/MessageBubble.tsx
-src/components/inbox/ConversationList.tsx
-src/routes/api/internal/ai-replay.ts
-```
+- **Arquivos**: `src/server/whatsapp.functions.ts`, `src/routes/api/public/whatsapp-webhook.ts`, `src/routes/api/public/cron-*.ts`, `src/routes/api/public/workflow-tick.ts`, `src/routes/api/public/instagram-*.ts`, `src/lib/phone.ts` (já tem `normalizeBRPhone` e `phoneVariants`).
+- **Sem mudanças de schema** — só dados (backfill) + código.
+- **Sem novas dependências, sem novos secrets.**
 
-### Arquivos refatorados (cirúrgicos)
-```text
-src/server/funnel-executor.server.ts   # usa ai-core, safety, lock, debug logs
-src/server/workflow-executor.server.ts # callAI → ai-core
-src/server/ai-agent.functions.ts       # qualifierReply → ai-core ou removido
-src/server/intelligence.functions.ts   # sentiment com gate de tamanho
-src/routes/api/public/whatsapp-webhook.ts  # business_hours único
-src/routes/inbox.tsx                   # layout 3 colunas + nova UX
-src/routes/ia-debug.tsx                # filtro + replay
-src/routes/configuracoes.tsx           # aba IA redesenhada
-```
+## Fora do escopo
 
-### Migrations (aditivas)
-- `client_memory`: índice + `last_synced_at`.
-- `ai_debug_logs`: índice composto `(conversation_id, created_at desc)`.
-- Nenhum DROP ou rename.
-
-### Dependências
-- Adicionar: `ai`, `@ai-sdk/openai-compatible`, `zod` (já existe).
-- Nada removido nesta fase.
-
----
-
-## Critérios de sucesso por onda
-
-1. **Onda 1**: enviar mensagem real no WhatsApp → `ai_debug_logs` registra entrada; safety bloqueia palavra proibida; nova Inbox renderiza thread sem regressão.
-2. **Onda 2**: ao 6ª mensagem inbound, `client_memory.summary` atualiza; painel mostra dados.
-3. **Onda 3**: `/ia-debug` mostra logs reais do funil (não só do qualifier); replay reproduz resposta.
-4. **Onda 4**: operador consegue sugerir-pausar-retomar-handoff em 1 clique sem sair do Inbox.
-
----
-
-## Fora de escopo (não faremos agora)
-
-- Mudar provider de IA (continua Lovable AI Gateway).
-- Refatorar Datajud, ZapSign, Calendar, Kanban, Processos.
-- Multi-tenant / multi-workspace.
-- Mobile-specific redesign (responsivo apenas básico).
+- Mudar provedor de WhatsApp ou versão da Evolution API.
+- Refatorar a estrutura de `conversations` / `messages`.
+- Mexer em lógica de IA / funis além de receber o telefone normalizado.

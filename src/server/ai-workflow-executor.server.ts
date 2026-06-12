@@ -10,6 +10,8 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizePhoneForEvolution } from "@/server/whatsapp.functions";
+
 
 const AI_GATEWAY = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
@@ -81,7 +83,7 @@ async function sendText(
     await fetch(`${inst.api_url.replace(/\/$/, "")}/message/sendText/${inst.instance_name}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: inst.api_key },
-      body: JSON.stringify({ number: conv.phone, text }),
+      body: JSON.stringify({ number: normalizePhoneForEvolution(conv.phone), text }),
     });
   } catch { /* non-fatal */ }
 }
@@ -151,7 +153,7 @@ async function sendMedia(
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: inst.api_key },
       body: JSON.stringify({
-        number: conv.phone,
+        number: normalizePhoneForEvolution(conv.phone),
         mediatype: mediaType,
         media: mediaUrl,
         caption,

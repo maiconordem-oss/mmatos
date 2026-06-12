@@ -1331,12 +1331,12 @@ function InboxPage() {
     const { data } = await q;
     const rows = (data ?? []) as Conversation[];
     setConversations(rows);
-    refreshMetrics(rows.filter(c => c.ticket_status !== "archived"));
+    refreshMetrics(rows.filter(c => (c.ticket_status as string) !== "archived"));
   }, [activeInstance, refreshMetrics]);
 
   // Filtrar conversas por status de ticket (exclui arquivadas)
   const filteredConvs = conversations.filter(c => {
-    if (c.ticket_status === "archived") return false;
+    if ((c.ticket_status as string) === "archived") return false;
     const ticketOk = ticketFilter === "all" || (c.ticket_status ?? "pending") === ticketFilter;
     const queueOk = queueFilter === "all"
       || (queueFilter === "sla" ? (hoursUntil(calcSlaDue(c)) ?? 1) <= 0 : queueKind(c) === queueFilter);
@@ -2178,7 +2178,7 @@ function InboxPage() {
         <div className="flex-1 overflow-y-auto bg-white">
           {/* Seção arquivadas — estilo WA Web */}
           {(() => {
-            const archivedConvs = conversations.filter(c => c.ticket_status === "archived");
+            const archivedConvs = conversations.filter(c => (c.ticket_status as string) === "archived");
             if (archivedConvs.length === 0) return null;
             return (
               <>
