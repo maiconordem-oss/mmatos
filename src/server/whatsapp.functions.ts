@@ -1,6 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { normalizeBRPhone, onlyDigits, phoneVariants } from "@/lib/phone";
+
+/**
+ * Normaliza qualquer telefone para o formato canônico BR (13 dígitos) antes de enviar para a Evolution.
+ * Para números fora do BR (que não conseguimos detectar como BR), devolve apenas os dígitos.
+ */
+export function normalizePhoneForEvolution(phone: string | null | undefined): string {
+  const n = normalizeBRPhone(phone);
+  return n || onlyDigits(phone);
+}
+
 
 // Inline helpers (defined inside each handler to avoid serverfn-split issues)
 async function _evo(url: string, key: string, path: string, method: "GET" | "POST" | "DELETE" = "GET", body?: any) {
