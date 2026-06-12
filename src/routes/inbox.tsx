@@ -2178,7 +2178,7 @@ function InboxPage() {
         <div className="flex-1 overflow-y-auto bg-white">
           {/* Seção arquivadas — estilo WA Web */}
           {(() => {
-            const archivedConvs = conversations.filter(c => c.ticket_status === "archived");
+            const archivedConvs = conversations.filter(c => (c.ticket_status as string) === "archived");
             if (archivedConvs.length === 0) return null;
             return (
               <>
