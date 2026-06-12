@@ -248,12 +248,70 @@ export const sendWhatsappMessage = createServerFn({ method: "POST" })
     const url = inst.api_url || creds.url;
     const key = inst.api_key || creds.key;
     if (!url || !key) throw new Error("Configure a URL e API Key da Evolution API na instância ou em Configurações.");
-    const result = await evo(url, key, `/message/sendText/${inst.instance_name}`, "POST", {
-      number: data.phone.replace(/\D/g, ""),
-      text: data.text,
-    });
-    return { result, messageId: _extractMessageId(result) };
+
+    const normalizedPhone = normalizePhoneForEvolution(data.phone);
+
+    // Localizar conversa (qualquer variante do telefone) na MESMA instância para registrar a mensagem
+    const variants = phoneVariants(normalizedPhone);
+    const { data: conv } = await supabase
+      .from("conversations")
+      .select("id, phone")
+      .eq("user_id", userId)
+      .eq("instance_id", inst.id)
+      .in("phone", variants.length ? variants : [normalizedPhone])
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+
+    // Se achou conversa com telefone em formato antigo, atualiza para o canônico
+    if (conv && conv.phone !== normalizedPhone) {
+      await supabase.from("conversations").update({ phone: normalizedPhone }).eq("id", conv.id);
+    }
+
+    // Persistir a mensagem ANTES de enviar (status: pending). Garante que aparece no inbox
+    // mesmo que o echo SEND_MESSAGE não chegue ou chegue num formato divergente.
+    let msgRowId: string | null = null;
+    if (conv?.id) {
+      const nowIso = new Date().toISOString();
+      const { data: inserted } = await supabase
+        .from("messages")
+        .insert({
+          user_id: userId,
+          conversation_id: conv.id,
+          direction: "outbound",
+          content: data.text,
+          status: "pending",
+        })
+        .select("id")
+        .single();
+      msgRowId = inserted?.id ?? null;
+
+      await supabase.from("conversations").update({
+        last_message_at: nowIso,
+        last_message_preview: data.text.slice(0, 80),
+      }).eq("id", conv.id);
+    }
+
+    try {
+      const result = await evo(url, key, `/message/sendText/${inst.instance_name}`, "POST", {
+        number: normalizedPhone,
+        text: data.text,
+      });
+      const messageId = _extractMessageId(result);
+      if (msgRowId) {
+        await supabase.from("messages")
+          .update({ status: "sent", external_id: messageId })
+          .eq("id", msgRowId);
+      }
+      return { result, messageId };
+    } catch (err: any) {
+      if (msgRowId) {
+        await supabase.from("messages").update({ status: "failed" }).eq("id", msgRowId);
+      }
+      throw err;
+    }
   });
+
 
 // ---------- Shared Evolution helpers (usable in server routes) ----------
 
@@ -265,11 +323,12 @@ export async function sendEvolutionText(
   text: string,
 ): Promise<string | null> {
   const result = await _evo(apiUrl, apiKey, `/message/sendText/${instanceName}`, "POST", {
-    number: phone.replace(/\D/g, ""),
+    number: normalizePhoneForEvolution(phone),
     text,
   });
   return _extractMessageId(result);
 }
+
 
 export async function syncInstanceWebhookEvents(
   apiUrl: string,
